@@ -53,7 +53,7 @@ export function SideSheet({ trigger, title, children }: { trigger: string; title
   return (
     <>
       <button type="button" className="btn h-7 px-2.5 text-xs" onClick={() => ref.current?.showModal()}>{trigger}</button>
-      <dialog ref={ref} className="sheet-in fixed inset-y-0 left-auto right-0 m-0 h-screen max-h-none w-[440px] max-w-[92vw] border-l border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/40 backdrop:backdrop-blur-[2px]"
+      <dialog ref={ref} className="sheet-in fixed inset-y-0 left-auto right-0 m-0 h-screen max-h-none w-[440px] max-w-[92vw] border-l text-left border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/40 backdrop:backdrop-blur-[2px]"
         onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
         <header className="flex items-center gap-3 border-b border-line px-5 py-4">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"><PanelRight className="h-[18px] w-[18px]" aria-hidden /></span>
@@ -77,7 +77,7 @@ export function ClampText({ text, title = 'Details', max = 64 }: { text: string;
         <span className="truncate" title={text}>{text}</span>
         <button type="button" className="shrink-0 text-xs font-medium text-accent hover:underline" onClick={() => ref.current?.showModal()}>See more</button>
       </span>
-      <dialog ref={ref} className="w-[540px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
+      <dialog ref={ref} className="w-[540px] max-w-[92vw] overflow-hidden rounded-xl text-left border border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
         onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
         <header className="flex items-center gap-3 border-b border-line px-6 py-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning-soft text-warning"><FileText className="h-5 w-5" aria-hidden /></span>

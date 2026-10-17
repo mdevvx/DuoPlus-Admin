@@ -42,6 +42,7 @@ export function ConfirmAction({
   const [needsCode, setNeedsCode] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [invalid, setInvalid] = useState<Record<string, string>>({});
   const [pending, start] = useTransition();
   const toast = useToast();
   const router = useRouter();
@@ -52,9 +53,20 @@ export function ConfirmAction({
   useEffect(() => { if (needsCode) codeRef.current?.focus(); }, [needsCode]);
 
   function resetAll() {
-    setValues(initial()); setReason(''); setTyped(''); setCode(''); setNeedsCode(false); setCodeError(null); setError(null);
+    setValues(initial()); setReason(''); setTyped(''); setCode(''); setNeedsCode(false); setCodeError(null); setError(null); setInvalid({});
   }
   function close(reset = true) { ref.current?.close(); if (reset) resetAll(); }
+
+  /** Inline validation (replaces the browser's native bubble). Returns true when everything required is filled. */
+  function validate() {
+    const bad: Record<string, string> = {};
+    for (const f of fields) if (!f.optional && f.type !== 'select' && !(values[f.name] ?? '').trim()) bad[f.name] = 'This field is required.';
+    if (reasonRequired && reason.trim().length < 5) bad.reason = 'Give a short reason (at least 5 characters).';
+    setInvalid(bad);
+    const first = Object.keys(bad)[0];
+    if (first) ref.current?.querySelector<HTMLElement>(`[name="${first}"]`)?.focus();
+    return !first;
+  }
 
   function submit() {
     setError(null); setCodeError(null);
@@ -85,11 +97,11 @@ export function ConfirmAction({
       <button type="button" className={clsx('btn', small ? '' : 'h-9', danger && 'text-danger')} onClick={() => ref.current?.showModal()}>{label}</button>
       <dialog
         ref={ref}
-        className="w-[500px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
+        className="w-[500px] max-w-[92vw] overflow-hidden rounded-xl text-left border border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
         onClick={(e) => { if (e.target === ref.current && !pending) close(false); }}
         onCancel={(e) => { if (pending) e.preventDefault(); }}
       >
-        <form onSubmit={(e) => { e.preventDefault(); if (!pending && typedOk && codeOk) submit(); }}>
+        <form noValidate onSubmit={(e) => { e.preventDefault(); if (!pending && typedOk && codeOk && validate()) submit(); }}>
           <header className="flex items-start gap-3 border-b border-line px-6 py-4">
             <span className={clsx('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', danger ? 'bg-danger-soft text-danger' : 'bg-accent-soft text-accent')}>
               <Icon className="h-5 w-5" aria-hidden />
@@ -110,15 +122,20 @@ export function ConfirmAction({
                     {f.options?.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                 ) : (
-                  <input className="input" type={f.type ?? 'text'} autoComplete={f.type === 'password' ? 'new-password' : 'off'} min={f.min} max={f.max} placeholder={f.placeholder}
-                    value={values[f.name] ?? ''} onChange={(e) => setValues({ ...values, [f.name]: e.target.value })} required={!f.optional} />
+                  <input name={f.name} className={clsx('input', invalid[f.name] && 'border-danger')} type={f.type ?? 'text'} autoComplete={f.type === 'password' ? 'new-password' : 'off'} min={f.min} max={f.max} placeholder={f.placeholder}
+                    value={values[f.name] ?? ''} onChange={(e) => { setValues({ ...values, [f.name]: e.target.value }); setInvalid(({ [f.name]: _, ...r }) => r); }} aria-invalid={!!invalid[f.name]} />
                 )}
+                {invalid[f.name] && <span role="alert" className="mt-1 block text-[12.5px] text-danger">{invalid[f.name]}</span>}
               </label>
             ))}
 
             <label className="block">
               <span className={labelCls}>Reason{reasonRequired && <span className="text-danger"> *</span>} <span className="font-normal text-muted">{reasonRequired ? '· saved in the audit log' : '· optional'}</span></span>
-              <textarea className="input h-20 resize-none py-2" value={reason} onChange={(e) => setReason(e.target.value)} required={reasonRequired} minLength={reasonRequired ? 5 : undefined} maxLength={500} placeholder="Why are you making this change?" />
+              <textarea name="reason" className={clsx('input h-24 resize-none py-2', invalid.reason && 'border-danger')} value={reason} onChange={(e) => { setReason(e.target.value); setInvalid(({ reason: _, ...r }) => r); }} maxLength={500} aria-invalid={!!invalid.reason} placeholder="Why are you making this change?" />
+              <span className="mt-1 flex justify-between text-[12.5px]">
+                <span role={invalid.reason ? 'alert' : undefined} className="text-danger">{invalid.reason}</span>
+                <span className="num text-muted">{reason.length}/500</span>
+              </span>
             </label>
 
             {typeToConfirm && (
@@ -137,12 +154,12 @@ export function ConfirmAction({
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-accent"><KeyRound className="h-[18px] w-[18px]" aria-hidden /></span>
                   <div>
                     <div className="text-[13.5px] font-semibold text-accent">Confirm it&apos;s you</div>
-                    <p className="mt-0.5 text-[13px] text-muted">For your security, enter the 6-digit code from your authenticator app. It is needed because your last check was over 10 minutes ago.</p>
+                    <p className="mt-0.5 text-[13px] text-muted">For your security, enter the 6-digit code from your authenticator app. This action always needs a recent check.</p>
                   </div>
                 </div>
                 <input ref={codeRef} className={clsx('input num mt-3 h-11 text-center text-lg tracking-[0.5em]', codeError && 'border-danger')} value={code}
                   onChange={(e) => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setCodeError(null); }}
-                  inputMode="numeric" maxLength={6} autoComplete="one-time-code" placeholder="••••••" aria-label="Authenticator code" aria-invalid={!!codeError} required />
+                  inputMode="numeric" maxLength={6} autoComplete="one-time-code" placeholder="••••••" aria-label="Authenticator code" aria-invalid={!!codeError} />
                 {codeError && <p role="alert" className="mt-2 text-[13px] text-danger">{codeError} Try the current code from your app.</p>}
               </div>
             )}

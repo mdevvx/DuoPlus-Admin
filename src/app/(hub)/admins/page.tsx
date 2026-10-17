@@ -19,7 +19,9 @@ export default async function AdminsPage() {
   const assigned = must(await db.from('hub_admin_products').select('admin_id,product_slug,role'), 'assignments');
   const products = must(await db.from('hub_products').select('slug,name'), 'products').filter((p: { slug: string }) => MODULE_BY_SLUG[p.slug]);
 
-  const productFields = (current: Record<string, string>) =>
+  const productName: Record<string, string> = Object.fromEntries(products.map((p: { slug: string; name: string }) => [p.slug, p.name]));
+
+  const productFields =(current: Record<string, string>) =>
     products.map((p: { slug: string; name: string }) => ({
       name: `prod_${p.slug}`, label: `${p.name} access`, type: 'select' as const, defaultValue: current[p.slug] ?? 'none',
       options: [['none', 'No access'], ['admin', 'Admin']] as [string, string][],
@@ -45,7 +47,15 @@ export default async function AdminsPage() {
                 <Tr key={a.id}>
                   <td className="td"><div className="font-medium">{a.display_name ?? a.email}</div><div className="text-xs text-muted">{a.email}</div></td>
                   <td className="td"><Badge tone={a.role === 'owner' ? 'info' : 'neutral'}>{roleLabel(a.role)}</Badge></td>
-                  <td className="td text-muted">{a.role === 'owner' ? 'All' : mine.map((x: { product_slug: string; role: string }) => `${x.product_slug} (${roleLabel(x.role)})`).join(', ') || 'None'}</td>
+                  <td className="td">
+                    {a.role === 'owner' ? <Badge tone="info">All products</Badge> : mine.length === 0 ? <span className="text-muted">None</span> : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {mine.map((x: { product_slug: string; role: string }) => (
+                          <Badge key={x.product_slug} tone="neutral">{productName[x.product_slug] ?? x.product_slug}</Badge>
+                        ))}
+                      </div>
+                    )}
+                  </td>
                   <td className="td">{a.active ? <Badge tone="success">Active</Badge> : <Badge tone="danger">Deactivated</Badge>}</td>
                   <td className="td num">{dateTime(a.last_login_at)}</td>
                   <td className="td text-right">
