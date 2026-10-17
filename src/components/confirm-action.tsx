@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { AlertTriangle, Check, KeyRound, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, Check, KeyRound, ShieldCheck } from 'lucide-react';
+import { ModalHeader } from './modal-header';
 import { useToast } from './toast';
 
 export interface ActionResultClient { ok: boolean; message?: string; error?: string; needsStepUp?: boolean; stepUpInvalid?: boolean }
@@ -102,18 +103,9 @@ export function ConfirmAction({
         onCancel={(e) => { if (pending) e.preventDefault(); }}
       >
         <form noValidate onSubmit={(e) => { e.preventDefault(); if (!pending && typedOk && codeOk && validate()) submit(); }}>
-          <header className="flex items-start gap-3 border-b border-line px-6 py-4">
-            <span className={clsx('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', danger ? 'bg-danger-soft text-danger' : 'bg-accent-soft text-accent')}>
-              <Icon className="h-5 w-5" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-[15px] font-semibold leading-6">{title}</h3>
-              {description && <p className="mt-0.5 text-[13px] text-muted">{description}</p>}
-            </div>
-            <button type="button" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-ink" aria-label="Close" onClick={() => close(false)}><X className="h-4 w-4" /></button>
-          </header>
+          <ModalHeader icon={Icon} tone={danger ? 'danger' : 'accent'} title={title} description={description} onClose={() => close(false)} />
 
-          <div className="space-y-4 px-6 py-5">
+          <div className="space-y-4 px-5 py-5">
             {fields.map((f) => (
               <label key={f.name} className="block">
                 <span className={labelCls}>{f.label}{!f.optional && f.type !== 'select' && <span className="text-danger"> *</span>}</span>
@@ -167,7 +159,7 @@ export function ConfirmAction({
             {error && <p role="alert" className="rounded-lg bg-danger-soft px-3.5 py-2.5 text-[13px] text-danger">{error}</p>}
           </div>
 
-          <footer className="flex items-center justify-end gap-2 border-t border-line bg-subtle px-6 py-3.5">
+          <footer className="flex items-center justify-end gap-2 border-t border-line bg-subtle px-5 py-3.5">
             <button type="button" className="btn" onClick={() => close()} disabled={pending}>Cancel</button>
             <button type="submit" disabled={pending || !typedOk || !codeOk} className={clsx('btn min-w-[96px]', danger ? 'btn-danger' : 'btn-primary')}>
               {pending ? 'Working…' : needsCode ? 'Verify and confirm' : 'Confirm'}

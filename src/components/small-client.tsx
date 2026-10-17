@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Copy, Check, X, PanelRight, FileText } from 'lucide-react';
+import { Copy, Check, PanelRight, FileText } from 'lucide-react';
+import { ModalHeader } from './modal-header';
 
 /** Discord IDs are strings; show them monospaced and copyable. */
 export function CopyId({ value }: { value: string }) {
@@ -55,12 +56,8 @@ export function SideSheet({ trigger, title, children }: { trigger: string; title
       <button type="button" className="btn h-7 px-2.5 text-xs" onClick={() => ref.current?.showModal()}>{trigger}</button>
       <dialog ref={ref} className="sheet-in fixed inset-y-0 left-auto right-0 m-0 h-screen max-h-none w-[440px] max-w-[92vw] border-l text-left border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/40 backdrop:backdrop-blur-[2px]"
         onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
-        <header className="flex items-center gap-3 border-b border-line px-5 py-4">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"><PanelRight className="h-[18px] w-[18px]" aria-hidden /></span>
-          <h3 className="min-w-0 flex-1 truncate text-[15px] font-semibold">{title}</h3>
-          <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-ink" aria-label="Close" onClick={() => ref.current?.close()}><X className="h-4 w-4" /></button>
-        </header>
-        <div className="thin-scroll h-[calc(100vh-69px)] overflow-auto p-5">{children}</div>
+        <ModalHeader icon={PanelRight} title={title} onClose={() => ref.current?.close()} />
+        <div className="thin-scroll h-[calc(100vh-73px)] overflow-auto p-5">{children}</div>
       </dialog>
     </>
   );
@@ -79,13 +76,9 @@ export function ClampText({ text, title = 'Details', max = 64 }: { text: string;
       </span>
       <dialog ref={ref} className="w-[540px] max-w-[92vw] overflow-hidden rounded-xl text-left border border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
         onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
-        <header className="flex items-center gap-3 border-b border-line px-6 py-4">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning-soft text-warning"><FileText className="h-5 w-5" aria-hidden /></span>
-          <h3 className="min-w-0 flex-1 truncate text-[15px] font-semibold">{title}</h3>
-          <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-ink" aria-label="Close" onClick={() => ref.current?.close()}><X className="h-4 w-4" /></button>
-        </header>
-        <p className="thin-scroll max-h-[55vh] overflow-auto whitespace-pre-wrap break-words px-6 py-5 text-[13.5px] leading-6">{text}</p>
-        <footer className="flex items-center justify-end gap-2 border-t border-line bg-subtle px-6 py-3.5">
+        <ModalHeader icon={FileText} tone="warning" title={title} onClose={() => ref.current?.close()} />
+        <p className="thin-scroll max-h-[55vh] overflow-auto whitespace-pre-wrap break-words px-5 py-5 text-[13.5px] leading-6">{text}</p>
+        <footer className="flex items-center justify-end gap-2 border-t border-line bg-subtle px-5 py-3.5">
           <button type="button" className="btn" onClick={async () => { try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ } }}>
             {copied ? <Check className="h-4 w-4 text-success" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />} {copied ? 'Copied' : 'Copy'}
           </button>

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import clsx from 'clsx';
-import { AlertTriangle, CheckCircle2, CircleDashed, Info, XCircle, Inbox, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Clock, Crown, UserCog } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Tag, Info, XCircle, Inbox, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Clock, Crown, UserCog } from 'lucide-react';
 import { Icon } from './icons';
 import { roleLabel } from '@/lib/roles';
 import { relative } from '@/lib/format';
@@ -13,7 +13,7 @@ const TONE: Record<Tone, { cls: string; Icon: typeof Info }> = {
   warning: { cls: 'bg-warning-soft text-warning', Icon: AlertTriangle },
   danger: { cls: 'bg-danger-soft text-danger', Icon: XCircle },
   info: { cls: 'bg-info-soft text-info', Icon: Info },
-  neutral: { cls: 'bg-raised text-muted', Icon: CircleDashed },
+  neutral: { cls: 'border border-line bg-subtle text-ink', Icon: Tag },
 };
 
 /** Status is always icon + text, never colour alone. */
