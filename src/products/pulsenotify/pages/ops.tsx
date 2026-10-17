@@ -1,6 +1,5 @@
 import { Badge, Card, EmptyState, ErrorPanel, KV, PageHeader, Pagination, FilterBar, Table, Tr } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
-import { CopyId } from '@/components/small-client';
 import { DateField } from '@/components/date-field';
 import { AuditTable } from '@/components/audit-table';
 import { can } from '@/lib/roles';
@@ -11,8 +10,7 @@ import { resetReminders, setMaintenance } from '../actions';
 import type { RouteCtx } from '@/products/types';
 import { GenericRows, ServerLink, base } from './shared';
 import { guildInfoMap } from '@/lib/discord';
-import { SLUG, str } from '../db';
-import { writeAudit } from '@/lib/audit';
+import { str } from '../db';
 
 export async function SubscriptionsPage() {
   let lists;
@@ -43,12 +41,10 @@ export async function SubscriptionsPage() {
   );
 }
 
-export async function RemindersPage({ role, admin }: RouteCtx) {
+export async function RemindersPage({ role }: RouteCtx) {
   let d;
   try { d = await getReminders(); } catch { return <ErrorPanel message="Could not load reminders." retryHref={`${base}/reminders`} />; }
   const infos = await guildInfoMap([...d.upcoming, ...d.recent].map((r) => String(r.guild_id)));
-  const memberInfos = await guildInfoMap([...new Set(d.memberEmails.map((m) => String(m.guild_id)))]);
-  await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'view.member_emails', target_type: 'reminders', target_id: 'member_emails' });
   const act = (gid: string, label: string) => can(role, 'reminder.send') && <ConfirmAction label="Reset reminders" title={`Reset reminders for ${label}`} action={resetReminders} hidden={{ guildId: gid }}
     description="Resets the reminder counters. The bot sends the next reminder on its own schedule. Limited to once per hour per server." />;
   const table = (rows: typeof d.upcoming, title: string) => rows.length === 0 ? <EmptyState title={`No ${title.toLowerCase()}`} /> : (
@@ -69,28 +65,10 @@ export async function RemindersPage({ role, admin }: RouteCtx) {
   );
   return (
     <>
-      <PageHeader title="Reminders &amp; email" description="Upcoming expiries, Discord DM reminders and the member emails collected per server." updatedAt={new Date()} />
+      <PageHeader title="Reminders &amp; email" description="Upcoming expiries and recent Discord DM reminders." updatedAt={new Date()} />
       <div className="grid gap-4">
         <Card title="Upcoming (next 7 days)">{table(d.upcoming, 'Upcoming reminders')}</Card>
         <Card title="Recently reminded">{table(d.recent, 'Recent reminders')}</Card>
-        <Card title={`Member emails (${d.memberEmailTotal})`} action={<span className="text-xs text-muted">Latest 100 · full emails, this view is audit-logged</span>}>
-          {d.memberEmails.length === 0 ? <EmptyState title="No member emails yet" /> : (
-            <Table label="Member emails">
-              <thead><tr><th className="th">Email</th><th className="th">Server</th><th className="th">Discord user ID</th><th className="th">Added</th></tr></thead>
-              <tbody>{d.memberEmails.map((m) => {
-                const gid = String(m.guild_id);
-                return (
-                  <Tr key={`${gid}-${str(m.discord_user_id)}-${str(m.email)}`}>
-                    <td className="td">{m.email ? <CopyId value={String(m.email)} mono={false} /> : '—'}</td>
-                    <td className="td"><div><ServerLink id={gid} info={memberInfos[gid]} /></div><CopyId value={gid} /></td>
-                    <td className="td">{m.discord_user_id ? <CopyId value={String(m.discord_user_id)} /> : '—'}</td>
-                    <td className="td num whitespace-nowrap">{dateTime(str(m.created_at))}</td>
-                  </Tr>
-                );
-              })}</tbody>
-            </Table>
-          )}
-        </Card>
       </div>
     </>
   );
