@@ -132,9 +132,9 @@ export async function stepUpFresh(userId: string): Promise<boolean> {
  * Dangerous actions: the MFA challenge must be < 10 minutes old. If it is stale, a fresh TOTP `code`
  * is verified here; otherwise a 'stepup' error tells the UI to ask for one.
  */
-export async function ensureStepUp(admin: Admin, permission: Permission, code?: string) {
+export async function ensureStepUp(admin: Admin, permission: Permission, code?: string, always = false) {
   if (!DANGEROUS.has(permission)) return;
-  if (await stepUpFresh(admin.id)) return;
+  if (!always && await stepUpFresh(admin.id)) return;
   if (!code) throw new HubAuthError('stepup', 'Confirm with your authenticator code');
   const res = await verifyTotp(code);
   if (!res.ok) throw new HubAuthError('stepup', res.error);

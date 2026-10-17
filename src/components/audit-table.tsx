@@ -21,11 +21,17 @@ export function AuditTable({ rows, showProduct = true }: { rows: (AuditRow & { s
             <td className="td">{r.reason ? <ClampText text={r.reason} title="Reason" max={48} /> : '—'}</td>
             <td className="td text-right">
               <SideSheet trigger="Details" title={r.action}>
-                <p className="mb-2 text-xs text-muted">{dateTime(r.at)} · {r.admin_email ?? 'system'}{r.ip ? ` · ${r.ip}` : ''}</p>
-                <h4 className="mb-1 text-xs font-semibold uppercase text-muted">Before</h4>
-                <pre className="mb-3 overflow-auto rounded bg-canvas p-2 text-xs">{JSON.stringify(r.before ?? null, null, 2)}</pre>
-                <h4 className="mb-1 text-xs font-semibold uppercase text-muted">After</h4>
-                <pre className="overflow-auto rounded bg-canvas p-2 text-xs">{JSON.stringify(r.after ?? null, null, 2)}</pre>
+                <dl className="mb-5 grid grid-cols-[88px_1fr] gap-x-3 gap-y-2 rounded-lg text-left border border-line bg-canvas p-3 text-sm">
+                  <dt className="text-muted">Time</dt><dd className="num">{dateTime(r.at)}</dd>
+                  <dt className="text-muted">Admin</dt><dd className="break-all">{r.admin_email ?? 'system'}</dd>
+                  {r.ip && <><dt className="text-muted">IP</dt><dd className="font-mono text-xs">{r.ip}</dd></>}
+                  {r.target_type && <><dt className="text-muted">Target</dt><dd className="break-all font-mono text-xs">{r.target_type}:{r.target_id ?? ''}</dd></>}
+                  {r.reason && <><dt className="text-muted">Reason</dt><dd className="break-words">{r.reason}</dd></>}
+                </dl>
+                <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">Before</h4>
+                <pre className="thin-scroll mb-4 max-h-[40vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-line bg-canvas p-3 text-left font-mono text-xs leading-relaxed">{JSON.stringify(r.before ?? null, null, 2)}</pre>
+                <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">After</h4>
+                <pre className="thin-scroll max-h-[40vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-line bg-canvas p-3 text-left font-mono text-xs leading-relaxed">{JSON.stringify(r.after ?? null, null, 2)}</pre>
               </SideSheet>
             </td>
           </Tr>

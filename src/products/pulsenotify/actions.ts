@@ -12,9 +12,12 @@ import { getGuildInfo } from '@/lib/discord';
 
 const base = z.object({ reason, confirm: z.string().optional(), code: z.string().optional() });
 
+/** Actions that always need a fresh authenticator code, even right after sign-in. */
+const ALWAYS_VERIFY = new Set<Permission>(['maintenance.set']);
+
 async function gate(permission: Permission, fd: FormData) {
   const { admin } = await requireAdmin({ product: SLUG, permission });
-  await ensureStepUp(admin, permission, String(fd.get('code') ?? '').trim() || undefined);
+  await ensureStepUp(admin, permission, String(fd.get('code') ?? '').trim() || undefined, ALWAYS_VERIFY.has(permission));
   const meta = await requestMeta();
   return { admin, ...meta, d: base.parse(Object.fromEntries(fd)) };
 }
