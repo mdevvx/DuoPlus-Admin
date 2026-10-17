@@ -1,11 +1,10 @@
-import Link from 'next/link';
 import { Badge, Card, EmptyState, ErrorPanel, KV, PageHeader, Pagination, FilterBar, Table, Tr } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
 import { CopyId } from '@/components/small-client';
 import { DateField } from '@/components/date-field';
 import { AuditTable } from '@/components/audit-table';
 import { can } from '@/lib/roles';
-import { dateTime, maskEmail } from '@/lib/format';
+import { dateTime } from '@/lib/format';
 import { PAGE_SIZE } from '@/lib/validation';
 import { getBotSettings, getMergedAudit, getPlatformHealth, getReminders, getSubscriptionHealth } from '../queries/ops';
 import { resetReminders, setMaintenance } from '../actions';
