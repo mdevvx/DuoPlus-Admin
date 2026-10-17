@@ -52,17 +52,17 @@ export async function attentionCounts() {
 export async function getReminders() {
   const db = pn();
   const now = iso(new Date());
-  const [upcoming, recent, optedOut] = await Promise.all([
+  const [upcoming, recent, members] = await Promise.all([
     db.from(T.billing).select('*').eq('whitelisted', false)
       .or(`and(paid_until.gt.${now},paid_until.lte.${iso(daysFrom(7))}),and(paid_until.is.null,trial_ends_at.gt.${now},trial_ends_at.lte.${iso(daysFrom(7))})`).limit(50),
     db.from(T.billing).select('*').not('last_reminder_at', 'is', null)
       .order('last_reminder_at', { ascending: false, nullsFirst: false }).limit(50),
-    db.from(T.contacts).select('discord_user_id,discord_username,email,opted_out_at').eq('reminders_opt_out', true).order('opted_out_at', { ascending: false }).limit(50),
+    db.from(T.contactEmails).select('guild_id,email,discord_user_id,created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(100),
   ]);
   const ids = [...new Set([...(upcoming.data ?? []), ...(recent.data ?? [])].map((r: Row) => String(r.guild_id)))];
   void ids; // guilds have no name column
   const nameOf: Record<string, string | null> = {};
-  return { upcoming: (upcoming.data ?? []) as Row[], recent: (recent.data ?? []) as Row[], optedOut: (optedOut.data ?? []) as Row[], nameOf };
+  return { upcoming: (upcoming.data ?? []) as Row[], recent: (recent.data ?? []) as Row[], memberEmails: (members.data ?? []) as Row[], memberEmailTotal: members.count ?? 0, nameOf };
 }
 
 // ---------------------------------------------------------------- platform health / maintenance

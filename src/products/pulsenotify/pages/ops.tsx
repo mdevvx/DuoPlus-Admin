@@ -12,7 +12,8 @@ import { resetReminders, setMaintenance } from '../actions';
 import type { RouteCtx } from '@/products/types';
 import { GenericRows, ServerLink, base } from './shared';
 import { guildInfoMap } from '@/lib/discord';
-import { str } from '../db';
+import { SLUG, str } from '../db';
+import { writeAudit } from '@/lib/audit';
 
 export async function SubscriptionsPage() {
   let lists;
@@ -43,22 +44,24 @@ export async function SubscriptionsPage() {
   );
 }
 
-export async function RemindersPage({ role }: RouteCtx) {
+export async function RemindersPage({ role, admin }: RouteCtx) {
   let d;
   try { d = await getReminders(); } catch { return <ErrorPanel message="Could not load reminders." retryHref={`${base}/reminders`} />; }
   const infos = await guildInfoMap([...d.upcoming, ...d.recent].map((r) => String(r.guild_id)));
-  const act = (gid: string, label: string) => can(role, 'reminder.send') && <ConfirmAction label="Send reminder now" title={`Reset reminders for ${label}`} action={resetReminders} hidden={{ guildId: gid }}
+  const memberInfos = await guildInfoMap([...new Set(d.memberEmails.map((m) => String(m.guild_id)))]);
+  await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'view.member_emails', target_type: 'reminders', target_id: 'member_emails' });
+  const act = (gid: string, label: string) => can(role, 'reminder.send') && <ConfirmAction label="Reset reminders" title={`Reset reminders for ${label}`} action={resetReminders} hidden={{ guildId: gid }}
     description="Resets the reminder counters. The bot sends the next reminder on its own schedule. Limited to once per hour per server." />;
   const table = (rows: typeof d.upcoming, title: string) => rows.length === 0 ? <EmptyState title={`No ${title.toLowerCase()}`} /> : (
     <Table label={title}>
-      <thead><tr><th className="th">Server</th><th className="th">Expires</th><th className="th">DMs sent</th><th className="th">Last DM</th><th className="th">Last email</th><th className="th" /></tr></thead>
+      <thead><tr><th className="th">Server</th><th className="th">Expires</th><th className="th">DMs sent</th><th className="th">Last DM</th><th className="th" /></tr></thead>
       <tbody>{rows.map((r) => {
         const gid = String(r.guild_id);
         return (
           <Tr key={gid}>
             <td className="td"><ServerLink id={gid} info={infos[gid]} /></td>
             <td className="td num">{dateTime(str(r.paid_until ?? r.trial_ends_at))}</td><td className="td num">{str(r.reminders_sent) ?? '0'}</td>
-            <td className="td num">{dateTime(str(r.last_reminder_at))}</td><td className="td num">{dateTime(str(r.last_email_at))}</td>
+            <td className="td num">{dateTime(str(r.last_reminder_at))}</td>
             <td className="td text-right">{act(gid, infos[gid]?.name ?? gid)}</td>
           </Tr>
         );
@@ -67,20 +70,25 @@ export async function RemindersPage({ role }: RouteCtx) {
   );
   return (
     <>
-      <PageHeader title="Reminders &amp; email" description="Upcoming expiries and recent DM / email reminders." updatedAt={new Date()} />
+      <PageHeader title="Reminders &amp; email" description="Upcoming expiries, Discord DM reminders and the member emails collected per server." updatedAt={new Date()} />
       <div className="grid gap-4">
         <Card title="Upcoming (next 7 days)">{table(d.upcoming, 'Upcoming reminders')}</Card>
         <Card title="Recently reminded">{table(d.recent, 'Recent reminders')}</Card>
-        <Card title="Opted out of email" action={<span className="text-xs text-muted">Bounce data is not stored in the database</span>}>
-          {d.optedOut.length === 0 ? <EmptyState title="Nobody has opted out" /> : (
-            <Table label="Opted out">
-              <thead><tr><th className="th">User</th><th className="th">Discord ID</th><th className="th">Email</th><th className="th">Opted out</th></tr></thead>
-              <tbody>{d.optedOut.map((c) => (
-                <Tr key={String(c.discord_user_id)}>
-                  <td className="td"><Link className="text-accent hover:underline" data-row-link href={`${base}/customers/${c.discord_user_id}`}>{str(c.discord_username) ?? 'Unknown'}</Link></td>
-                  <td className="td"><CopyId value={String(c.discord_user_id)} /></td><td className="td">{maskEmail(str(c.email))}</td><td className="td num">{dateTime(str(c.opted_out_at))}</td>
-                </Tr>
-              ))}</tbody>
+        <Card title={`Member emails (${d.memberEmailTotal})`} action={<span className="text-xs text-muted">Latest 100 · full emails, this view is audit-logged</span>}>
+          {d.memberEmails.length === 0 ? <EmptyState title="No member emails yet" /> : (
+            <Table label="Member emails">
+              <thead><tr><th className="th">Email</th><th className="th">Server</th><th className="th">Discord user ID</th><th className="th">Added</th></tr></thead>
+              <tbody>{d.memberEmails.map((m) => {
+                const gid = String(m.guild_id);
+                return (
+                  <Tr key={`${gid}-${str(m.discord_user_id)}-${str(m.email)}`}>
+                    <td className="td break-all">{str(m.email)}</td>
+                    <td className="td"><ServerLink id={gid} info={memberInfos[gid]} /></td>
+                    <td className="td">{m.discord_user_id ? <CopyId value={String(m.discord_user_id)} /> : '—'}</td>
+                    <td className="td num whitespace-nowrap">{dateTime(str(m.created_at))}</td>
+                  </Tr>
+                );
+              })}</tbody>
             </Table>
           )}
         </Card>
