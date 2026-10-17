@@ -81,8 +81,8 @@ export async function RemindersPage({ role, admin }: RouteCtx) {
                 const gid = String(m.guild_id);
                 return (
                   <Tr key={`${gid}-${str(m.discord_user_id)}-${str(m.email)}`}>
-                    <td className="td break-all">{str(m.email)}</td>
-                    <td className="td"><ServerLink id={gid} info={memberInfos[gid]} /></td>
+                    <td className="td">{m.email ? <CopyId value={String(m.email)} mono={false} /> : '—'}</td>
+                    <td className="td"><div><ServerLink id={gid} info={memberInfos[gid]} /></div><CopyId value={gid} /></td>
                     <td className="td">{m.discord_user_id ? <CopyId value={String(m.discord_user_id)} /> : '—'}</td>
                     <td className="td num whitespace-nowrap">{dateTime(str(m.created_at))}</td>
                   </Tr>

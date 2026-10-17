@@ -5,12 +5,12 @@ import { Copy, Check, PanelRight, FileText } from 'lucide-react';
 import { ModalHeader } from './modal-header';
 
 /** Discord IDs are strings; show them monospaced and copyable. */
-export function CopyId({ value }: { value: string }) {
+export function CopyId({ value, mono = true }: { value: string; mono?: boolean }) {
   const [done, setDone] = useState(false);
   return (
     <button
       type="button"
-      className="-ml-1 inline-flex items-center gap-1 rounded px-1 font-mono text-xs hover:bg-subtle"
+      className={`-ml-1 inline-flex items-center gap-1 rounded px-1 text-left hover:bg-subtle ${mono ? 'font-mono text-xs' : 'break-all'}`}
       title="Copy ID"
       onClick={async () => {
         try { await navigator.clipboard.writeText(value); setDone(true); setTimeout(() => setDone(false), 1500); } catch { /* clipboard blocked */ }

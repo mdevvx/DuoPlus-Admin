@@ -133,7 +133,7 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
               <tbody>
                 {d.memberEmails.map((m) => (
                   <Tr key={`${str(m.discord_user_id)}-${str(m.email)}`}>
-                    <td className="td break-all">{str(m.email)}</td>
+                    <td className="td">{m.email ? <CopyId value={String(m.email)} mono={false} /> : '—'}</td>
                     <td className="td">{m.discord_user_id ? <CopyId value={String(m.discord_user_id)} /> : '—'}</td>
                     <td className="td num whitespace-nowrap">{dateTime(str(m.created_at))}</td>
                     <td className="td">{num(b?.reminders_sent) > 0 ? <Badge tone="success">DM sent</Badge> : <Badge tone="neutral">Not sent</Badge>}</td>
