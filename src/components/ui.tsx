@@ -173,16 +173,7 @@ export function Pagination({ base, params, page, pageSize, total }: {
   );
 }
 
-/** Filters are a plain GET form: shareable URLs, no client JS needed. */
-export function FilterBar({ action, children }: { action: string; children: ReactNode }) {
-  return (
-    <form method="get" action={action} className="mb-4 flex flex-wrap items-center gap-2.5 rounded-xl border border-line bg-surface p-3 shadow-soft">
-      {children}
-      <button className="btn btn-primary" type="submit">Apply</button>
-      <Link className="btn" href={action}>Reset</Link>
-    </form>
-  );
-}
+export { FilterBar } from './filter-bar';
 
 export function Select({ name, value, options, label }: { name: string; value?: string; options: [string, string][]; label: string }) {
   return (
