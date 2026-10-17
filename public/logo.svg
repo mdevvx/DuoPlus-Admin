@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="DuoPlus Admin">
+  <polygon points="65,15 533,15 585,65 585,533 533,583 65,583 15,533 15,65" fill="#022444"/>
+  <g stroke="#000" stroke-width="14" stroke-linejoin="round" stroke-linecap="round">
+    <!-- top cube (teal) -->
+    <polygon points="297,50 420,122 297,190 175,122" fill="#c8fffb"/>
+    <polygon points="175,122 297,190 297,330 175,262" fill="#0bb3a5"/>
+    <polygon points="297,190 420,122 420,262 297,330" fill="#45dfd3"/>
+    <!-- bottom-left cube (blue) -->
+    <polygon points="175,262 297,332 175,402 50,332" fill="#5fdcff"/>
+    <polygon points="50,332 175,402 175,545 50,475" fill="#0067c5"/>
+    <polygon points="175,402 297,332 297,475 175,545" fill="#0a8bea"/>
+    <!-- bottom-right cube (pink) -->
+    <polygon points="420,262 545,332 420,402 297,332" fill="#ff72ae"/>
+    <polygon points="297,332 420,402 420,545 297,475" fill="#c40d5c"/>
+    <polygon points="420,402 545,332 545,475 420,545" fill="#ff2d8d"/>
+  </g>
+  <g fill="#000"><circle cx="399" cy="205" r="7"/><circle cx="399" cy="227" r="7"/><circle cx="399" cy="249" r="7"/></g>
+</svg>

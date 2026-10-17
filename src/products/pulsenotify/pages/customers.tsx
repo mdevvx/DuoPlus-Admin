@@ -1,0 +1,92 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { Badge, Card, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Pagination, Select, Table, Tr } from '@/components/ui';
+import { ConfirmAction } from '@/components/confirm-action';
+import { CopyId } from '@/components/small-client';
+import { can } from '@/lib/roles';
+import { dateTime, maskEmail, money } from '@/lib/format';
+import { writeAudit } from '@/lib/audit';
+import { PAGE_SIZE, snowflake } from '@/lib/validation';
+import { customerParams, getCustomer, listCustomers } from '../queries/customers';
+import { deleteContact, disableReminders, enableReminders } from '../actions';
+import type { RouteCtx } from '@/products/types';
+import { PaymentsMini, ServerLink, base } from './shared';
+import { guildInfoMap } from '@/lib/discord';
+import { SLUG, str } from '../db';
+
+export async function CustomersPage({ searchParams }: RouteCtx) {
+  const p = customerParams.parse(searchParams);
+  let data;
+  try { data = await listCustomers(p); } catch { return <ErrorPanel message="Could not load customers." retryHref={`${base}/customers`} />; }
+  const path = `${base}/customers`;
+  return (
+    <>
+      <PageHeader title="Customers" description="Discord users with a contact on file. Emails are masked in this list." updatedAt={new Date()} />
+      <FilterBar action={path}>
+        <input className="input w-64" name="q" placeholder="Username, email or Discord ID" defaultValue={p.q} />
+        <Select name="optout" label="Reminders" value={p.optout} options={[['', 'All'], ['0', 'Allowed'], ['1', 'Opted out']]} />
+      </FilterBar>
+      {data.missingTable ? <div className="card"><EmptyState title="Contacts table not found" hint="pulsenotify_user_contacts does not exist yet. Apply the bot's latest database migration, then reload." /></div> : data.rows.length === 0 ? <div className="card"><EmptyState title="No customers match" /></div> : (
+        <Table label="Customers">
+          <thead><tr><th className="th">User</th><th className="th">Discord ID</th><th className="th">Email</th><th className="th">Consent</th><th className="th">Servers paid</th><th className="th text-right">Lifetime</th></tr></thead>
+          <tbody>{data.rows.map((c) => (
+            <Tr key={c.discord_user_id}>
+              <td className="td"><Link className="font-medium text-accent hover:underline" data-row-link href={`${path}/${c.discord_user_id}`}>{str(c.discord_username) ?? 'Unknown'}</Link></td>
+              <td className="td"><CopyId value={c.discord_user_id} /></td>
+              <td className="td">{maskEmail(str(c.email))}</td>
+              <td className="td">{c.reminders_opt_out ? <Badge tone="warning">Opted out</Badge> : c.consented_at ? <Badge tone="success">Consented</Badge> : <Badge>No consent</Badge>}</td>
+              <td className="td num">{c.servers}</td><td className="td num text-right">{money(c.lifetime)}</td>
+            </Tr>
+          ))}</tbody>
+        </Table>
+      )}
+      <Pagination base={path} params={{ q: p.q, optout: p.optout }} page={p.page} pageSize={PAGE_SIZE} total={data.total} />
+    </>
+  );
+}
+
+export async function CustomerDetailPage({ params, role, admin }: RouteCtx) {
+  const id = snowflake.safeParse(params.id);
+  if (!id.success) notFound();
+  const d = await getCustomer(id.data);
+  if (!d) notFound();
+  await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'view.customer', target_type: 'customer', target_id: id.data });
+  const infos = await guildInfoMap(d.paidServers.map((s) => s.guild_id));
+  const c = d.contact;
+  const hidden = { userId: id.data };
+  return (
+    <>
+      <PageHeader title={str(c?.discord_username) ?? `User ${id.data}`} description="Customer detail. Viewing this page is audit-logged." updatedAt={new Date()} />
+      {c && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {can(role, 'contact.optin_out') && (c.reminders_opt_out
+            ? <ConfirmAction label="Re-enable email reminders" title="Re-enable email reminders" action={enableReminders} hidden={hidden} />
+            : <ConfirmAction label="Disable email reminders" title="Disable email reminders" action={disableReminders} hidden={hidden} />)}
+          {can(role, 'contact.delete') && <ConfirmAction label="Delete contact" danger title="Delete contact (data request)" action={deleteContact} hidden={hidden} typeToConfirm={id.data}
+            description="Removes the stored email and consent record. This cannot be undone." />}
+        </div>
+      )}
+      <div className="mb-4 grid grid-cols-2 gap-4">
+        <Card title="Contact">
+          {c ? <KV items={[
+            ['Discord ID', <CopyId key="i" value={id.data} />], ['Username', str(c.discord_username)], ['Email', `${str(c.email)}${c.email_verified ? ' (verified)' : ' (unverified)'}`],
+            ['Consented', dateTime(str(c.consented_at))], ['Reminders', c.reminders_opt_out ? `Opted out ${dateTime(str(c.opted_out_at))}` : 'Allowed'],
+          ]} /> : <EmptyState title="No contact on file" hint="This user has payments but no stored email." />}
+        </Card>
+        <Card title="Summary">
+          <KV items={[['Lifetime paid', money(d.lifetime)], ['Payments', String(d.payments.length)], ['Servers paid for', String(d.paidServers.length)]]} />
+        </Card>
+      </div>
+      <div className="grid gap-4">
+        <Card title="Servers">
+          {d.paidServers.length === 0 && d.owned.length === 0 ? <EmptyState title="No servers" /> : (
+            <ul className="space-y-1">
+              {d.paidServers.map((g) => <li key={`p${g.guild_id}`} className="flex items-center gap-2"><ServerLink id={g.guild_id} info={infos[g.guild_id]} /> <span className="text-xs text-muted">paid for</span></li>)}
+            </ul>
+          )}
+        </Card>
+        <Card title="Payments"><PaymentsMini rows={d.payments} /></Card>
+      </div>
+    </>
+  );
+}
