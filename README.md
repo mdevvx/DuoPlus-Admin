@@ -54,6 +54,8 @@ Everything lives in your **existing Supabase project** and database, in two sche
 
 ## Deploy (Vercel or Railway)
 
+The project uses **pnpm** (`pnpm-lock.yaml`). Hosts that run pnpm 9 work as long as there is no `pnpm-workspace.yaml` without a `packages:` list (newer pnpm versions can create one; delete it).
+
 Set the env vars above on the host, set `HUB_URL` to the deployed origin, build with `npm run build`, start with `npm start`.
 Sign in once with `INITIAL_OWNER_EMAIL` to create the first owner.
 
