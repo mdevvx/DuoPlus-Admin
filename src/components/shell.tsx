@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import clsx from 'clsx';
-import { Search, Sun, Moon, Monitor, ChevronsUpDown, LogOut, ShieldCheck, Keyboard, Check, ChevronRight, UserPen } from 'lucide-react';
+import { Search, Sun, Moon, Monitor, ChevronsUpDown, LogOut, ShieldCheck, Keyboard, Check, ChevronRight, UserPen, X } from 'lucide-react';
 import { Icon, ProductMark } from './icons';
 import { setTheme } from '@/app/(hub)/actions';
 import { signOutAction, signOutEverywhereAction } from '@/app/(auth)/actions';
@@ -284,27 +284,35 @@ function Palette({ products, onClose }: { products: ShellProduct[]; onClose: () 
 
   const go = (h?: Hit) => { if (h) { onClose(); router.push(h.href); } };
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-24" onMouseDown={onClose}>
-      <div role="dialog" aria-label="Command palette" className="w-[560px] overflow-hidden rounded-xl border border-line bg-raised shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
-        <input ref={input} className="h-11 w-full border-b border-line bg-transparent px-4 outline-none" placeholder="Jump to a product, server, customer or payment…"
-          value={q} onChange={(e) => { setQ(e.target.value); setSel(0); }}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') onClose();
-            if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => Math.min(s + 1, shown.length - 1)); }
-            if (e.key === 'ArrowUp') { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)); }
-            if (e.key === 'Enter') go(shown[sel]);
-          }} />
-        <ul className="max-h-80 overflow-auto p-1">
-          {shown.length === 0 && <li className="px-3 py-6 text-center text-muted">No matches</li>}
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-24 backdrop-blur-[2px]" onMouseDown={onClose}>
+      <div role="dialog" aria-label="Command palette" className="dialog-in w-[600px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3 border-b border-line px-4">
+          <Search className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+          <input ref={input} className="h-12 w-full bg-transparent outline-none placeholder:text-muted" placeholder="Jump to a product, server, customer or payment…"
+            value={q} onChange={(e) => { setQ(e.target.value); setSel(0); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') onClose();
+              if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => Math.min(s + 1, shown.length - 1)); }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)); }
+              if (e.key === 'Enter') go(shown[sel]);
+            }} />
+          <kbd className="rounded border border-line bg-subtle px-1.5 py-0.5 text-[11px] text-muted">Esc</kbd>
+        </div>
+        <ul className="thin-scroll max-h-80 overflow-auto p-2">
+          {shown.length === 0 && <li className="px-3 py-8 text-center text-muted">No matches</li>}
           {shown.map((h, i) => (
             <li key={h.href + h.label + i}>
-              <button className={clsx('flex w-full items-center justify-between rounded px-3 py-2 text-left', i === sel && 'bg-accent-soft')} onMouseEnter={() => setSel(i)} onClick={() => go(h)}>
-                <span>{h.label}{h.sub && <span className="ml-2 text-xs text-muted">{h.sub}</span>}</span>
-                <span className="text-xs text-muted">{h.type}</span>
+              <button className={clsx('flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left', i === sel && 'bg-accent-soft')} onMouseEnter={() => setSel(i)} onClick={() => go(h)}>
+                <span className="min-w-0 truncate">{h.label}{h.sub && <span className="ml-2 font-mono text-xs text-muted">{h.sub}</span>}</span>
+                <span className="ml-3 shrink-0 rounded bg-subtle px-2 py-0.5 text-[11px] font-medium text-muted">{h.type}</span>
               </button>
             </li>
           ))}
         </ul>
+        <div className="flex items-center gap-4 border-t border-line bg-subtle px-4 py-2.5 text-xs text-muted">
+          <span><kbd className="rounded border border-line bg-surface px-1">↑</kbd> <kbd className="rounded border border-line bg-surface px-1">↓</kbd> move</span>
+          <span><kbd className="rounded border border-line bg-surface px-1">↵</kbd> open</span>
+        </div>
       </div>
     </div>
   );
@@ -319,10 +327,16 @@ function ShortcutSheet({ products, onClose }: { products: ShellProduct[]; onClos
   const rows: [string, string][] = [['Ctrl/⌘ K', 'Command palette'], ['?', 'This sheet'], ['g then h', 'Home'], ['g then a', 'Audit log'], ['↑ ↓', 'Move between table rows']];
   for (const n of products[0]?.nav ?? []) if (n.shortcut) rows.push([`g then ${n.shortcut}`, n.label]);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onMouseDown={onClose}>
-      <div role="dialog" aria-label="Keyboard shortcuts" className="w-96 rounded-xl border border-line bg-raised p-6 shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
-        <h3 className="mb-3 font-semibold">Keyboard shortcuts</h3>
-        <dl className="space-y-2">{rows.map(([k, d]) => <div key={k} className="flex justify-between"><dt className="text-muted">{d}</dt><dd><kbd className="rounded border border-line px-1.5 text-xs">{k}</kbd></dd></div>)}</dl>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px]" onMouseDown={onClose}>
+      <div role="dialog" aria-label="Keyboard shortcuts" className="dialog-in w-[440px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+        <header className="flex items-center gap-3 border-b border-line px-6 py-4">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"><Keyboard className="h-5 w-5" aria-hidden /></span>
+          <h3 className="flex-1 text-[15px] font-semibold">Keyboard shortcuts</h3>
+          <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-ink" aria-label="Close" onClick={onClose}><X className="h-4 w-4" /></button>
+        </header>
+        <dl className="divide-y divide-line px-6 py-2">
+          {rows.map(([k, d]) => <div key={k} className="flex items-center justify-between py-2.5"><dt>{d}</dt><dd><kbd className="rounded border border-line bg-subtle px-2 py-0.5 text-xs font-medium">{k}</kbd></dd></div>)}
+        </dl>
       </div>
     </div>
   );

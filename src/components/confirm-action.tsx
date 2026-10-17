@@ -1,20 +1,23 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { AlertTriangle, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Check, KeyRound, ShieldCheck, X } from 'lucide-react';
 import { useToast } from './toast';
 
-export interface ActionResultClient { ok: boolean; message?: string; error?: string; needsStepUp?: boolean }
+export interface ActionResultClient { ok: boolean; message?: string; error?: string; needsStepUp?: boolean; stepUpInvalid?: boolean }
 interface Field {
   name: string; label: string; type?: 'number' | 'text' | 'select' | 'password'; min?: number; max?: number; placeholder?: string;
   options?: [string, string][]; defaultValue?: string; optional?: boolean;
 }
 
+const labelCls = 'mb-1.5 block text-[13px] font-medium';
+
 /**
- * Confirmation dialog for mutations: extra fields, mandatory reason, typed confirmation and
- * (when the server says the MFA challenge is stale) an authenticator code. All of it is re-validated server-side.
+ * Confirmation dialog for mutations: extra fields, mandatory reason, typed confirmation and, when the
+ * server says the MFA check is stale, an authenticator code. Everything the admin typed stays in place
+ * while the dialog asks for the code or shows an error. All of it is re-validated server-side.
  */
 export function ConfirmAction({
   label, title, description, action, hidden, fields = [], typeToConfirm, reasonRequired = true, danger = false, small = true,
@@ -30,80 +33,129 @@ export function ConfirmAction({
   small?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [needsCode, setNeedsCode] = useState(false);
+  const codeRef = useRef<HTMLInputElement>(null);
+  const initial = () => Object.fromEntries(fields.map((f) => [f.name, f.defaultValue ?? (f.type === 'select' ? f.options?.[0]?.[0] ?? '' : '')]));
+  const [values, setValues] = useState<Record<string, string>>(initial);
+  const [reason, setReason] = useState('');
   const [typed, setTyped] = useState('');
+  const [code, setCode] = useState('');
+  const [needsCode, setNeedsCode] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
   const toast = useToast();
   const router = useRouter();
   const typedOk = !typeToConfirm || typed.trim() === typeToConfirm;
+  const codeOk = !needsCode || /^\d{6}$/.test(code);
 
-  function close() { ref.current?.close(); setError(null); setTyped(''); }
+  // Move the cursor to the code box the moment it appears.
+  useEffect(() => { if (needsCode) codeRef.current?.focus(); }, [needsCode]);
 
-  function submit(fd: FormData) {
-    setError(null);
+  function resetAll() {
+    setValues(initial()); setReason(''); setTyped(''); setCode(''); setNeedsCode(false); setCodeError(null); setError(null);
+  }
+  function close(reset = true) { ref.current?.close(); if (reset) resetAll(); }
+
+  function submit() {
+    setError(null); setCodeError(null);
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(hidden)) fd.set(k, v);
+    for (const f of fields) fd.set(f.name, values[f.name] ?? '');
+    fd.set('reason', reason);
+    if (typeToConfirm) fd.set('confirm', typed);
+    if (needsCode || code) fd.set('code', code);
     start(async () => {
       const res = await action(fd);
       if (res.ok) {
         toast(true, res.message ?? 'Done');
         close();
-        setNeedsCode(false);
         router.refresh();
+      } else if (res.needsStepUp) {
+        setNeedsCode(true);                       // show the code box; keep everything else as typed
+        if (res.stepUpInvalid) { setCodeError(res.error ?? 'That code is not valid.'); setCode(''); codeRef.current?.focus(); }
       } else {
-        if (res.needsStepUp) setNeedsCode(true);
-        setError(res.error ?? 'Failed');
+        setError(res.error ?? 'Something went wrong.');
       }
     });
   }
 
+  const Icon = danger ? AlertTriangle : ShieldCheck;
   return (
     <>
       <button type="button" className={clsx('btn', small ? '' : 'h-9', danger && 'text-danger')} onClick={() => ref.current?.showModal()}>{label}</button>
-      <dialog ref={ref} className="w-[480px] rounded-xl border border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/50" onClose={() => setError(null)}>
-        <form action={submit} className="space-y-4 p-6">
-          <div className="flex items-start gap-3">
-            <span className={clsx('flex h-9 w-9 shrink-0 items-center justify-center rounded', danger ? 'bg-danger-soft text-danger' : 'bg-accent-soft text-accent')}>
-              {danger ? <AlertTriangle className="h-[18px] w-[18px]" aria-hidden /> : <ShieldCheck className="h-[18px] w-[18px]" aria-hidden />}
+      <dialog
+        ref={ref}
+        className="w-[500px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
+        onClick={(e) => { if (e.target === ref.current && !pending) close(false); }}
+        onCancel={(e) => { if (pending) e.preventDefault(); }}
+      >
+        <form onSubmit={(e) => { e.preventDefault(); if (!pending && typedOk && codeOk) submit(); }}>
+          <header className="flex items-start gap-3 border-b border-line px-6 py-4">
+            <span className={clsx('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', danger ? 'bg-danger-soft text-danger' : 'bg-accent-soft text-accent')}>
+              <Icon className="h-5 w-5" aria-hidden />
             </span>
-            <h3 className="pt-1.5 text-base font-semibold">{title}</h3>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-[15px] font-semibold leading-6">{title}</h3>
+              {description && <p className="mt-0.5 text-[13px] text-muted">{description}</p>}
+            </div>
+            <button type="button" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-ink" aria-label="Close" onClick={() => close(false)}><X className="h-4 w-4" /></button>
+          </header>
+
+          <div className="space-y-4 px-6 py-5">
+            {fields.map((f) => (
+              <label key={f.name} className="block">
+                <span className={labelCls}>{f.label}{!f.optional && f.type !== 'select' && <span className="text-danger"> *</span>}</span>
+                {f.type === 'select' ? (
+                  <select className="input" value={values[f.name] ?? ''} onChange={(e) => setValues({ ...values, [f.name]: e.target.value })}>
+                    {f.options?.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                ) : (
+                  <input className="input" type={f.type ?? 'text'} autoComplete={f.type === 'password' ? 'new-password' : 'off'} min={f.min} max={f.max} placeholder={f.placeholder}
+                    value={values[f.name] ?? ''} onChange={(e) => setValues({ ...values, [f.name]: e.target.value })} required={!f.optional} />
+                )}
+              </label>
+            ))}
+
+            <label className="block">
+              <span className={labelCls}>Reason{reasonRequired && <span className="text-danger"> *</span>} <span className="font-normal text-muted">{reasonRequired ? '· saved in the audit log' : '· optional'}</span></span>
+              <textarea className="input h-20 resize-none py-2" value={reason} onChange={(e) => setReason(e.target.value)} required={reasonRequired} minLength={reasonRequired ? 5 : undefined} maxLength={500} placeholder="Why are you making this change?" />
+            </label>
+
+            {typeToConfirm && (
+              <label className="block">
+                <span className={labelCls}>Type <b className="rounded bg-subtle px-1.5 py-0.5 font-mono text-xs">{typeToConfirm}</b> to confirm</span>
+                <span className="relative block">
+                  <input className="input pr-9" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
+                  {typedOk && typed && <Check className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-success" aria-label="Matches" />}
+                </span>
+              </label>
+            )}
+
+            {needsCode && (
+              <div className="rise rounded-lg border border-line bg-accent-soft p-4">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-accent"><KeyRound className="h-[18px] w-[18px]" aria-hidden /></span>
+                  <div>
+                    <div className="text-[13.5px] font-semibold text-accent">Confirm it&apos;s you</div>
+                    <p className="mt-0.5 text-[13px] text-muted">For your security, enter the 6-digit code from your authenticator app. It is needed because your last check was over 10 minutes ago.</p>
+                  </div>
+                </div>
+                <input ref={codeRef} className={clsx('input num mt-3 h-11 text-center text-lg tracking-[0.5em]', codeError && 'border-danger')} value={code}
+                  onChange={(e) => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setCodeError(null); }}
+                  inputMode="numeric" maxLength={6} autoComplete="one-time-code" placeholder="••••••" aria-label="Authenticator code" aria-invalid={!!codeError} required />
+                {codeError && <p role="alert" className="mt-2 text-[13px] text-danger">{codeError} Try the current code from your app.</p>}
+              </div>
+            )}
+
+            {error && <p role="alert" className="rounded-lg bg-danger-soft px-3.5 py-2.5 text-[13px] text-danger">{error}</p>}
           </div>
-          {description && <p className="text-muted">{description}</p>}
-          {Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
-          {fields.map((f) => (
-            <label key={f.name} className="block">
-              <span className="mb-1 block text-xs text-muted">{f.label}</span>
-              {f.type === 'select' ? (
-                <select className="input" name={f.name} defaultValue={f.defaultValue}>
-                  {f.options?.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-              ) : (
-                <input className="input" name={f.name} type={f.type ?? 'text'} autoComplete={f.type === 'password' ? 'new-password' : undefined} min={f.min} max={f.max} placeholder={f.placeholder} defaultValue={f.defaultValue} required={!f.optional} />
-              )}
-            </label>
-          ))}
-          <label className="block">
-            <span className="mb-1 block text-xs text-muted">Reason {reasonRequired ? '(required, saved in the audit log)' : '(optional)'}</span>
-            <textarea className="input h-16 py-1.5" name="reason" required={reasonRequired} minLength={reasonRequired ? 5 : undefined} maxLength={500} />
-          </label>
-          {typeToConfirm && (
-            <label className="block">
-              <span className="mb-1 block text-xs text-muted">Type <b className="text-ink">{typeToConfirm}</b> to confirm</span>
-              <input className="input" name="confirm" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
-            </label>
-          )}
-          {needsCode && (
-            <label className="block">
-              <span className="mb-1 block text-xs text-muted">Authenticator code (your last check was over 10 minutes ago)</span>
-              <input className="input num" name="code" inputMode="numeric" pattern="\d{6}" maxLength={6} autoComplete="one-time-code" required />
-            </label>
-          )}
-          {error && <p role="alert" className="text-danger">{error}</p>}
-          <div className="flex justify-end gap-2 pt-1">
-            <button type="button" className="btn" onClick={close}>Cancel</button>
-            <button type="submit" disabled={pending || !typedOk} className={clsx('btn', danger ? 'btn-danger' : 'btn-primary')}>
-              {pending ? 'Working…' : 'Confirm'}
+
+          <footer className="flex items-center justify-end gap-2 border-t border-line bg-subtle px-6 py-3.5">
+            <button type="button" className="btn" onClick={() => close()} disabled={pending}>Cancel</button>
+            <button type="submit" disabled={pending || !typedOk || !codeOk} className={clsx('btn min-w-[96px]', danger ? 'btn-danger' : 'btn-primary')}>
+              {pending ? 'Working…' : needsCode ? 'Verify and confirm' : 'Confirm'}
             </button>
-          </div>
+          </footer>
         </form>
       </dialog>
     </>

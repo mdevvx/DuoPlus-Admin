@@ -2,7 +2,7 @@ import 'server-only';
 import { ZodError } from 'zod';
 import { HubAuthError } from './auth';
 
-export type ActionResult = { ok: true; message: string } | { ok: false; error: string; needsStepUp?: boolean };
+export type ActionResult = { ok: true; message: string } | { ok: false; error: string; needsStepUp?: boolean; stepUpInvalid?: boolean };
 
 /** Errors whose message is safe to show to the admin. */
 export class UserError extends Error {}
@@ -13,7 +13,11 @@ export async function runAction(fn: () => Promise<string>): Promise<ActionResult
     return { ok: true, message: await fn() };
   } catch (e) {
     if (e instanceof HubAuthError) {
-      if (e.code === 'stepup') return { ok: false, error: e.message === 'stepup' ? 'Enter your authenticator code to continue.' : e.message, needsStepUp: true };
+      if (e.code === 'stepup') {
+        // 'required' = just ask for the code (not an error); anything else = a code was sent and was wrong or locked
+        const required = e.message === 'stepup' || e.message === 'Confirm with your authenticator code';
+        return { ok: false, error: required ? 'Enter your authenticator code to continue.' : e.message, needsStepUp: true, stepUpInvalid: !required };
+      }
       if (e.code === 'unauthenticated') return { ok: false, error: 'Your session has ended. Sign in again.' };
       return { ok: false, error: 'You do not have permission to do that.' };
     }

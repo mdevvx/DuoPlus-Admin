@@ -142,8 +142,15 @@ body {
 /* Welcome banner + sidebar share the deep graphite surface in both themes */
 .hero { background: radial-gradient(900px 300px at 85% -20%, rgb(95 220 255 / 0.20), transparent 60%), linear-gradient(135deg, #07407a 0%, #021c36 100%); }
 .thin-scroll { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+dialog[open] { animation: dialog-in 0.18s ease-out; }
+dialog[open]::backdrop { animation: fade-in 0.18s ease-out; }
+.dialog-in { animation: dialog-in 0.18s ease-out; }
+.sheet-in[open] { animation: sheet-in 0.22s ease-out; }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes sheet-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .rise { animation: rise 0.35s ease-out both; }
-@media (prefers-reduced-motion: reduce) { .rise, .skeleton { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .rise, .skeleton, .dialog-in, dialog[open], dialog[open]::backdrop, .sheet-in[open] { animation: none; } }
 @keyframes pulse-soft { 50% { opacity: 0.5; } }
 .skeleton { background: var(--raised); border-radius: 4px; animation: pulse-soft 1.6s ease-in-out infinite; }

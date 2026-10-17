@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Copy, Check, X } from 'lucide-react';
+import { Copy, Check, X, PanelRight, FileText } from 'lucide-react';
 
 /** Discord IDs are strings; show them monospaced and copyable. */
 export function CopyId({ value }: { value: string }) {
@@ -52,13 +52,15 @@ export function SideSheet({ trigger, title, children }: { trigger: string; title
   const ref = useRef<HTMLDialogElement>(null);
   return (
     <>
-      <button type="button" className="btn h-6 px-2 text-xs" onClick={() => ref.current?.showModal()}>{trigger}</button>
-      <dialog ref={ref} className="fixed inset-y-0 left-auto right-0 m-0 h-screen max-h-none w-[420px] max-w-none border-l border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/30">
-        <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <h3 className="font-semibold">{title}</h3>
-          <button type="button" className="btn h-7 w-7 p-0" aria-label="Close" onClick={() => ref.current?.close()}><X className="h-4 w-4" /></button>
-        </div>
-        <div className="overflow-auto p-4">{children}</div>
+      <button type="button" className="btn h-7 px-2.5 text-xs" onClick={() => ref.current?.showModal()}>{trigger}</button>
+      <dialog ref={ref} className="sheet-in fixed inset-y-0 left-auto right-0 m-0 h-screen max-h-none w-[440px] max-w-[92vw] border-l border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/40 backdrop:backdrop-blur-[2px]"
+        onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
+        <header className="flex items-center gap-3 border-b border-line px-5 py-4">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"><PanelRight className="h-[18px] w-[18px]" aria-hidden /></span>
+          <h3 className="min-w-0 flex-1 truncate text-[15px] font-semibold">{title}</h3>
+          <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-ink" aria-label="Close" onClick={() => ref.current?.close()}><X className="h-4 w-4" /></button>
+        </header>
+        <div className="thin-scroll h-[calc(100vh-69px)] overflow-auto p-5">{children}</div>
       </dialog>
     </>
   );
@@ -67,6 +69,7 @@ export function SideSheet({ trigger, title, children }: { trigger: string; title
 /** One-line text with the rest behind a "See more" popup. Keeps long values (errors, reasons) from breaking tables. */
 export function ClampText({ text, title = 'Details', max = 64 }: { text: string; title?: string; max?: number }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const [copied, setCopied] = useState(false);
   if (text.length <= max) return <span>{text}</span>;
   return (
     <>
@@ -74,12 +77,20 @@ export function ClampText({ text, title = 'Details', max = 64 }: { text: string;
         <span className="truncate" title={text}>{text}</span>
         <button type="button" className="shrink-0 text-xs font-medium text-accent hover:underline" onClick={() => ref.current?.showModal()}>See more</button>
       </span>
-      <dialog ref={ref} className="w-[520px] max-w-[90vw] rounded-xl border border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/50" onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
-        <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-          <h3 className="font-semibold">{title}</h3>
-          <button type="button" className="btn h-8 w-8 border-transparent bg-transparent p-0" aria-label="Close" onClick={() => ref.current?.close()}><X className="h-4 w-4" /></button>
-        </div>
-        <p className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words px-5 py-4 text-sm leading-6">{text}</p>
+      <dialog ref={ref} className="w-[540px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
+        onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
+        <header className="flex items-center gap-3 border-b border-line px-6 py-4">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning-soft text-warning"><FileText className="h-5 w-5" aria-hidden /></span>
+          <h3 className="min-w-0 flex-1 truncate text-[15px] font-semibold">{title}</h3>
+          <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-ink" aria-label="Close" onClick={() => ref.current?.close()}><X className="h-4 w-4" /></button>
+        </header>
+        <p className="thin-scroll max-h-[55vh] overflow-auto whitespace-pre-wrap break-words px-6 py-5 text-[13.5px] leading-6">{text}</p>
+        <footer className="flex items-center justify-end gap-2 border-t border-line bg-subtle px-6 py-3.5">
+          <button type="button" className="btn" onClick={async () => { try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ } }}>
+            {copied ? <Check className="h-4 w-4 text-success" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />} {copied ? 'Copied' : 'Copy'}
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => ref.current?.close()}>Close</button>
+        </footer>
       </dialog>
     </>
   );
