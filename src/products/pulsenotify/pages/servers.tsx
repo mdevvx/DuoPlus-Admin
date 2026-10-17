@@ -115,11 +115,35 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
             ['Trial ends', dateTime(str(b.trial_ends_at))], ['Paid until', dateTime(str(b.paid_until))],
             ['Whitelisted', b.whitelisted ? `Yes${b.whitelist_note ? ` — ${str(b.whitelist_note)}` : ''}` : 'No'],
             ['Card status', b.card_status ? sentence(str(b.card_status)) : '—'], ['Card cancels', dateTime(str(b.card_cancels_at))],
-            ['DM reminders sent', str(b.reminders_sent) ?? '0'], ['Last reminder', dateTime(str(b.last_reminder_at))], ['Last email', dateTime(str(b.last_email_at))],
+            ['DM reminders sent', str(b.reminders_sent) ?? '0'], ['Last reminder', dateTime(str(b.last_reminder_at))],
           ]} /> : <EmptyState title="No billing row" />}
         </Card>
       </div>
       <div className="grid gap-4">
+        <Card title={`Member emails (${d.memberEmails.length})`}>
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px]">
+            <span className="text-muted">Discord DM status:</span>
+            {num(b?.reminders_sent) > 0
+              ? <Badge tone="success">{num(b?.reminders_sent)} sent · last {dateTime(str(b?.last_reminder_at))}</Badge>
+              : <Badge tone="neutral">No DM reminder sent yet</Badge>}
+          </div>
+          {d.memberEmails.length === 0 ? <EmptyState title="No member emails" hint="Members who share an email with the bot in this server appear here." /> : (
+            <Table label="Member emails" bare>
+              <thead><tr><th className="th">Email</th><th className="th">Discord user ID</th><th className="th">Added</th><th className="th">DM status</th></tr></thead>
+              <tbody>
+                {d.memberEmails.map((m) => (
+                  <Tr key={`${str(m.discord_user_id)}-${str(m.email)}`}>
+                    <td className="td break-all">{str(m.email)}</td>
+                    <td className="td">{m.discord_user_id ? <CopyId value={String(m.discord_user_id)} /> : '—'}</td>
+                    <td className="td num whitespace-nowrap">{dateTime(str(m.created_at))}</td>
+                    <td className="td">{num(b?.reminders_sent) > 0 ? <Badge tone="success">DM sent</Badge> : <Badge tone="neutral">Not sent</Badge>}</td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+          <p className="mt-3 text-xs text-muted">Emails are shown in full here, so viewing this page is audit-logged. DM status is per server, from the bot&apos;s reminder counters.</p>
+        </Card>
         <Card title="Payment history"><PaymentsMini rows={d.payments} /></Card>
         <Card title="Monitored accounts"><GenericRows rows={d.accounts} label="Monitored accounts" prefer={['platform', 'username', 'display_name', 'account_id']} /></Card>
         <Card title="Notification channels"><GenericRows rows={d.channels} label="Notification channels" prefer={['channel_id', 'platform', 'name']} /></Card>
