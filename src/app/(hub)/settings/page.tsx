@@ -4,6 +4,7 @@ import { ABSOLUTE_MS, IDLE_MS, STEPUP_MS, LOCK_MS, MAX_FAILURES } from '@/lib/se
 import { Card, KV, PageHeader, RoleTag } from '@/components/ui';
 import { NicknameForm } from '@/components/nickname-form';
 import { roleLabel } from '@/lib/roles';
+import { currentTheme } from '@/lib/theme';
 
 export const metadata: Metadata = { title: 'Settings' };
 
@@ -16,7 +17,7 @@ export default async function SettingsPage() {
       <div className="grid max-w-3xl gap-4">
         <Card title="Profile">
           <div className="mb-4 flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-lg font-semibold text-accent">{(admin.displayName ?? admin.email).trim().charAt(0).toUpperCase()}</span>
+            <span className="flex h-12 w-12 items-center justify-center rounded bg-accent-soft text-lg font-semibold text-accent">{(admin.displayName ?? admin.email).trim().charAt(0).toUpperCase()}</span>
             <div>
               <div className="flex items-center gap-2 text-[15px] font-semibold">{admin.displayName ?? admin.email.split('@')[0]} <RoleTag role={admin.role} /></div>
               <div className="text-xs text-muted">{admin.email}</div>
@@ -27,7 +28,7 @@ export default async function SettingsPage() {
           <p className="mt-2 text-xs text-muted">Shown in the sidebar, the top bar and the welcome banner, with your role tag next to it.</p>
         </Card>
         <Card title="Your account">
-          <KV items={[['Email', admin.email], ['Global role', roleLabel(admin.role)], ['Theme', roleLabel(admin.theme)], ['Second factor', 'Authenticator app (required every session)']]} />
+          <KV items={[['Email', admin.email], ['Global role', roleLabel(admin.role)], ['Theme', roleLabel(await currentTheme())], ['Second factor', 'Authenticator app (required every session)']]} />
         </Card>
         <Card title="Session policy (read only)">
           <KV items={[

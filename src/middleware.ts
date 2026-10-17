@@ -5,7 +5,7 @@ import { COOKIE, cookieOpts, sessionState } from '@/lib/session-policy';
 
 // Anything not listed here requires a signed-in admin at aal2. Deny by default.
 const PUBLIC = ['/login'];
-const isStatic = (p: string) => p.startsWith('/_next/') || p === '/favicon.ico' || p === '/icon.svg' || p === '/logo.svg';
+const isStatic = (p: string) => p.startsWith('/_next/') || p.startsWith('/products/') || p === '/favicon.ico' || p === '/icon.svg' || p === '/icon.png' || p === '/apple-icon.png' || p === '/logo.svg';
 
 function csp(nonce: string) {
   const dev = process.env.NODE_ENV !== 'production';

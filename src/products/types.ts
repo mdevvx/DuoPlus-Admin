@@ -31,7 +31,7 @@ export interface Headline { label: string; value: string }
 export interface Attention { label: string; detail: string; href: string; tone: 'warning' | 'danger' | 'info' }
 
 export interface ProductModule {
-  manifest: { slug: string; name: string; description: string; icon: string };
+  manifest: { slug: string; name: string; description: string; icon: string; /** Optional logo under /public, e.g. /products/<slug>.png */ logo?: string };
   navigation: NavItem[];
   /** Keys are path patterns below /p/<slug>/, e.g. '', 'servers', 'servers/:id'. */
   routes: Record<string, RouteDef>;

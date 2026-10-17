@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Download, RefreshCw } from 'lucide-react';
 import { Badge, Card, ErrorPanel, Hero, HeroChip, MiniStat, StatCard, heroBtn, heroBtnSolid } from '@/components/ui';
-import { AreaChart, Donut, MiniBars, ProgressBar, Sparkline } from '@/components/charts';
+import { AreaChart, BarChart, Donut, MiniBars, ProgressBar, Ring, SegmentBar, Sparkline } from '@/components/charts';
 import { int, money, platformLabel, sentence, statusTone } from '@/lib/format';
 import { getOverview, type Overview } from '../queries/overview';
 import { PaymentsMini, base } from './shared';
@@ -22,6 +22,8 @@ export function OverviewView({ o, name }: { o: Overview; name: string }) {
   const srvDelta = pct(o.servers30Total, o.serversPrev30);
   const totalBotServers = o.botPresent + o.removed;
   const trialBase = Math.max(1, o.trial);
+  const okCount = o.health.filter((h) => statusTone(str(h.status)) === 'success').length;
+  const healthScore = o.health.length ? (okCount / o.health.length) * 100 : 100;
 
   return (
     <>
@@ -66,6 +68,12 @@ export function OverviewView({ o, name }: { o: Overview; name: string }) {
             <MiniStat label="Card" value={int(o.cardActive)} /><MiniStat label="Crypto" value={int(o.cryptoActive)} />
             <MiniStat label="Whitelisted" value={int(o.whitelisted)} /><MiniStat label="On trial" value={int(o.trial)} />
           </div>
+          <div className="mt-4">
+            <SegmentBar segments={[
+              { label: 'Card', value: o.cardActive, color: 'var(--chart-1)' }, { label: 'Crypto', value: o.cryptoActive, color: 'var(--chart-2)' },
+              { label: 'Whitelisted', value: o.whitelisted, color: 'var(--chart-4)' }, { label: 'On trial', value: o.trial, color: 'var(--chart-3)' },
+            ]} />
+          </div>
         </section>
       </div>
 
@@ -90,7 +98,7 @@ export function OverviewView({ o, name }: { o: Overview; name: string }) {
 
       <div className="mb-6 grid grid-cols-3 gap-5">
         <Card title="Paid revenue, last 30 days" className="col-span-2" action={<span className="num text-xs text-muted">Total {money(o.revenue30Total)}</span>}>
-          <AreaChart data={o.revenue30} format={money} label="Paid revenue" />
+          <BarChart data={o.revenue30} format={money} label="Paid revenue" />
         </Card>
         <Card title="Subscriptions by type">
           <Donut centerLabel="subscriptions" segments={[
@@ -100,21 +108,31 @@ export function OverviewView({ o, name }: { o: Overview; name: string }) {
         </Card>
       </div>
 
-      <div className="grid grid-cols-3 gap-5">
+      <div className="mb-6 grid grid-cols-3 gap-5">
         <Card title="Platform status" action={<Link className="text-xs font-medium text-accent" href={`${base}/health`}>Details</Link>}>
           {o.health.length === 0 ? <p className="text-muted">No platform data yet.</p> : (
-            <ul className="space-y-3">
-              {o.health.map((h, i) => {
-                const s = str(h.status) ?? 'unknown';
-                return <li key={i} className="flex items-center justify-between"><span className="font-medium">{platformLabel(str(h.platform ?? h.name))}</span><Badge tone={statusTone(s)}>{sentence(s)}</Badge></li>;
-              })}
-            </ul>
+            <>
+              <div className="mb-4 flex items-center justify-between rounded-xl bg-subtle px-4 py-3">
+                <Ring value={healthScore} label={'Platforms\nhealthy'} color={healthScore >= 75 ? 'var(--success)' : healthScore >= 40 ? 'var(--warning)' : 'var(--danger)'} />
+                <span className="text-xs text-muted">{okCount} of {o.health.length} reporting normally</span>
+              </div>
+              <ul className="space-y-3">
+                {o.health.map((h, i) => {
+                  const s = str(h.status) ?? 'unknown';
+                  return <li key={i} className="flex items-center justify-between"><span className="font-medium">{platformLabel(str(h.platform ?? h.name))}</span><Badge tone={statusTone(s)}>{sentence(s)}</Badge></li>;
+                })}
+              </ul>
+            </>
           )}
         </Card>
-        <Card title="Latest payments" className="col-span-2" action={<Link className="text-xs font-medium text-accent" href={`${base}/payments`}>All payments</Link>}>
-          <PaymentsMini rows={o.lastPayments} />
+        <Card title="New servers, last 30 days" className="col-span-2" action={<span className="num text-xs text-muted">Total {int(o.servers30Total)}</span>}>
+          <AreaChart data={o.servers30} color="var(--chart-2)" label="New servers" height={230} />
         </Card>
       </div>
+
+      <Card title="Latest payments" action={<Link className="text-xs font-medium text-accent" href={`${base}/payments`}>All payments</Link>}>
+        <PaymentsMini rows={o.lastPayments} />
+      </Card>
     </>
   );
 }

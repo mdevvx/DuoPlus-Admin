@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ProductMark } from '@/components/icons';
 import type { Metadata } from 'next';
 import { requirePage } from '@/lib/auth';
 import { accessibleProducts } from '@/products/registry';
@@ -39,7 +40,7 @@ export default async function HubHome({ searchParams }: { searchParams: Promise<
           {loaded.map(({ p, headline, failed }) => (
             <Link key={p.slug} href={`/p/${p.slug}`} className="card rise block p-5 transition-shadow hover:shadow-pop">
               <div className="mb-5 flex items-center gap-3">
-                <IconTile icon={p.icon} />
+                {p.logo ? <ProductMark logo={p.logo} icon={p.icon} size={40} className="shrink-0 rounded-xl" /> : <IconTile icon={p.icon} />}
                 <div><div className="text-[15px] font-semibold">{p.name}</div><div className="text-xs text-muted">{p.description}</div></div>
               </div>
               {failed ? <Badge tone="danger">Could not load numbers</Badge> : (

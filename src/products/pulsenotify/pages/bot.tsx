@@ -7,7 +7,7 @@ import { botParams, getBotDashboard, listBotServers } from '../queries/bot';
 import type { RouteCtx } from '@/products/types';
 import { ServerLink, base } from './shared';
 import { guildInfoMap } from '@/lib/discord';
-import { Donut } from '@/components/charts';
+import { RankedBars } from '@/components/charts';
 import { DiscordNotice } from '@/components/discord-notice';
 import { str } from '../db';
 
@@ -34,7 +34,7 @@ export async function BotStatusPage({ searchParams }: RouteCtx) {
       <div className="mb-6 grid grid-cols-2 gap-5">
         <Card title="Integrations by platform">
           {dash.byPlatform.length === 0 ? <EmptyState title="No monitored accounts yet" /> : (
-            <Donut centerLabel="integrations" segments={dash.byPlatform.slice(0, 8).map(([name, n]) => ({ label: platformLabel(name), value: n }))} />
+            <RankedBars items={dash.byPlatform.slice(0, 8).map(([name, n]) => ({ label: platformLabel(name), value: n }))} />
           )}
         </Card>
         <Card title="Platform status" action={<Link className="text-xs text-accent" href={`${base}/health`}>Details</Link>}>

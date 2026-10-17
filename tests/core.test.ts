@@ -84,7 +84,7 @@ describe('design tokens', () => {
       expect(['#ffffff', '#000000']).not.toContain(t[k]!.toLowerCase());
   });
   it('keeps the OS-dark block identical to the manual dark block', () => {
-    const media = css.match(/@media \(prefers-color-scheme: dark\)\s*\{\s*:root:not\(\[data-theme='light'\]\)\s*\{([^}]*)\}/)![1]!;
+    const media = css.match(/@media \(prefers-color-scheme: dark\)\s*\{\s*:root\[data-theme='system'\]\s*\{([^}]*)\}/)![1]!;
     const manual = css.match(/:root\[data-theme='dark'\]\s*\{([^}]*)\}/)![1]!;
     const norm = (x: string) => x.replace(/\s+/g, ' ').trim();
     expect(norm(media)).toBe(norm(manual));

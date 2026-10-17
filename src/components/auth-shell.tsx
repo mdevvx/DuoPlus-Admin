@@ -15,10 +15,10 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
       <section className="hero relative hidden flex-col justify-between overflow-hidden p-12 text-white lg:flex">
         <div className="flex items-center gap-3">
           <Logo size={40} />
-          <span className="text-lg font-bold tracking-tight">DuoPlus Admin</span>
+          <span className="text-lg font-bold tracking-normal">DuoPlus Admin</span>
         </div>
         <div className="max-w-md">
-          <h2 className="text-[32px] font-semibold leading-10 tracking-tight">One place to run every DuoPlus product.</h2>
+          <h2 className="text-[32px] font-semibold leading-10 tracking-normal">One place to run every DuoPlus product.</h2>
           <ul className="mt-10 space-y-6">
             {POINTS.map(({ Icon, title: t, text }) => (
               <li key={t} className="flex gap-4">
@@ -33,7 +33,7 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
       <section className="flex items-center justify-center p-10">
         <div className="w-full max-w-[400px]">
           <div className="mb-8 flex items-center gap-2.5 lg:hidden"><Logo /><span className="text-[15px] font-semibold">DuoPlus Admin</span></div>
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="text-2xl font-semibold tracking-normal">{title}</h1>
           <p className="mb-7 mt-1.5 text-muted">{subtitle}</p>
           {children}
         </div>

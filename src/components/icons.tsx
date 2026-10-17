@@ -10,3 +10,12 @@ export function Icon({ name, className }: { name: string; className?: string }) 
   const C = MAP[name] ?? Box;
   return <C className={className ?? 'h-4 w-4'} aria-hidden />;
 }
+
+/** A product's own logo when it has one, otherwise its manifest icon. */
+export function ProductMark({ logo, icon, size = 36, className }: { logo?: string; icon: string; size?: number; className?: string }) {
+  if (logo) {
+    // eslint-disable-next-line @next/next/no-img-element -- small static logo served from /public
+    return <img src={logo} alt="" width={size} height={size} className={className ?? 'shrink-0 rounded-lg'} style={{ width: size, height: size }} aria-hidden />;
+  }
+  return <Icon name={icon} className={className} />;
+}

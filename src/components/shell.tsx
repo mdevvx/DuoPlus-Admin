@@ -5,13 +5,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import clsx from 'clsx';
 import { Search, Sun, Moon, Monitor, ChevronsUpDown, LogOut, ShieldCheck, Keyboard, Check, ChevronRight, UserPen } from 'lucide-react';
-import { Icon } from './icons';
+import { Icon, ProductMark } from './icons';
 import { setTheme } from '@/app/(hub)/actions';
 import { signOutAction, signOutEverywhereAction } from '@/app/(auth)/actions';
 import { RoleTag } from './ui';
 
 export interface ShellProduct {
-  slug: string; name: string; icon: string; health: 'ok' | 'warn' | 'down';
+  slug: string; name: string; icon: string; logo?: string; health: 'ok' | 'warn' | 'down';
   nav: { label: string; path: string; icon: string; shortcut?: string }[];
 }
 export interface ShellUser { name: string; email: string; role: string }
@@ -23,7 +23,7 @@ export function HealthDot({ health }: { health: 'ok' | 'warn' | 'down' }) {
 
 export function Logo({ size = 32 }: { size?: number }) {
   // eslint-disable-next-line @next/next/no-img-element -- small static brand SVG served from /public
-  return <img src="/logo.svg" alt="" width={size} height={size} className="shrink-0 rounded-[10px] shadow-soft" aria-hidden />;
+  return <img src="/logo.svg" alt="" width={size} height={size} className="shrink-0 rounded-md shadow-soft" aria-hidden />;
 }
 
 function useOutsideClose(open: boolean, close: () => void) {
@@ -43,10 +43,10 @@ const navClass = (active: boolean) => clsx(
   'group relative flex h-10 items-center gap-3 rounded-xl px-3 text-[13.5px] transition-colors',
   active ? 'bg-side-active font-semibold text-side-accent' : 'text-side-muted hover:bg-white/5 hover:text-white',
 );
-const ActiveBar = ({ show }: { show: boolean }) => show ? <span className="absolute -left-3 top-2 h-6 w-1 rounded-r-full bg-side-accent" aria-hidden /> : null;
+const ActiveBar = ({ show }: { show: boolean }) => show ? <span className="absolute -left-[11px] top-2 h-6 w-[3px] rounded bg-side-accent" aria-hidden /> : null;
 const sideLabel = 'px-3 pb-2 pt-5 text-[11px] font-semibold uppercase tracking-wider text-side-muted';
 
-export function Sidebar({ products, showAdmins, user }: { products: ShellProduct[]; showAdmins: boolean; user: ShellUser }) {
+export function Sidebar({ products, user }: { products: ShellProduct[]; user: ShellUser }) {
   const path = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -58,14 +58,14 @@ export function Sidebar({ products, showAdmins, user }: { products: ShellProduct
     <aside className="flex w-[264px] shrink-0 flex-col bg-gradient-to-b from-side-bg to-side-bg2 text-side-ink">
       <Link href="/" className="flex h-16 items-center gap-3 border-b border-side-line px-5">
         <Logo size={34} />
-        <span className="text-[17px] font-bold tracking-tight text-white">DuoPlus Admin</span>
+        <span className="text-[17px] font-bold tracking-normal text-white">DuoPlus Admin</span>
       </Link>
 
       <div className="px-3" ref={ref}>
         <div className={sideLabel}>Product</div>
         <div className="relative">
           <button className="flex w-full items-center gap-3 rounded-xl border border-side-line bg-white/5 px-3 py-2.5 text-left transition-colors hover:bg-white/10" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}>
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-side-active text-side-accent"><Icon name={current?.icon ?? 'home'} /></span>
+            {current?.logo ? <ProductMark logo={current.logo} icon={current.icon} size={36} className="shrink-0 rounded-lg" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-side-active text-side-accent"><Icon name={current?.icon ?? 'home'} /></span>}
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[13.5px] font-semibold leading-tight text-white">{current?.name ?? 'All products'}</span>
               <span className="block text-xs leading-tight text-side-muted">{current ? 'Switch product' : 'Choose a product'}</span>
@@ -79,7 +79,7 @@ export function Sidebar({ products, showAdmins, user }: { products: ShellProduct
               {products.map((p) => (
                 <li key={p.slug}>
                   <button className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-side-ink hover:bg-white/10" onClick={() => { setOpen(false); router.push(`/p/${p.slug}`); }}>
-                    <Icon name={p.icon} /> <span className="flex-1 text-left">{p.name}</span> <HealthDot health={p.health} />
+                    <ProductMark logo={p.logo} icon={p.icon} size={20} className="shrink-0 rounded" /> <span className="flex-1 text-left">{p.name}</span> <HealthDot health={p.health} />
                     {current?.slug === p.slug && <Check className="h-4 w-4 text-side-accent" aria-hidden />}
                   </button>
                 </li>
@@ -90,8 +90,8 @@ export function Sidebar({ products, showAdmins, user }: { products: ShellProduct
       </div>
 
       <nav className="thin-scroll flex-1 overflow-auto px-3 pb-3" aria-label="Primary">
-        <div className={sideLabel}>{current ? current.name : 'Navigation'}</div>
-        {current ? current.nav.map((n) => {
+        <div className={sideLabel}>Main</div>
+        {current ? <div className="relative ml-4 space-y-0.5 border-l border-side-line pl-2.5">{current.nav.map((n) => {
           const href = n.path ? `/p/${current.slug}/${n.path}` : `/p/${current.slug}`;
           const active = n.path ? path === href || path.startsWith(href + '/') : path === href;
           return (
@@ -99,19 +99,14 @@ export function Sidebar({ products, showAdmins, user }: { products: ShellProduct
               <ActiveBar show={active} /><Icon name={n.icon} className="h-[18px] w-[18px]" /> {n.label}
             </Link>
           );
-        }) : (
+        })}</div> : (
           <p className="px-3 py-1.5 text-xs text-side-muted">Pick a product above to see its pages.</p>
         )}
-
-        <div className={sideLabel}>Workspace</div>
-        <Link href="/audit" className={navClass(path.startsWith('/audit'))}><ActiveBar show={path.startsWith('/audit')} /><Icon name="audit" className="h-[18px] w-[18px]" /> Audit log</Link>
-        {showAdmins && <Link href="/admins" className={navClass(path.startsWith('/admins'))}><ActiveBar show={path.startsWith('/admins')} /><Icon name="admins" className="h-[18px] w-[18px]" /> Admins</Link>}
-        <Link href="/settings" className={navClass(path.startsWith('/settings'))}><ActiveBar show={path.startsWith('/settings')} /><Icon name="settings" className="h-[18px] w-[18px]" /> Settings</Link>
       </nav>
 
       <div className="m-3 flex items-center gap-3 rounded-xl border border-side-line bg-white/5 p-3">
-        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-side-active text-[15px] font-semibold text-side-accent">
-          {initial}<span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-side-bg bg-side-accent" aria-hidden />
+        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded bg-side-active text-[15px] font-semibold text-side-accent">
+          {initial}<span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded border-2 border-side-bg bg-side-accent" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13.5px] font-semibold text-white">{user.name}</div>
@@ -161,7 +156,13 @@ export function Crumbs({ products }: { products: ShellProduct[] }) {
 
 type Hit = { type: string; label: string; sub?: string; href: string };
 
-export function Topbar({ products, email, name, theme, role }: { products: ShellProduct[]; email: string; name: string | null; theme: 'system' | 'light' | 'dark'; role: string }) {
+export function Topbar({ products, email, name, theme, role, showAdmins }: { products: ShellProduct[]; email: string; name: string | null; theme: 'system' | 'light' | 'dark'; role: string; showAdmins: boolean }) {
+  const path = usePathname();
+  const links = [
+    { href: '/audit', label: 'Audit log', icon: 'audit' },
+    ...(showAdmins ? [{ href: '/admins', label: 'Admins', icon: 'admins' }] : []),
+    { href: '/settings', label: 'Settings', icon: 'settings' },
+  ];
   const router = useRouter();
   const [palette, setPalette] = useState(false);
   const [help, setHelp] = useState(false);
@@ -195,16 +196,30 @@ export function Topbar({ products, email, name, theme, role }: { products: Shell
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-line bg-surface px-8">
-      <button className="flex h-10 w-[440px] items-center gap-3 rounded-full border border-line bg-subtle px-4 text-muted transition-colors hover:border-accent" onClick={() => setPalette(true)}>
+      <div className="flex min-w-0 flex-1 items-center gap-3 pr-4">
+              <button className="flex h-10 w-full min-w-[200px] max-w-[400px] flex-1 items-center gap-3 rounded border border-line bg-subtle px-4 text-muted transition-colors hover:border-accent" onClick={() => setPalette(true)}>
         <Search className="h-4 w-4 text-accent" aria-hidden /> <span className="flex-1 text-left">Search servers, customers, payments…</span>
         <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 text-[11px] font-medium">Ctrl K</kbd>
       </button>
+        <nav aria-label="Workspace" className="flex shrink-0 items-center gap-1.5">
+          {links.map((l) => {
+            const active = path.startsWith(l.href);
+            return (
+              <Link key={l.href} href={l.href} title={l.label} aria-current={active ? 'page' : undefined}
+                className={clsx('flex h-10 items-center gap-2 rounded border px-3.5 text-[13px] font-medium transition-colors',
+                  active ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-subtle text-muted hover:border-accent hover:text-ink')}>
+                <Icon name={l.icon} className="h-[17px] w-[17px]" /><span className="hidden min-[1380px]:inline">{l.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
       <div className="flex items-center gap-2">
-        <button className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-subtle text-muted transition-colors hover:text-ink" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={() => setHelp(true)}><Keyboard className="h-[18px] w-[18px]" /></button>
+        <button className="flex h-10 w-10 items-center justify-center rounded border border-line bg-subtle text-muted transition-colors hover:text-ink" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={() => setHelp(true)}><Keyboard className="h-[18px] w-[18px]" /></button>
         <ThemeToggle theme={theme} />
         <div className="relative ml-1" ref={menuRef}>
-          <button className="flex items-center gap-2.5 rounded-full border border-line bg-subtle py-1 pl-1 pr-3 transition-colors hover:border-accent" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-ink">{initial}</span>
+          <button className="flex items-center gap-2.5 rounded border border-line bg-subtle py-1 pl-1 pr-3 transition-colors hover:border-accent" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+            <span className="flex h-8 w-8 items-center justify-center rounded bg-accent text-sm font-semibold text-accent-ink">{initial}</span>
             <span className="flex items-center gap-2 text-left"><span className="text-[13px] font-medium leading-tight">{display}</span><RoleTag role={role} /></span>
           </button>
           {menu && (
@@ -230,10 +245,10 @@ function ThemeToggle({ theme }: { theme: 'system' | 'light' | 'dark' }) {
   const order = ['system', 'light', 'dark'] as const;
   const Ico = t === 'light' ? Sun : t === 'dark' ? Moon : Monitor;
   return (
-    <button className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-subtle text-muted transition-colors hover:text-ink" aria-label={`Theme: ${t}. Click to change`} title={`Theme: ${t}`} onClick={() => {
+    <button className="flex h-10 w-10 items-center justify-center rounded border border-line bg-subtle text-muted transition-colors hover:text-ink" aria-label={`Theme: ${t}. Click to change`} title={`Theme: ${t}`} onClick={() => {
       const next = order[(order.indexOf(t) + 1) % 3]!;
       setT(next);
-      if (next === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = next;
+      document.documentElement.dataset.theme = next;
       start(() => setTheme(next));
     }}><Ico className="h-[18px] w-[18px]" /></button>
   );

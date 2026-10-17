@@ -12,7 +12,7 @@ create table if not exists duolplus_admin.hub_admins (
   display_name text,
   role text not null default 'admin' check (role in ('owner','admin')),
   active boolean not null default true,
-  theme text not null default 'system' check (theme in ('system','light','dark')),
+  theme text not null default 'light' check (theme in ('system','light','dark')),
   created_by uuid references duolplus_admin.hub_admins(id),
   created_at timestamptz not null default now(),
   last_login_at timestamptz

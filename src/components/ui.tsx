@@ -20,7 +20,7 @@ const TONE: Record<Tone, { cls: string; Icon: typeof Info }> = {
 export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: ReactNode }) {
   const { cls, Icon } = TONE[tone];
   return (
-    <span className={clsx('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium', cls)}>
+    <span className={clsx('inline-flex items-center gap-1 whitespace-nowrap rounded px-2.5 py-0.5 text-xs font-medium', cls)}>
       <Icon className="h-3 w-3" aria-hidden />
       {children}
     </span>
@@ -33,13 +33,13 @@ export function PageHeader({ title, description, actions, updatedAt, icon }: { t
       <div className="flex min-w-0 items-center gap-4">
         {icon}
         <div className="min-w-0">
-          <h1 className="text-[22px] font-semibold leading-8 tracking-tight">{title}</h1>
+          <h1 className="text-[22px] font-semibold leading-8 tracking-normal">{title}</h1>
           {description && <p className="mt-1 max-w-2xl text-muted">{description}</p>}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-3">
         {updatedAt && (
-          <span className="num inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-muted">
+          <span className="num inline-flex items-center gap-1.5 rounded bg-subtle px-2.5 py-1 text-xs text-muted">
             <Clock className="h-3 w-3" aria-hidden /> Updated {updatedAt.toISOString().slice(11, 19)} UTC
           </span>
         )}
@@ -70,7 +70,7 @@ export function Stat({ label, value, hint, icon }: { label: string; value: React
         <div className="text-[13px] font-medium text-muted">{label}</div>
         {icon && <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent"><Icon name={icon} /></span>}
       </div>
-      <div className="num mt-2 text-[28px] font-semibold leading-9 tracking-tight">{value}</div>
+      <div className="num mt-2 text-[28px] font-semibold leading-9 tracking-normal">{value}</div>
       {hint && <div className="mt-1 text-xs text-muted">{hint}</div>}
     </div>
   );
@@ -79,7 +79,7 @@ export function Stat({ label, value, hint, icon }: { label: string; value: React
 export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   return (
     <div className="flex flex-col items-center gap-2 px-6 py-14 text-center">
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-subtle text-muted"><Inbox className="h-5 w-5" aria-hidden /></span>
+      <span className="flex h-11 w-11 items-center justify-center rounded bg-subtle text-muted"><Inbox className="h-5 w-5" aria-hidden /></span>
       <div className="mt-1 font-semibold">{title}</div>
       {hint && <div className="max-w-sm text-muted">{hint}</div>}
     </div>
@@ -238,7 +238,7 @@ export function Trend({ delta, suffix = '%' }: { delta: number | null | undefine
   if (delta === null || delta === undefined || !Number.isFinite(delta)) return null;
   const up = delta >= 0;
   return (
-    <span className={clsx('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold', up ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger')}>
+    <span className={clsx('inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold', up ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger')}>
       {up ? <ArrowUp className="h-3 w-3 rotate-45" aria-hidden /> : <ArrowDown className="h-3 w-3 -rotate-45" aria-hidden />}
       {up ? '+' : ''}{Math.abs(delta) < 10 ? delta.toFixed(1) : Math.round(delta)}{suffix}
     </span>
@@ -257,7 +257,7 @@ export function StatCard({ icon, hue = 'green', label, value, delta, children, r
         <Trend delta={delta} />
       </div>
       <div className="mt-4 text-[13px] font-medium text-muted">{label}</div>
-      <div className="num mt-0.5 text-[28px] font-semibold leading-9 tracking-tight">{value}</div>
+      <div className="num mt-0.5 text-[28px] font-semibold leading-9 tracking-normal">{value}</div>
       {children && <div className="mt-3">{children}</div>}
       {rows && rows.length > 0 && (
         <dl className="mt-3 space-y-1.5 text-[13px]">
@@ -287,7 +287,7 @@ export function Hero({ title, text, metrics, chips, actions, aside }: {
       <div className="flex items-start justify-between gap-6">
         <div className="min-w-0">
           {chips && <div className="mb-4 flex flex-wrap items-center gap-2">{chips}</div>}
-          <h1 className="text-[28px] font-bold leading-9 tracking-tight">{title}</h1>
+          <h1 className="text-[28px] font-bold leading-9 tracking-normal">{title}</h1>
           <p className="mt-2 max-w-2xl text-[14.5px] leading-6 text-side-ink">{text}</p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-3">
@@ -310,7 +310,7 @@ export function Hero({ title, text, metrics, chips, actions, aside }: {
 /** Pill used on the hero banner. */
 export function HeroChip({ children, live }: { children: ReactNode; live?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-side-line bg-white/10 px-2.5 py-1 text-xs font-medium text-side-ink">
+    <span className="inline-flex items-center gap-1.5 rounded border border-side-line bg-white/10 px-2.5 py-1 text-xs font-medium text-side-ink">
       {live && <span className="h-1.5 w-1.5 rounded-full bg-side-accent" />}
       {children}
     </span>
@@ -326,7 +326,7 @@ export function RoleTag({ role, onDark }: { role: string; onDark?: boolean }) {
   const owner = role === 'owner';
   const Ico = owner ? Crown : UserCog;
   return (
-    <span className={clsx('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold leading-4',
+    <span className={clsx('inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold leading-4',
       onDark ? (owner ? 'bg-side-accent/15 text-side-accent' : 'bg-white/10 text-side-ink') : (owner ? 'bg-accent-soft text-accent' : 'bg-subtle text-muted'))}>
       <Ico className="h-3 w-3" aria-hidden />{roleLabel(role)}
     </span>

@@ -18,6 +18,7 @@ export interface AccessibleProduct {
   name: string;
   description: string;
   icon: string;
+  logo?: string;
   status: string;
   role: Role;
   module: ProductModule;
@@ -31,7 +32,7 @@ export async function accessibleProducts(admin: Admin): Promise<AccessibleProduc
     const mod = MODULE_BY_SLUG[row.slug];
     const role = roleForProduct(admin, row.slug);
     if (!mod || !role || row.status === 'disabled') continue;
-    out.push({ slug: row.slug, name: row.name, description: row.description ?? '', icon: row.icon ?? mod.manifest.icon, status: row.status, role, module: mod });
+    out.push({ slug: row.slug, name: row.name, description: row.description ?? '', icon: row.icon ?? mod.manifest.icon, logo: mod.manifest.logo, status: row.status, role, module: mod });
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }

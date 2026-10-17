@@ -17,7 +17,7 @@ import { SLUG, str } from './db';
 const base = `/p/${SLUG}`;
 
 const pulsenotify: ProductModule = {
-  manifest: { slug: SLUG, name: 'PulseNotify', description: 'Discord bot for social-media alerts, billed per server', icon: 'bell' },
+  manifest: { slug: SLUG, name: 'PulseNotify', description: 'Discord bot for social-media alerts, billed per server', icon: 'bell', logo: '/products/pulsenotify.png' },
   navigation: [
     { label: 'Overview', path: '', icon: 'overview', shortcut: 'o' },
     { label: 'Bot status', path: 'bot', icon: 'health', shortcut: 'k' },

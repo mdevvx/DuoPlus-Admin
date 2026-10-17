@@ -62,7 +62,7 @@ export function ConfirmAction({
       <dialog ref={ref} className="w-[480px] rounded-xl border border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/50" onClose={() => setError(null)}>
         <form action={submit} className="space-y-4 p-6">
           <div className="flex items-start gap-3">
-            <span className={clsx('flex h-9 w-9 shrink-0 items-center justify-center rounded-full', danger ? 'bg-danger-soft text-danger' : 'bg-accent-soft text-accent')}>
+            <span className={clsx('flex h-9 w-9 shrink-0 items-center justify-center rounded', danger ? 'bg-danger-soft text-danger' : 'bg-accent-soft text-accent')}>
               {danger ? <AlertTriangle className="h-[18px] w-[18px]" aria-hidden /> : <ShieldCheck className="h-[18px] w-[18px]" aria-hidden />}
             </span>
             <h3 className="pt-1.5 text-base font-semibold">{title}</h3>
