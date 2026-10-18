@@ -10,7 +10,7 @@ export function CopyId({ value, mono = true }: { value: string; mono?: boolean }
   return (
     <button
       type="button"
-      className={`-ml-1 inline-flex items-center gap-1 rounded px-1 text-left hover:bg-subtle ${mono ? 'font-mono text-xs' : 'break-all'}`}
+      className={`-ml-1 inline-flex items-center gap-1 rounded px-1 text-left hover:bg-subtle ${mono ? 'num' : 'break-all'}`}
       title="Copy ID"
       onClick={async () => {
         try { await navigator.clipboard.writeText(value); setDone(true); setTimeout(() => setDone(false), 1500); } catch { /* clipboard blocked */ }

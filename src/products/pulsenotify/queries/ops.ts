@@ -97,6 +97,13 @@ export async function getAbandonedCheckouts(): Promise<(Row & { email: string | 
   return unique.map((p) => ({ ...p, email: emailOf.get(`${p.guild_id}:${p.requested_by}`) ?? null }));
 }
 
+/** Failed or undeliverable member DMs in the last 30 days. Unavailable until the bot's dm_log table exists. */
+export async function getFailedDms(): Promise<{ rows: Row[]; available: boolean }> {
+  const res = await pn().from(T.dmLog).select('id,guild_id,discord_user_id,kind,status,error,created_at')
+    .in('status', ['failed', 'dm_closed']).gte('created_at', iso(daysFrom(-30))).order('created_at', { ascending: false }).limit(100);
+  return res.error ? { rows: [], available: false } : { rows: (res.data ?? []) as Row[], available: true };
+}
+
 // ---------------------------------------------------------------- platform health / maintenance
 export async function getPlatformHealth() {
   const db = pn();

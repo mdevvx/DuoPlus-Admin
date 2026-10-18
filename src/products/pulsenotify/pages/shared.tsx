@@ -38,6 +38,17 @@ export function PaymentsMini({ rows }: { rows: Row[] }) {
   );
 }
 
+const DM_KIND: Record<string, string> = {
+  checkout_abandoned: 'Unfinished checkout', payment_success: 'Payment received', payment_failed: 'Payment failed',
+  card_cancelling: 'Card cancelling', card_ended: 'Card subscription ended', expiry_reminder: 'Upgrade reminder',
+};
+export const dmKindLabel = (k: unknown) => DM_KIND[String(k)] ?? sentence(String(k ?? ''));
+
+export function DmStatus({ status }: { status: unknown }) {
+  const s = String(status ?? '');
+  return s === 'sent' ? <Badge tone="success">Sent</Badge> : s === 'dm_closed' ? <Badge tone="warning">DMs closed</Badge> : <Badge tone="danger">Failed</Badge>;
+}
+
 export function ChannelsMini({ rows }: { rows: Row[] }) {
   if (rows.length === 0) return <EmptyState compact title="No notification channels" />;
   return (

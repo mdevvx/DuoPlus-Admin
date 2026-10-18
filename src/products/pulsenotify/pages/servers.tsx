@@ -10,7 +10,7 @@ import { PAGE_SIZE, snowflake } from '@/lib/validation';
 import { getServer, listServers, serverParams } from '../queries/servers';
 import { adjustPaidDays, extendTrial, markBotRemoved, removeWhitelist, resetReminders, whitelistServer } from '../actions';
 import type { RouteCtx } from '@/products/types';
-import { ChannelsMini, GenericRows, PaymentsMini, ServerLink, StateBadge, base } from './shared';
+import { ChannelsMini, DmStatus, GenericRows, dmKindLabel, PaymentsMini, ServerLink, StateBadge, base } from './shared';
 import { ServerAvatar } from '@/components/server-avatar';
 import { DiscordNotice } from '@/components/discord-notice';
 import { getGuildInfo, guildInfoMap } from '@/lib/discord';
@@ -118,27 +118,43 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
       </div>
       <div className="grid gap-4">
         <Card title={`Member emails (${d.memberEmails.length})`}>
-          <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px]">
-            <span className="text-muted">Discord DM status</span>
-            {num(b?.reminders_sent) > 0
-              ? <Badge tone="success">{num(b?.reminders_sent)} sent · last {dateTime(str(b?.last_reminder_at))}</Badge>
-              : <Badge tone="neutral">No DM reminder sent yet</Badge>}
-            <span className="text-xs text-muted">DM status is per server. Emails are shown in full, so this page view is audit-logged.</span>
-          </div>
+          <p className="mb-4 text-xs text-muted">Emails are shown in full, so this page view is audit-logged. Reminder counters: {num(b?.reminders_sent)} sent{b?.last_reminder_at ? `, last ${dateTime(str(b.last_reminder_at))}` : ''}.</p>
           {d.memberEmails.length === 0 ? <EmptyState compact title="No member emails" hint="Emails members share with the bot in this server appear here" /> : (
             <Table label="Member emails" bare>
-              <thead><tr><th className="th">Email</th><th className="th">Discord user ID</th><th className="th">Added</th></tr></thead>
+              <thead><tr><th className="th">Email</th><th className="th">Discord user ID</th><th className="th">Added</th><th className="th">Last DM</th></tr></thead>
               <tbody>
-                {d.memberEmails.map((m) => (
-                  <Tr key={`${str(m.discord_user_id)}-${str(m.email)}`}>
-                    <td className="td">{m.email ? <CopyId value={String(m.email)} mono={false} /> : '—'}</td>
-                    <td className="td">{m.discord_user_id ? <CopyId value={String(m.discord_user_id)} /> : '—'}</td>
-                    <td className="td num whitespace-nowrap">{dateTime(str(m.created_at))}</td>
-                  </Tr>
-                ))}
+                {d.memberEmails.map((m) => {
+                  const last = d.dmLog?.find((x) => String(x.discord_user_id) === String(m.discord_user_id));
+                  return (
+                    <Tr key={`${str(m.discord_user_id)}-${str(m.email)}`}>
+                      <td className="td">{m.email ? <CopyId value={String(m.email)} mono={false} /> : '—'}</td>
+                      <td className="td">{m.discord_user_id ? <CopyId value={String(m.discord_user_id)} /> : '—'}</td>
+                      <td className="td num whitespace-nowrap">{dateTime(str(m.created_at))}</td>
+                      <td className="td">{last ? <span className="inline-flex flex-wrap items-center gap-2"><DmStatus status={last.status} /><span className="text-xs text-muted">{dmKindLabel(last.kind)} · {dateTime(str(last.created_at))}</span></span> : <span className="text-muted">{d.dmLog ? 'No DM yet' : '—'}</span>}</td>
+                    </Tr>
+                  );
+                })}
               </tbody>
             </Table>
           )}
+        </Card>
+        <Card title="Message history">
+          {d.dmLog === null ? <EmptyState compact title="DM log not available yet" hint="Apply the bot's dm_log migration to see every DM here" />
+            : d.dmLog.length === 0 ? <EmptyState compact title="No DMs sent for this server yet" />
+            : (
+              <Table label="Message history" bare>
+                <thead><tr><th className="th">When</th><th className="th">Member</th><th className="th">Message</th><th className="th">Status</th><th className="th">Detail</th></tr></thead>
+                <tbody>{d.dmLog.map((x) => (
+                  <Tr key={String(x.id)}>
+                    <td className="td num whitespace-nowrap">{dateTime(str(x.created_at))}</td>
+                    <td className="td"><CopyId value={String(x.discord_user_id)} /></td>
+                    <td className="td">{dmKindLabel(x.kind)}</td>
+                    <td className="td"><DmStatus status={x.status} /></td>
+                    <td className="td text-muted">{str(x.error) ?? '—'}</td>
+                  </Tr>
+                ))}</tbody>
+              </Table>
+            )}
         </Card>
         <Card title="Payment history"><PaymentsMini rows={d.payments} /></Card>
         <Card title="Monitored accounts"><GenericRows compact rows={d.accounts} label="Monitored accounts" prefer={['platform', 'username', 'display_name', 'status']} /></Card>

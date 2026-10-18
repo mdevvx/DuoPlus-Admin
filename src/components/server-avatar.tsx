@@ -22,7 +22,7 @@ export function ServerIdentity({ info, id, size = 32, link, showId = true }: { i
       <ServerAvatar info={info} id={id} size={size} />
       <div className="min-w-0">
         <div className="truncate font-medium">{link ?? info?.name ?? `Server …${id.slice(-6)}`}</div>
-        {showId && <div className="truncate font-mono text-xs text-muted">{id}</div>}
+        {showId && <div className="truncate num text-xs text-muted">{id}</div>}
       </div>
     </div>
   );

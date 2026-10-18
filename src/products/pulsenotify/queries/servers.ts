@@ -61,7 +61,7 @@ export async function listServers(p: ServerParams): Promise<{ rows: ServerRow[];
 
 export async function getServer(id: string) {
   const db = pn();
-  const [guild, billing, payments, accounts, channels, events, audit, memberEmails] = await Promise.all([
+  const [guild, billing, payments, accounts, channels, events, audit, memberEmails, dmLog] = await Promise.all([
     db.from(T.guilds).select('*').eq('guild_id', id).maybeSingle(),
     db.from(T.billing).select('*').eq('guild_id', id).maybeSingle(),
     db.from(T.payments).select('*').eq('guild_id', id).order('created_at', { ascending: false }).limit(50),
@@ -70,6 +70,7 @@ export async function getServer(id: string) {
     db.from(T.events).select('*').eq('guild_id', id).order('detected_at', { ascending: false }).limit(20),
     db.from(T.botAudit).select('*').eq('guild_id', id).order('created_at', { ascending: false }).limit(20),
     db.from(T.contactEmails).select('email,discord_user_id,created_at,updated_at').eq('guild_id', id).order('created_at', { ascending: false }).limit(500),
+    db.from(T.dmLog).select('id,discord_user_id,kind,status,error,created_at').eq('guild_id', id).order('created_at', { ascending: false }).limit(100),
   ]);
   if (!guild.data && !billing.data) return null;
   const g = (guild.data ?? {}) as Row;
@@ -81,6 +82,8 @@ export async function getServer(id: string) {
     guild: safeGuild as Row, billing: (billing.data ?? null) as Row | null, ownerId,
     payments: (payments.data ?? []) as Row[], accounts: (accounts.data ?? []) as Row[], channels: (channels.data ?? []) as Row[],
     events: (events.data ?? []) as Row[], audit: (audit.data ?? []) as Row[], memberEmails: (memberEmails.data ?? []) as Row[],
+    // null = the bot's dm_log table is not available yet (migration not applied)
+    dmLog: dmLog.error ? null : ((dmLog.data ?? []) as Row[]),
   };
 }
 

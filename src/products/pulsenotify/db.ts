@@ -11,6 +11,7 @@ export const T = {
   payments: 'pulsenotify_payments',
   contacts: 'pulsenotify_user_contacts',
   contactEmails: 'pulsenotify_contact_emails',
+  dmLog: 'pulsenotify_dm_log',
   accounts: 'pulsenotify_platform_accounts',
   channels: 'pulsenotify_notification_channels',
   alerts: 'pulsenotify_alert_configurations',

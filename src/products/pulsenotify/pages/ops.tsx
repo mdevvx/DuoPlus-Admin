@@ -5,7 +5,7 @@ import { AuditTable } from '@/components/audit-table';
 import { can } from '@/lib/roles';
 import { dateTime } from '@/lib/format';
 import { PAGE_SIZE } from '@/lib/validation';
-import { getBotSettings, getMergedAudit, getPlatformHealth, getAbandonedCheckouts, getReminders, getSubscriptionHealth } from '../queries/ops';
+import { getBotSettings, getMergedAudit, getPlatformHealth, getAbandonedCheckouts, getFailedDms, getReminders, getSubscriptionHealth } from '../queries/ops';
 import { resetReminders, setMaintenance } from '../actions';
 import type { RouteCtx } from '@/products/types';
 import { GenericRows, ServerLink, base } from './shared';
@@ -13,7 +13,7 @@ import { guildInfoMap } from '@/lib/discord';
 import { SLUG, num, str } from '../db';
 import { writeAudit } from '@/lib/audit';
 import { CopyId } from '@/components/small-client';
-import { PaymentStatus } from './shared';
+import { DmStatus, PaymentStatus, dmKindLabel } from './shared';
 
 export async function SubscriptionsPage() {
   let lists;
@@ -47,8 +47,9 @@ export async function SubscriptionsPage() {
 export async function RemindersPage({ role, admin }: RouteCtx) {
   let d;
   let abandoned: Awaited<ReturnType<typeof getAbandonedCheckouts>> = [];
-  try { [d, abandoned] = await Promise.all([getReminders(), getAbandonedCheckouts()]); } catch { return <ErrorPanel message="Could not load reminders." retryHref={`${base}/reminders`} />; }
-  const infos = await guildInfoMap([...d.upcoming, ...d.recent, ...abandoned].map((r) => String(r.guild_id)));
+  let failed: Awaited<ReturnType<typeof getFailedDms>> = { rows: [], available: false };
+  try { [d, abandoned, failed] = await Promise.all([getReminders(), getAbandonedCheckouts(), getFailedDms()]); } catch { return <ErrorPanel message="Could not load reminders." retryHref={`${base}/reminders`} />; }
+  const infos = await guildInfoMap([...d.upcoming, ...d.recent, ...abandoned, ...failed.rows].map((r) => String(r.guild_id)));
   if (abandoned.some((a) => a.email)) await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'view.abandoned_checkouts', target_type: 'reminders', target_id: 'abandoned_checkouts' });
   const act = (gid: string, label: string) => can(role, 'reminder.send') && <ConfirmAction label="Reset reminders" title={`Reset reminders for ${label}`} action={resetReminders} hidden={{ guildId: gid }}
     description="Resets the reminder counters. The bot sends the next reminder on its own schedule. Limited to once per hour per server." />;
@@ -92,6 +93,28 @@ export async function RemindersPage({ role, admin }: RouteCtx) {
               })}</tbody>
             </Table>
           )}
+        </Card>
+        <Card title={`Failed DMs (${failed.rows.length})`} action={<span className="text-xs text-muted">Last 30 days</span>}>
+          {!failed.available ? <EmptyState compact title="DM log not available yet" hint="Apply the bot's dm_log migration to track delivery" />
+            : failed.rows.length === 0 ? <EmptyState compact title="No failed DMs" hint="Every DM in the last 30 days was delivered" />
+            : (
+              <Table label="Failed DMs" bare>
+                <thead><tr><th className="th">Server</th><th className="th">Discord user ID</th><th className="th">Message</th><th className="th">Status</th><th className="th">Detail</th><th className="th">When</th></tr></thead>
+                <tbody>{failed.rows.map((x) => {
+                  const gid = String(x.guild_id);
+                  return (
+                    <Tr key={String(x.id)}>
+                      <td className="td"><ServerLink id={gid} info={infos[gid]} /></td>
+                      <td className="td"><CopyId value={String(x.discord_user_id)} /></td>
+                      <td className="td">{dmKindLabel(x.kind)}</td>
+                      <td className="td"><DmStatus status={x.status} /></td>
+                      <td className="td text-muted">{str(x.error) ?? '—'}</td>
+                      <td className="td num whitespace-nowrap">{dateTime(str(x.created_at))}</td>
+                    </Tr>
+                  );
+                })}</tbody>
+              </Table>
+            )}
         </Card>
         <Card title="Recently reminded">{table(d.recent, 'Recent reminders')}</Card>
       </div>
