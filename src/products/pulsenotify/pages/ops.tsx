@@ -5,12 +5,15 @@ import { AuditTable } from '@/components/audit-table';
 import { can } from '@/lib/roles';
 import { dateTime } from '@/lib/format';
 import { PAGE_SIZE } from '@/lib/validation';
-import { getBotSettings, getMergedAudit, getPlatformHealth, getReminders, getSubscriptionHealth } from '../queries/ops';
+import { getBotSettings, getMergedAudit, getPlatformHealth, getAbandonedCheckouts, getReminders, getSubscriptionHealth } from '../queries/ops';
 import { resetReminders, setMaintenance } from '../actions';
 import type { RouteCtx } from '@/products/types';
 import { GenericRows, ServerLink, base } from './shared';
 import { guildInfoMap } from '@/lib/discord';
-import { str } from '../db';
+import { SLUG, num, str } from '../db';
+import { writeAudit } from '@/lib/audit';
+import { CopyId } from '@/components/small-client';
+import { PaymentStatus } from './shared';
 
 export async function SubscriptionsPage() {
   let lists;
@@ -41,10 +44,12 @@ export async function SubscriptionsPage() {
   );
 }
 
-export async function RemindersPage({ role }: RouteCtx) {
+export async function RemindersPage({ role, admin }: RouteCtx) {
   let d;
-  try { d = await getReminders(); } catch { return <ErrorPanel message="Could not load reminders." retryHref={`${base}/reminders`} />; }
-  const infos = await guildInfoMap([...d.upcoming, ...d.recent].map((r) => String(r.guild_id)));
+  let abandoned: Awaited<ReturnType<typeof getAbandonedCheckouts>> = [];
+  try { [d, abandoned] = await Promise.all([getReminders(), getAbandonedCheckouts()]); } catch { return <ErrorPanel message="Could not load reminders." retryHref={`${base}/reminders`} />; }
+  const infos = await guildInfoMap([...d.upcoming, ...d.recent, ...abandoned].map((r) => String(r.guild_id)));
+  if (abandoned.some((a) => a.email)) await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'view.abandoned_checkouts', target_type: 'reminders', target_id: 'abandoned_checkouts' });
   const act = (gid: string, label: string) => can(role, 'reminder.send') && <ConfirmAction label="Reset reminders" title={`Reset reminders for ${label}`} action={resetReminders} hidden={{ guildId: gid }}
     description="Resets the reminder counters. The bot sends the next reminder on its own schedule. Limited to once per hour per server." />;
   const table = (rows: typeof d.upcoming, title: string) => rows.length === 0 ? <EmptyState title={`No ${title.toLowerCase()}`} /> : (
@@ -68,6 +73,26 @@ export async function RemindersPage({ role }: RouteCtx) {
       <PageHeader title="Reminders &amp; email" description="Upcoming expiries and recent Discord DM reminders." updatedAt={new Date()} />
       <div className="grid gap-4">
         <Card title="Upcoming (next 7 days)">{table(d.upcoming, 'Upcoming reminders')}</Card>
+        <Card title={`Unfinished checkouts (${abandoned.length})`} action={<span className="text-xs text-muted">Last 30 days · emails shown in full, this view is audit-logged</span>}>
+          {abandoned.length === 0 ? <EmptyState compact title="No unfinished checkouts" hint="People who start a purchase and don't pay appear here" /> : (
+            <Table label="Unfinished checkouts" bare>
+              <thead><tr><th className="th">Server</th><th className="th">Discord user ID</th><th className="th">Email</th><th className="th">Plan</th><th className="th">Started</th><th className="th">Status</th></tr></thead>
+              <tbody>{abandoned.map((a) => {
+                const gid = String(a.guild_id);
+                return (
+                  <Tr key={String(a.id)}>
+                    <td className="td"><ServerLink id={gid} info={infos[gid]} /></td>
+                    <td className="td"><CopyId value={String(a.requested_by)} /></td>
+                    <td className="td">{a.email ? <CopyId value={a.email} mono={false} /> : <span className="text-muted">No email shared</span>}</td>
+                    <td className="td num whitespace-nowrap">{num(a.months)} mo · ${num(a.amount_usd).toFixed(2)}</td>
+                    <td className="td num whitespace-nowrap">{dateTime(str(a.created_at))}</td>
+                    <td className="td"><PaymentStatus status={a.status} /></td>
+                  </Tr>
+                );
+              })}</tbody>
+            </Table>
+          )}
+        </Card>
         <Card title="Recently reminded">{table(d.recent, 'Recent reminders')}</Card>
       </div>
     </>

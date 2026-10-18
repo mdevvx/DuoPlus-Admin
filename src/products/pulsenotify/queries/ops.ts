@@ -64,6 +64,39 @@ export async function getReminders() {
   return { upcoming: (upcoming.data ?? []) as Row[], recent: (recent.data ?? []) as Row[], nameOf };
 }
 
+/**
+ * Checkouts that were started but never paid: pending or expired in the last 30 days, minus any server that
+ * has paid since. Each row is joined to the email that member shared in that server (if any).
+ */
+export async function getAbandonedCheckouts(): Promise<(Row & { email: string | null })[]> {
+  const db = pn();
+  const since = iso(daysFrom(-30));
+  const [open, paid] = await Promise.all([
+    db.from(T.payments).select('id,guild_id,provider,months,amount_usd,status,requested_by,created_at')
+      .in('status', ['pending', 'expired']).gte('created_at', since).not('requested_by', 'is', null)
+      .order('created_at', { ascending: false }).limit(300),
+    db.from(T.payments).select('guild_id,created_at').eq('status', 'paid').gte('created_at', since).limit(5000),
+  ]);
+  const lastPaid = new Map<string, string>();
+  for (const p of (paid.data ?? []) as Row[]) {
+    const g = String(p.guild_id), at = String(p.created_at);
+    if (!lastPaid.has(g) || at > lastPaid.get(g)!) lastPaid.set(g, at);
+  }
+  const rows = ((open.data ?? []) as Row[]).filter((p) => {
+    const paidAt = lastPaid.get(String(p.guild_id));
+    return !paidAt || paidAt < String(p.created_at);
+  });
+  // One row per person per server: their most recent unfinished checkout.
+  const seen = new Set<string>();
+  const unique = rows.filter((p) => { const k = `${p.guild_id}:${p.requested_by}`; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 100);
+  const guildIds = [...new Set(unique.map((p) => String(p.guild_id)))];
+  const emails = guildIds.length
+    ? ((await db.from(T.contactEmails).select('guild_id,discord_user_id,email').in('guild_id', guildIds).limit(5000)).data ?? []) as Row[]
+    : [];
+  const emailOf = new Map(emails.map((e) => [`${e.guild_id}:${e.discord_user_id}`, String(e.email)]));
+  return unique.map((p) => ({ ...p, email: emailOf.get(`${p.guild_id}:${p.requested_by}`) ?? null }));
+}
+
 // ---------------------------------------------------------------- platform health / maintenance
 export async function getPlatformHealth() {
   const db = pn();

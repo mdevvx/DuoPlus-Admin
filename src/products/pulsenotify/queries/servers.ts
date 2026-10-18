@@ -77,11 +77,8 @@ export async function getServer(id: string) {
   // The guilds table stores no owner; the most recent payer is the best known contact for the server.
   const payerRow = ((payments.data ?? []) as Row[]).find((p) => p.requested_by);
   const ownerId = pick(g, 'owner_id', 'owner_discord_id', 'owner_user_id') ?? pick(payerRow, 'requested_by');
-  const contact = ownerId
-    ? ((await db.from(T.contacts).select('discord_user_id,email,discord_username,email_verified,consented_at,reminders_opt_out,opted_out_at').eq('discord_user_id', ownerId).maybeSingle()).data as Row | null)
-    : null;
   return {
-    guild: safeGuild as Row, billing: (billing.data ?? null) as Row | null, ownerId, contact,
+    guild: safeGuild as Row, billing: (billing.data ?? null) as Row | null, ownerId,
     payments: (payments.data ?? []) as Row[], accounts: (accounts.data ?? []) as Row[], channels: (channels.data ?? []) as Row[],
     events: (events.data ?? []) as Row[], audit: (audit.data ?? []) as Row[], memberEmails: (memberEmails.data ?? []) as Row[],
   };

@@ -62,6 +62,11 @@ export function ConfirmAction({
   function validate() {
     const bad: Record<string, string> = {};
     for (const f of fields) if (!f.optional && f.type !== 'select' && !(values[f.name] ?? '').trim()) bad[f.name] = 'This field is required.';
+    for (const f of fields) {
+      if (f.type !== 'number' || bad[f.name] || !(values[f.name] ?? '').trim()) continue;
+      const n = Number(values[f.name]);
+      if (!Number.isInteger(n) || (f.min !== undefined && n < f.min) || (f.max !== undefined && n > f.max)) bad[f.name] = `Enter a whole number${f.min !== undefined && f.max !== undefined ? ` from ${f.min} to ${f.max}` : ''}.`;
+    }
     if (reasonRequired && reason.trim().length < 5) bad.reason = 'Give a short reason (at least 5 characters).';
     setInvalid(bad);
     const first = Object.keys(bad)[0];

@@ -38,6 +38,23 @@ export function PaymentsMini({ rows }: { rows: Row[] }) {
   );
 }
 
+export function ChannelsMini({ rows }: { rows: Row[] }) {
+  if (rows.length === 0) return <EmptyState compact title="No notification channels" />;
+  return (
+    <Table label="Notification channels" bare>
+      <thead><tr><th className="th">Name</th><th className="th">Channel ID</th><th className="th">Status</th><th className="th">Added</th></tr></thead>
+      <tbody>{rows.map((c, i) => (
+        <Tr key={i}>
+          <td className="td font-medium">{str(c.name) ?? '—'}</td>
+          <td className="td">{c.channel_id ? <CopyId value={String(c.channel_id)} /> : '—'}</td>
+          <td className="td">{c.is_valid === false ? <Badge tone="danger">Invalid</Badge> : <Badge tone="success">Valid</Badge>}</td>
+          <td className="td num whitespace-nowrap">{dateTime(str(c.created_at))}</td>
+        </Tr>
+      ))}</tbody>
+    </Table>
+  );
+}
+
 export function ServerLink({ id, info, showId = true }: { id: string; info?: GuildInfo | null; showId?: boolean }) {
   return (
     <ServerIdentity id={id} info={info} size={28} showId={showId}
@@ -47,8 +64,8 @@ export function ServerLink({ id, info, showId = true }: { id: string; info?: Gui
 
 const SKIP = /(token|secret|password|settings|payload|webhook|key)/i;
 /** Renders rows of a table whose columns we only know at runtime: scalar columns, no secrets, IDs copyable. */
-export function GenericRows({ rows, prefer = [], label, max = 7 }: { rows: Row[]; prefer?: string[]; label: string; max?: number }) {
-  if (rows.length === 0) return <EmptyState title={`No ${label.toLowerCase()}`} />;
+export function GenericRows({ rows, prefer = [], label, max = 7, compact }: { rows: Row[]; prefer?: string[]; label: string; max?: number; compact?: boolean }) {
+  if (rows.length === 0) return <EmptyState compact={compact} title={`No ${label.toLowerCase()}`} />;
   const all = Object.keys(rows[0]!).filter((k) => !SKIP.test(k) && rows.some((r) => r[k] !== null && typeof r[k] !== 'object'));
   const cols = [...prefer.filter((p) => all.includes(p)), ...all.filter((c) => !prefer.includes(c))].slice(0, max);
   return (

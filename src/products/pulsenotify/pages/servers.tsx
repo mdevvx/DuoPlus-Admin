@@ -4,13 +4,13 @@ import { Badge, Card, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Paginat
 import { ConfirmAction } from '@/components/confirm-action';
 import { CopyId } from '@/components/small-client';
 import { can } from '@/lib/roles';
-import { dateTime, dateOnly, maskEmail, money, relative, sentence } from '@/lib/format';
+import { dateTime, dateOnly, money, relative, sentence } from '@/lib/format';
 import { writeAudit } from '@/lib/audit';
 import { PAGE_SIZE, snowflake } from '@/lib/validation';
 import { getServer, listServers, serverParams } from '../queries/servers';
 import { adjustPaidDays, extendTrial, markBotRemoved, removeWhitelist, resetReminders, whitelistServer } from '../actions';
 import type { RouteCtx } from '@/products/types';
-import { GenericRows, PaymentsMini, ServerLink, StateBadge, base } from './shared';
+import { ChannelsMini, GenericRows, PaymentsMini, ServerLink, StateBadge, base } from './shared';
 import { ServerAvatar } from '@/components/server-avatar';
 import { DiscordNotice } from '@/components/discord-notice';
 import { getGuildInfo, guildInfoMap } from '@/lib/discord';
@@ -87,7 +87,8 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
       {can(role, 'server.mark_removed') && botPresent !== false && <ConfirmAction label="Mark bot removed" title="Mark bot as removed" danger action={markBotRemoved} hidden={hidden} typeToConfirm={name} />}
     </div>
   );
-  const c = d.contact;
+  const ownerEmail = d.ownerId ? str(d.memberEmails.find((m) => String(m.discord_user_id) === d.ownerId)?.email) : null;
+  const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
   return (
     <>
       <PageHeader icon={<ServerAvatar info={info} id={id.data} size={52} />} title={name} description={info ? `Server detail · ${id.data}` : 'Server detail'} actions={b && <StateBadge billing={b} botPresent={botPresent} />} updatedAt={new Date()} />
@@ -95,60 +96,55 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
       <div className="mb-6 grid grid-cols-4 gap-5">
         <Card><Stat icon="subscriptions" label="Subscription" value={<span className="text-[22px]">{STATE_LABEL[subState].label}</span>} hint={b?.whitelisted ? 'Free access' : b?.card_status ? `Card: ${sentence(str(b.card_status))}` : 'No card on file'} /></Card>
         <Card><Stat icon="reminders" label={isPaid ? 'Paid until' : 'Trial ends'} value={<span className="text-[22px]">{dateOnly(expiry)}</span>} hint={relative(expiry)} /></Card>
-        <Card><Stat icon="payments" label="Lifetime paid" value={money(lifetime)} hint={`${paidCount} paid payments`} /></Card>
-        <Card><Stat icon="customers" label="Monitored accounts" value={String(d.accounts.length)} hint={`${d.channels.length} channels`} /></Card>
+        <Card><Stat icon="payments" label="Lifetime paid" value={money(lifetime)} hint={plural(paidCount, 'paid payment')} /></Card>
+        <Card><Stat icon="customers" label="Monitored accounts" value={String(d.accounts.length)} hint={plural(d.channels.length, 'channel')} /></Card>
       </div>
       <div className="mb-4 grid grid-cols-2 gap-4">
         <Card title="Server &amp; owner">
           <KV items={[
-            ['Server ID', <CopyId key="s" value={id.data} />], ['Bot present', botPresent === null ? '—' : botPresent ? 'Yes' : 'No'],
+            ['Server ID', <CopyId key="s" value={id.data} />], ['Bot present', botPresent === null ? '—' : <Badge key="bp" tone={botPresent ? 'success' : 'danger'}>{botPresent ? 'Yes' : 'No'}</Badge>],
             ['Owner / last payer ID', d.ownerId ? <CopyId key="o" value={d.ownerId} /> : '—'],
-            ['Owner username', str(c?.discord_username)],
-            ['Owner email', c?.email ? `${str(c.email)}${c.email_verified ? '' : ' (unverified)'}` : 'None on file'],
-            ['Email consent', c?.consented_at ? dateTime(str(c.consented_at)) : 'No consent recorded'],
-            ['Reminder emails', c ? (c.reminders_opt_out ? <Badge key="oo" tone="warning">Opted out {dateTime(str(c.opted_out_at))}</Badge> : <Badge key="oi" tone="success">Allowed</Badge>) : '—'],
+            ['Owner email', ownerEmail ? <CopyId key="e" value={ownerEmail} mono={false} /> : <span key="e" className="text-muted">None on file</span>],
           ]} />
-          {c && <p className="mt-3 text-xs text-muted">Masked in lists as {maskEmail(str(c.email))}. Viewing this page is audit-logged.</p>}
         </Card>
         <Card title="Subscription">
           {b ? <KV items={[
             ['Trial ends', dateTime(str(b.trial_ends_at))], ['Paid until', dateTime(str(b.paid_until))],
             ['Whitelisted', b.whitelisted ? `Yes${b.whitelist_note ? ` — ${str(b.whitelist_note)}` : ''}` : 'No'],
             ['Card status', b.card_status ? sentence(str(b.card_status)) : '—'], ['Card cancels', dateTime(str(b.card_cancels_at))],
-            ['DM reminders sent', str(b.reminders_sent) ?? '0'], ['Last reminder', dateTime(str(b.last_reminder_at))],
+            ['DM reminders sent', str(b.reminders_sent) ?? '0'], ['Last DM reminder', dateTime(str(b.last_reminder_at))],
           ]} /> : <EmptyState title="No billing row" />}
         </Card>
       </div>
       <div className="grid gap-4">
         <Card title={`Member emails (${d.memberEmails.length})`}>
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px]">
-            <span className="text-muted">Discord DM status:</span>
+          <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px]">
+            <span className="text-muted">Discord DM status</span>
             {num(b?.reminders_sent) > 0
               ? <Badge tone="success">{num(b?.reminders_sent)} sent · last {dateTime(str(b?.last_reminder_at))}</Badge>
               : <Badge tone="neutral">No DM reminder sent yet</Badge>}
+            <span className="text-xs text-muted">DM status is per server. Emails are shown in full, so this page view is audit-logged.</span>
           </div>
-          {d.memberEmails.length === 0 ? <EmptyState title="No member emails" hint="Members who share an email with the bot in this server appear here." /> : (
+          {d.memberEmails.length === 0 ? <EmptyState compact title="No member emails" hint="Emails members share with the bot in this server appear here" /> : (
             <Table label="Member emails" bare>
-              <thead><tr><th className="th">Email</th><th className="th">Discord user ID</th><th className="th">Added</th><th className="th">DM status</th></tr></thead>
+              <thead><tr><th className="th">Email</th><th className="th">Discord user ID</th><th className="th">Added</th></tr></thead>
               <tbody>
                 {d.memberEmails.map((m) => (
                   <Tr key={`${str(m.discord_user_id)}-${str(m.email)}`}>
                     <td className="td">{m.email ? <CopyId value={String(m.email)} mono={false} /> : '—'}</td>
                     <td className="td">{m.discord_user_id ? <CopyId value={String(m.discord_user_id)} /> : '—'}</td>
                     <td className="td num whitespace-nowrap">{dateTime(str(m.created_at))}</td>
-                    <td className="td">{num(b?.reminders_sent) > 0 ? <Badge tone="success">DM sent</Badge> : <Badge tone="neutral">Not sent</Badge>}</td>
                   </Tr>
                 ))}
               </tbody>
             </Table>
           )}
-          <p className="mt-3 text-xs text-muted">Emails are shown in full here, so viewing this page is audit-logged. DM status is per server, from the bot&apos;s reminder counters.</p>
         </Card>
         <Card title="Payment history"><PaymentsMini rows={d.payments} /></Card>
-        <Card title="Monitored accounts"><GenericRows rows={d.accounts} label="Monitored accounts" prefer={['platform', 'username', 'display_name', 'account_id']} /></Card>
-        <Card title="Notification channels"><GenericRows rows={d.channels} label="Notification channels" prefer={['channel_id', 'platform', 'name']} /></Card>
-        <Card title="Recent events"><GenericRows rows={d.events} label="Events" prefer={['created_at', 'platform', 'event_type', 'title']} /></Card>
-        <Card title="Bot audit trail"><GenericRows rows={d.audit} label="Audit entries" prefer={['created_at', 'action', 'user_id']} /></Card>
+        <Card title="Monitored accounts"><GenericRows compact rows={d.accounts} label="Monitored accounts" prefer={['platform', 'username', 'display_name', 'status']} /></Card>
+        <Card title="Notification channels"><ChannelsMini rows={d.channels} /></Card>
+        <Card title="Recent events"><GenericRows compact rows={d.events} label="Events" prefer={['created_at', 'platform', 'event_type', 'title']} /></Card>
+        <Card title="Bot activity log"><GenericRows compact rows={d.audit} label="Audit entries" prefer={['created_at', 'action', 'user_id']} /></Card>
       </div>
       <p className="mt-4 text-xs text-muted">All server actions are written to the audit log with before/after values. <Link className="text-accent" href={`${base}/audit?target=${id.data}`}>View this server&apos;s audit trail</Link></p>
     </>

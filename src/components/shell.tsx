@@ -138,10 +138,8 @@ export function Crumbs({ products }: { products: ShellProduct[] }) {
     const names: Record<string, string> = { '/audit': 'Audit log', '/admins': 'Admins', '/settings': 'Settings' };
     trail.push({ label: names['/' + path.split('/')[1]] ?? 'Page' });
   }
-  const title = trail.at(-1)!.label;
   return (
-    <div className="flex h-11 shrink-0 items-center justify-between border-b border-line bg-subtle px-8">
-      <span className="text-[12px] font-semibold uppercase tracking-wider">{title}</span>
+    <div className="flex h-11 shrink-0 items-center justify-start border-b border-line bg-subtle px-8">
       <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[13px] text-muted">
         {trail.map((c, i) => (
           <span key={i} className="flex items-center gap-1.5">

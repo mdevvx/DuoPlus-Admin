@@ -76,7 +76,15 @@ export function Stat({ label, value, hint, icon }: { label: string; value: React
   );
 }
 
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+export function EmptyState({ title, hint, compact }: { title: string; hint?: string; compact?: boolean }) {
+  if (compact) {
+    return (
+      <div className="flex items-center gap-3 text-muted">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-subtle"><Inbox className="h-4 w-4" aria-hidden /></span>
+        <span><span className="font-medium text-ink">{title}</span>{hint && <span> · {hint}</span>}</span>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col items-center gap-2 px-6 py-14 text-center">
       <span className="flex h-11 w-11 items-center justify-center rounded bg-subtle text-muted"><Inbox className="h-5 w-5" aria-hidden /></span>
