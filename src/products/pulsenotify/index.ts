@@ -4,7 +4,9 @@ import type { ProductModule } from '../types';
 import { getOverview } from './queries/overview';
 import { attentionCounts, productHealthSummary } from './queries/ops';
 import { searchServers } from './queries/servers';
-import { searchCustomers } from './queries/customers';
+import { searchCustomers, searchMembers } from './queries/customers';
+import { searchPayments } from './queries/payments';
+import { maskEmail } from '@/lib/format';
 import { exportPayments } from './queries/payments';
 import { OverviewPage } from './pages/overview';
 import { ServerDetailPage, ServersPage } from './pages/servers';
@@ -64,9 +66,11 @@ const pulsenotify: ProductModule = {
   },
   health: productHealthSummary,
   search: async (q) => {
-    const [servers, customers] = await Promise.all([searchServers(q), searchCustomers(q)]);
+    const [servers, customers, members, payments] = await Promise.all([searchServers(q), searchCustomers(q), searchMembers(q), searchPayments(q)]);
     return [
       ...servers.map((s) => ({ type: 'Server', label: str(s.name) ?? String(s.guild_id), sub: String(s.guild_id), href: `${base}/servers/${s.guild_id}` })),
+      ...members.map((m) => ({ type: 'Member', label: maskEmail(str(m.email)), sub: String(m.discord_user_id), href: `${base}/servers/${m.guild_id}` })),
+      ...payments.map((p) => ({ type: 'Payment', label: `Payment ${str(p.external_id) ?? String(p.id).slice(0, 8)}`, sub: `${money(p.amount_usd as number)} · ${str(p.status)}`, href: `${base}/servers/${p.guild_id}` })),
       ...customers.map((c) => ({ type: 'Customer', label: str(c.discord_username) ?? String(c.discord_user_id), sub: String(c.discord_user_id), href: `${base}/customers/${c.discord_user_id}` })),
     ];
   },

@@ -60,6 +60,15 @@ export async function getCustomer(id: string) {
   };
 }
 
+/** Members who shared an email with the bot. Matches an email fragment or an exact Discord user ID. */
+export async function searchMembers(q: string) {
+  const isId = snowflake.safeParse(q).success;
+  if (!isId && q.length < 3) return [];
+  const base = pn().from(T.contactEmails).select('guild_id,discord_user_id,email');
+  const res = await (isId ? base.eq('discord_user_id', q) : base.ilike('email', `%${likeTerm(q)}%`)).limit(5);
+  return res.error ? [] : ((res.data ?? []) as Row[]);
+}
+
 export async function searchCustomers(q: string) {
   const db = pn();
   const filter = snowflake.safeParse(q).success ? `discord_user_id.eq.${q}` : `discord_username.ilike.%${likeTerm(q)}%,email.ilike.%${likeTerm(q)}%`;

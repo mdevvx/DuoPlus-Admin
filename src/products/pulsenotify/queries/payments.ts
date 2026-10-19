@@ -1,7 +1,15 @@
 import 'server-only';
 import { z } from 'zod';
-import { PAGE_SIZE } from '@/lib/validation';
+import { PAGE_SIZE, uuid } from '@/lib/validation';
 import { pn, T, must, num, type Row } from '../db';
+
+/** A payment by its ID or provider reference (exact match). */
+export async function searchPayments(q: string) {
+  if (!/^[\w-]{6,64}$/.test(q)) return [];
+  const base = pn().from(T.payments).select('id,guild_id,external_id,status,amount_usd');
+  const res = await (uuid.safeParse(q).success ? base.eq('id', q) : base.eq('external_id', q)).limit(3);
+  return res.error ? [] : ((res.data ?? []) as Row[]);
+}
 
 export const paymentParams = z.object({
   page: z.coerce.number().int().min(1).max(100000).catch(1),

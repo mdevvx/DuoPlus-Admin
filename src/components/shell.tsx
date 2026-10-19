@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition, type ComponentType } from 'react';
 import clsx from 'clsx';
-import { Search, Sun, Moon, Monitor, ChevronsUpDown, LogOut, ShieldCheck, Keyboard, Check, ChevronRight, UserPen, X } from 'lucide-react';
+import { Search, Sun, Moon, Monitor, ChevronsUpDown, LogOut, ShieldCheck, Keyboard, Check, ChevronRight, UserPen, X, Mail, Users, CreditCard, CornerDownLeft, CornerDownRight, Loader2, Server as ServerIcon } from 'lucide-react';
 import { Icon, ProductMark } from './icons';
 import { setTheme } from '@/app/(hub)/actions';
 import { signOutAction, signOutEverywhereAction } from '@/app/(auth)/actions';
@@ -196,7 +196,7 @@ export function Topbar({ products, email, name, theme, role, showAdmins }: { pro
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-line bg-surface px-8">
       <div className="flex min-w-0 flex-1 items-center gap-3 pr-4">
               <button className="flex h-10 w-full min-w-[200px] max-w-[400px] flex-1 items-center gap-3 rounded border border-line bg-subtle px-4 text-muted transition-colors hover:border-accent" onClick={() => setPalette(true)}>
-        <Search className="h-4 w-4 text-accent" aria-hidden /> <span className="flex-1 text-left">Search servers, customers, payments…</span>
+        <Search className="h-4 w-4 text-accent" aria-hidden /> <span className="flex-1 text-left">Search servers, members, payments…</span>
         <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 text-[11px] font-medium">Ctrl K</kbd>
       </button>
         <nav aria-label="Workspace" className="flex shrink-0 items-center gap-1.5">
@@ -252,64 +252,94 @@ function ThemeToggle({ theme }: { theme: 'system' | 'light' | 'dark' }) {
   );
 }
 
+const GROUP_ICON: Record<string, ComponentType<{ className?: string; 'aria-hidden'?: boolean }>> = {
+  'Go to': CornerDownRight, Server: ServerIcon, Customer: Users, Member: Mail, Payment: CreditCard,
+};
+const GROUP_LABEL: Record<string, string> = { 'Go to': 'Go to', Server: 'Servers', Customer: 'Customers', Member: 'Member emails', Payment: 'Payments' };
+
 function Palette({ products, onClose }: { products: ShellProduct[]; onClose: () => void }) {
   const router = useRouter();
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<Hit[]>([]);
+  const [loading, setLoading] = useState(false);
   const [sel, setSel] = useState(0);
   const input = useRef<HTMLInputElement>(null);
+  const list = useRef<HTMLUListElement>(null);
   useEffect(() => input.current?.focus(), []);
 
   const quick: Hit[] = [
-    { type: 'General', label: 'Home', href: '/' }, { type: 'General', label: 'Audit log', href: '/audit' },
-    ...products.flatMap((p) => [{ type: 'Product', label: `Open ${p.name}`, href: `/p/${p.slug}` },
-      ...p.nav.filter((n) => n.path).map((n) => ({ type: p.name, label: n.label, href: `/p/${p.slug}/${n.path}` }))]),
+    { type: 'Go to', label: 'Home', href: '/', sub: 'G H' }, { type: 'Go to', label: 'Audit log', href: '/audit', sub: 'G A' },
+    ...products.flatMap((p) => [{ type: 'Go to', label: `Open ${p.name}`, href: `/p/${p.slug}` },
+      ...p.nav.filter((n) => n.path).map((n) => ({ type: 'Go to', label: n.label, href: `/p/${p.slug}/${n.path}`, sub: n.shortcut ? `G ${n.shortcut.toUpperCase()}` : undefined }))]),
   ];
-  const shown = q.trim().length < 2 ? quick.slice(0, 10) : [...quick.filter((h) => h.label.toLowerCase().includes(q.toLowerCase())), ...hits];
+  const term = q.trim();
+  const searching = term.length >= 2;
+  const shown = searching ? [...quick.filter((h) => h.label.toLowerCase().includes(term.toLowerCase())), ...hits] : quick.slice(0, 10);
 
   useEffect(() => {
-    if (q.trim().length < 2) { setHits([]); return; }
+    if (!searching) { setHits([]); setLoading(false); return; }
+    setLoading(true);
     const ctl = new AbortController();
     const id = setTimeout(async () => {
       try {
         // POST so search terms (possibly emails/IDs) never appear in URLs or logs.
-        const res = await fetch('/api/search', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ q }), signal: ctl.signal });
+        const res = await fetch('/api/search', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ q: term }), signal: ctl.signal });
         if (res.ok) setHits(((await res.json()) as { hits: Hit[] }).hits);
-      } catch { /* aborted */ }
+        setLoading(false);
+      } catch { /* aborted: a newer search owns the loading state */ }
     }, 200);
     return () => { clearTimeout(id); ctl.abort(); };
-  }, [q]);
+  }, [term, searching]);
+
+  // Keep the highlighted row visible while moving with the arrow keys.
+  useEffect(() => { list.current?.querySelector(`[data-idx="${sel}"]`)?.scrollIntoView({ block: 'nearest' }); }, [sel]);
 
   const go = (h?: Hit) => { if (h) { onClose(); router.push(h.href); } };
+  let lastGroup = '';
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-24 backdrop-blur-[2px]" onMouseDown={onClose}>
-      <div role="dialog" aria-label="Command palette" className="dialog-in w-[600px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-label="Search" className="dialog-in w-[640px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised text-left shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-line px-4">
-          <Search className="h-4 w-4 shrink-0 text-accent" aria-hidden />
-          <input ref={input} className="h-12 w-full bg-transparent outline-none placeholder:text-muted" placeholder="Jump to a product, server, customer or payment…"
+          <Search className="h-[18px] w-[18px] shrink-0 text-accent" aria-hidden />
+          <input ref={input} role="combobox" aria-expanded aria-controls="palette-list" aria-activedescendant={shown[sel] ? `palette-${sel}` : undefined} autoComplete="off" spellCheck={false}
+            className="h-14 w-full bg-transparent text-[15px] outline-none placeholder:text-muted focus-visible:outline-none" placeholder="Search servers, members, payments or pages…"
             value={q} onChange={(e) => { setQ(e.target.value); setSel(0); }}
             onKeyDown={(e) => {
               if (e.key === 'Escape') onClose();
-              if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => Math.min(s + 1, shown.length - 1)); }
-              if (e.key === 'ArrowUp') { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)); }
+              if (e.key === 'ArrowDown') { e.preventDefault(); setSel((x) => Math.min(x + 1, shown.length - 1)); }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setSel((x) => Math.max(x - 1, 0)); }
               if (e.key === 'Enter') go(shown[sel]);
             }} />
-          <kbd className="rounded border border-line bg-subtle px-1.5 py-0.5 text-[11px] text-muted">Esc</kbd>
+          {loading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted" aria-label="Searching" /> : q && <button type="button" aria-label="Clear search" className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted hover:bg-subtle hover:text-ink" onClick={() => { setQ(''); setSel(0); input.current?.focus(); }}><X className="h-3.5 w-3.5" /></button>}
+          <kbd className="shrink-0 rounded border border-line bg-subtle px-1.5 py-0.5 text-[11px] text-muted">Esc</kbd>
         </div>
-        <ul className="thin-scroll max-h-80 overflow-auto p-2">
-          {shown.length === 0 && <li className="px-3 py-8 text-center text-muted">No matches</li>}
-          {shown.map((h, i) => (
-            <li key={h.href + h.label + i}>
-              <button className={clsx('flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left', i === sel && 'bg-accent-soft')} onMouseEnter={() => setSel(i)} onClick={() => go(h)}>
-                <span className="min-w-0 truncate">{h.label}{h.sub && <span className="ml-2 font-mono text-xs text-muted">{h.sub}</span>}</span>
-                <span className="ml-3 shrink-0 rounded bg-subtle px-2 py-0.5 text-[11px] font-medium text-muted">{h.type}</span>
-              </button>
-            </li>
-          ))}
+        <ul ref={list} id="palette-list" role="listbox" className="thin-scroll max-h-[min(24rem,60vh)] overflow-auto p-2">
+          {shown.length === 0 && !loading && (
+            <li className="px-3 py-10 text-center text-muted"><div className="font-medium text-ink">No results for “{term}”</div><div className="mt-1 text-xs">Try a server ID, a Discord user ID, part of an email, or a payment reference.</div></li>
+          )}
+          {shown.length === 0 && loading && <li className="px-3 py-10 text-center text-muted">Searching…</li>}
+          {shown.map((h, i) => {
+            const head = h.type !== lastGroup; lastGroup = h.type;
+            const Ico = GROUP_ICON[h.type] ?? CornerDownRight;
+            return (
+              <li key={h.href + h.label + i} role="presentation">
+                {head && <div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted">{searching || h.type !== 'Go to' ? (GROUP_LABEL[h.type] ?? h.type) : 'Quick links'}</div>}
+                <button id={`palette-${i}`} data-idx={i} role="option" aria-selected={i === sel} className={clsx('flex w-full items-center gap-3 rounded-md px-3 py-2 text-left', i === sel ? 'bg-accent-soft' : 'hover:bg-subtle')} onMouseMove={() => i !== sel && setSel(i)} onClick={() => go(h)}>
+                  <span className={clsx('flex h-7 w-7 shrink-0 items-center justify-center rounded-md', i === sel ? 'bg-surface text-accent' : 'bg-subtle text-muted')}><Ico className="h-4 w-4" aria-hidden /></span>
+                  <span className="min-w-0 flex-1 truncate">{h.label}</span>
+                  {h.sub && (h.type === 'Go to'
+                    ? <kbd className="shrink-0 rounded border border-line bg-surface px-1.5 py-0.5 text-[11px] font-medium text-muted">{h.sub}</kbd>
+                    : <span className="num shrink-0 text-xs text-muted">{h.sub}</span>)}
+                  {i === sel && <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden />}
+                </button>
+              </li>
+            );
+          })}
         </ul>
         <div className="flex items-center gap-4 border-t border-line bg-subtle px-4 py-2.5 text-xs text-muted">
           <span><kbd className="rounded border border-line bg-surface px-1">↑</kbd> <kbd className="rounded border border-line bg-surface px-1">↓</kbd> move</span>
           <span><kbd className="rounded border border-line bg-surface px-1">↵</kbd> open</span>
+          <span className="ml-auto">{searching ? `${hits.length} ${hits.length === 1 ? 'result' : 'results'}` : 'Type 2+ characters to search'}</span>
         </div>
       </div>
     </div>
