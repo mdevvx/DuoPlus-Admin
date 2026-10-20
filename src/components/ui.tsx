@@ -128,12 +128,27 @@ export function TableSkeleton({ rows = 8, cols = 5 }: { rows?: number; cols?: nu
 export function Table({ children, label, bare }: { children: ReactNode; label: string; bare?: boolean }) {
   return (
     <div className={bare ? '-mx-5 -mb-5 overflow-hidden' : 'card overflow-hidden'}>
-      <div className="max-h-[calc(100vh-260px)] overflow-y-auto overflow-x-hidden">
+      <div className="max-h-[calc(100vh-260px)] overflow-auto">
         <table className="w-full border-collapse text-sm" aria-label={label} data-keynav>{children}</table>
       </div>
     </div>
   );
 }
+/**
+ * Table cell content: one line that ends in an ellipsis instead of widening the table (full text on hover),
+ * with an optional muted second line. Wrap links by passing `href`. Use for emails, hosts, IDs, user agents.
+ */
+export function Cell({ text, sub, max = 240, mono, href }: { text: string | null | undefined; sub?: ReactNode; max?: number; mono?: boolean; href?: string }) {
+  return (
+    <div className="min-w-0" style={{ maxWidth: max }}>
+      <div className={clsx('truncate', mono && 'font-mono text-xs')} title={text ?? undefined}>
+        {href && text ? <Link className="font-medium text-accent hover:underline" data-row-link href={href}>{text}</Link> : (text || '—')}
+      </div>
+      {sub && <div className="truncate text-xs text-muted">{sub}</div>}
+    </div>
+  );
+}
+
 export const Tr = ({ children }: { children: ReactNode }) => <tr className="border-t border-line transition-colors first:border-0 hover:bg-subtle">{children}</tr>;
 
 /** Build a URL keeping current params. Values are never PII (search terms excluded by callers if needed). */

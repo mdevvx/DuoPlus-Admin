@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { Download } from 'lucide-react';
-import Link from 'next/link';
-import { Badge, Card, EmptyState, FilterBar, KV, PageHeader, Pagination, Select, Table, Tr, When } from '@/components/ui';
+import { Badge, Card, Cell, EmptyState, FilterBar, KV, PageHeader, Pagination, Select, Table, Tr, When } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
 import { CopyId } from '@/components/small-client';
 import { can } from '@/lib/roles';
@@ -46,18 +45,18 @@ function CustomerTable({ data, p, path }: { data: unknown; p: z.infer<typeof par
     <>
       {rows.length === 0 ? <div className="card"><EmptyState title="No customers match" /></div> : (
         <Table label="Customers">
-          <thead><tr><th className="th">Email</th><th className="th">Plan</th><th className="th">Store</th><th className="th">Last seen</th><th className="th">Version</th><th className="th">Key</th><th className="th text-right">Downloads</th><th className="th text-right">Paid</th><th className="th">Joined</th><th className="th">Period end</th></tr></thead>
+          <thead><tr><th className="th">Customer</th><th className="th">Plan</th><th className="th">Store</th><th className="th">Last seen</th><th className="th text-right">Paid</th><th className="th">Joined</th><th className="th">Period end</th></tr></thead>
           <tbody>{rows.map((c, i) => {
             const id = first(c, 'id', 'user_id', 'customer_id');
+            const email = s(c, 'email') ?? `Customer ${id}`;
+            const hint = s(c, 'key_hint', 'key');
+            const dl = n(c, 'downloads', 'download_count');
             return (
               <Tr key={String(id ?? i)}>
-                <td className="td">{id !== undefined ? <Link className="font-medium text-accent hover:underline" data-row-link href={`${path}/${encodeURIComponent(String(id))}`}>{s(c, 'email') ?? `Customer ${id}`}</Link> : s(c, 'email')}</td>
+                <td className="td"><Cell max={240} text={email} href={id !== undefined ? `${path}/${encodeURIComponent(String(id))}` : undefined} sub={<>{hint && <span className="font-mono">{hint}</span>}{hint && ' · '}{int(dl)} download{dl === 1 ? '' : 's'}</>} /></td>
                 <td className="td"><div className="flex flex-wrap gap-1"><PlanBadge state={planOf(c)} />{b(c, 'suspended') && <Badge tone="danger">Suspended</Badge>}</div></td>
-                <td className="td">{s(c, 'store_host', 'host', 'domain') ?? <span className="text-muted">No store</span>}</td>
+                <td className="td"><Cell max={200} text={s(c, 'store_host', 'host', 'domain') ?? 'No store'} sub={s(c, 'plugin_version', 'version') ? `v${s(c, 'plugin_version', 'version')}` : undefined} /></td>
                 <td className="td"><When value={whenOf(c, 'last_seen', 'seen_at', 'last_seen_at')} /></td>
-                <td className="td num">{s(c, 'plugin_version', 'version') ?? '—'}</td>
-                <td className="td font-mono text-xs">{s(c, 'key_hint', 'key') ?? '—'}</td>
-                <td className="td num text-right">{int(n(c, 'downloads', 'download_count'))}</td>
                 <td className="td num text-right">{cents(n(c, 'total_paid', 'paid', 'paid_cents'))}</td>
                 <td className="td"><When value={whenOf(c, 'created_at', 'created', 'joined_at')} /></td>
                 <td className="td"><When value={whenOf(c, 'period_end', 'current_period_end', 'period_ends_at')} /></td>
@@ -152,10 +151,11 @@ export async function CustomerDetailPage({ params: rp, role, admin }: RouteCtx) 
         <Card title="Stores">
           {stores.length === 0 ? <EmptyState compact title="No store activated" /> : (
             <table className="w-full border-collapse text-sm" aria-label="Stores">
-              <thead><tr><th className="th">Host</th><th className="th">Store ID</th><th className="th">Label</th><th className="th">State</th><th className="th">First seen</th><th className="th">Last seen</th><th className="th">Version</th></tr></thead>
+              <thead><tr><th className="th">Store</th><th className="th">Label</th><th className="th">State</th><th className="th">First seen</th><th className="th">Last seen</th><th className="th">Version</th></tr></thead>
               <tbody>{stores.map((x, i) => (
                 <Tr key={i}>
-                  <td className="td">{s(x, 'host', 'domain')}</td><td className="td font-mono text-xs">{s(x, 'ref', 'store_id', 'id')}</td><td className="td">{s(x, 'label') ?? '—'}</td>
+                  <td className="td"><Cell max={240} text={s(x, 'host', 'domain')} sub={<span className="font-mono">{s(x, 'ref', 'store_id', 'id')}</span>} /></td>
+                  <td className="td"><Cell max={140} text={s(x, 'label')} /></td>
                   <td className="td"><StoreBadge state={b(x, 'released') ? 'released' : s(x, 'state', 'status')} /></td>
                   <td className="td"><When value={whenOf(x, 'first_seen', 'first_seen_at')} /></td><td className="td"><When value={whenOf(x, 'last_seen', 'last_seen_at')} /></td>
                   <td className="td num">{s(x, 'plugin_version', 'version') ?? '—'}</td>

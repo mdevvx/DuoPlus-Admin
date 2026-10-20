@@ -43,7 +43,7 @@ export function StoreBadge({ state }: { state: string | null }) {
 
 export function CustomerLink({ id, label }: { id: unknown; label: ReactNode }) {
   if (id === undefined || id === null || id === '') return <>{label}</>;
-  return <Link className="font-medium text-accent hover:underline" data-row-link href={`${base}/customers/${encodeURIComponent(String(id))}`}>{label}</Link>;
+  return <Link className="inline-block max-w-full truncate align-bottom font-medium text-accent hover:underline" data-row-link href={`${base}/customers/${encodeURIComponent(String(id))}`}>{label}</Link>;
 }
 
 /** Plan state of a customer row, whichever field the API used. */

@@ -33,6 +33,9 @@ export async function getOverview(): Promise<Overview> {
   };
 }
 
+/** Fixed-height slot so every stat card's chart sits on the same baseline. */
+const ChartSlot = ({ children }: { children: React.ReactNode }) => <div className="flex h-11 items-end [&>*]:w-full">{children}</div>;
+
 const sum = (p: { value: number }[]) => p.reduce((a, x) => a + x.value, 0);
 const fmtStat = (k: string, v: number) => (PERCENTISH.test(k) ? `${v <= 1 ? Math.round(v * 1000) / 10 : Math.round(v * 10) / 10}%` : MONEYISH.test(k) ? cents(v) : int(v));
 
@@ -77,20 +80,20 @@ export async function OverviewPage({ admin }: RouteCtx) {
 
       <div className="mb-5 grid grid-cols-4 gap-5">
         <StatCard icon="payments" hue="green" label="Revenue, 30 days" value={cents(rev30 || sum(o.revenue))}
-          rows={[['MRR', cents(mrr)], ['Total revenue', cents(n(st, 'revenue_total', 'revenue_all', 'total_revenue'))], ['Failed payments, 30 days', int(n(st, 'failed_payments_30d', 'failed_30d', 'failed_payments'))]]}>
-          <Sparkline values={o.revenue.map((d) => d.value)} />
+          rows={[['MRR', cents(mrr)], ['Total revenue', cents(n(st, 'revenue_total', 'revenue_all', 'total_revenue'))]]}>
+          <ChartSlot><Sparkline values={o.revenue.map((d) => d.value)} /></ChartSlot>
         </StatCard>
         <StatCard icon="customers" hue="blue" label="Customers" value={int(customers)}
           rows={[['Signups, 7 days', int(n(st, 'signups_7d', 'signups7'))], ['Signups, 30 days', int(n(st, 'signups_30d', 'signups30') || sum(o.signups))]]}>
-          <MiniBars values={o.signups.slice(-14).map((d) => d.value)} />
+          <ChartSlot><MiniBars values={o.signups.slice(-14).map((d) => d.value)} /></ChartSlot>
         </StatCard>
         <StatCard icon="store" hue="violet" label="Stores" value={int(stores || online + stale)}
           rows={[['Online now', int(online)], ['Stale (3+ days)', int(stale)]]}>
-          <ProgressBar value={online} max={Math.max(1, stores || online + stale)} color="var(--chart-4)" />
+          <ChartSlot><ProgressBar value={online} max={Math.max(1, stores || online + stale)} color="var(--chart-4)" /></ChartSlot>
         </StatCard>
         <StatCard icon="download" hue="amber" label="Downloads" value={int(downloads || sum(o.downloads))}
           rows={[['Last 7 days', int(n(st, 'downloads_7d', 'downloads7'))], ['Last 30 days', int(n(st, 'downloads_30d', 'downloads30') || sum(o.downloads))]]}>
-          <MiniBars values={o.downloads.slice(-14).map((d) => d.value)} color="var(--chart-3)" />
+          <ChartSlot><MiniBars values={o.downloads.slice(-14).map((d) => d.value)} color="var(--chart-3)" /></ChartSlot>
         </StatCard>
       </div>
 

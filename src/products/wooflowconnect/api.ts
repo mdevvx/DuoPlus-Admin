@@ -103,7 +103,10 @@ export function first(r: J, ...keys: string[]): unknown {
   for (const k of keys) { const v = r[k]; if (v !== undefined && v !== null && v !== '') return v; }
   return undefined;
 }
-export const s = (r: J, ...keys: string[]): string | null => { const v = first(r, ...keys); return v === undefined ? null : String(v); };
+export const s = (r: J, ...keys: string[]): string | null => {
+  const v = first(r, ...keys);
+  return v === undefined ? null : typeof v === 'object' ? JSON.stringify(v) : String(v);
+};
 export const n = (r: J, ...keys: string[]): number => Number(first(r, ...keys) ?? 0) || 0;
 export const b = (r: J, ...keys: string[]): boolean => { const v = first(r, ...keys); return v === true || v === 1 || v === '1' || v === 'true'; };
 

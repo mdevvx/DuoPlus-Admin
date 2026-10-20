@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Download, ExternalLink } from 'lucide-react';
-import { Badge, Card, EmptyState, FilterBar, PageHeader, Pagination, Select, Stat, Table, Tr, When } from '@/components/ui';
+import { Badge, Card, Cell, EmptyState, FilterBar, PageHeader, Pagination, Select, Stat, Table, Tr, When } from '@/components/ui';
 import { AuditTable } from '@/components/audit-table';
 import { DateField } from '@/components/date-field';
 import { env } from '@/lib/env';
@@ -9,6 +9,7 @@ import { PAGE_SIZE, listParams } from '@/lib/validation';
 import { auditFilters, queryAudit } from '@/lib/audit-query';
 import type { RouteCtx } from '@/products/types';
 import { SLUG, b, cents, first, list, n, obj, s, totalOf, whenOf, wfcGet, type J } from '../api';
+import { ClampText } from '@/components/small-client';
 import { CustomerLink, PAYMENT_TONE, PlanBadge, StoreBadge, base, load, planOf } from './shared';
 
 const PER = 50;
@@ -34,15 +35,15 @@ export async function StoresPage({ searchParams }: RouteCtx) {
           <>
             {rows.length === 0 ? <div className="card"><EmptyState title="No stores match" /></div> : (
               <Table label="Stores">
-                <thead><tr><th className="th">Host</th><th className="th">Store ID</th><th className="th">Owner</th><th className="th">Plan</th><th className="th">State</th><th className="th">Last seen</th><th className="th">Version</th><th className="th">Label</th></tr></thead>
+                <thead><tr><th className="th">Store</th><th className="th">Owner</th><th className="th">Plan</th><th className="th">State</th><th className="th">Last seen</th><th className="th">Version</th><th className="th">Label</th></tr></thead>
                 <tbody>{rows.map((x, i) => (
                   <Tr key={i}>
-                    <td className="td font-medium">{s(x, 'host', 'domain')}</td><td className="td font-mono text-xs">{s(x, 'ref', 'store_id', 'id')}</td>
+                    <td className="td"><Cell max={240} text={s(x, 'host', 'domain')} sub={<span className="font-mono">{s(x, 'ref', 'store_id', 'id')}</span>} /></td>
                     <td className="td"><CustomerLink id={idOf(x)} label={s(x, 'email', 'owner_email', 'owner') ?? '—'} /></td>
                     <td className="td"><PlanBadge state={planOf(x)} /></td>
                     <td className="td"><StoreBadge state={b(x, 'released') ? 'released' : s(x, 'state', 'store_state', 'status')} /></td>
                     <td className="td"><When value={whenOf(x, 'last_seen', 'last_seen_at')} /></td>
-                    <td className="td num">{s(x, 'plugin_version', 'version') ?? '—'}</td><td className="td">{s(x, 'label') ?? '—'}</td>
+                    <td className="td num">{s(x, 'plugin_version', 'version') ?? '—'}</td><td className="td"><Cell max={140} text={s(x, 'label')} /></td>
                   </Tr>
                 ))}</tbody>
               </Table>
@@ -126,7 +127,7 @@ export async function DownloadsPage({ searchParams }: RouteCtx) {
                   <Tr key={i}>
                     <td className="td"><When value={whenOf(x, 'at', 'created_at', 'ts')} /></td>
                     <td className="td"><CustomerLink id={idOf(x)} label={s(x, 'email', 'customer_email') ?? 'Not signed in'} /></td>
-                    <td className="td font-mono text-xs">{s(x, 'ip') ?? '—'}</td><td className="td max-w-[320px] truncate" title={s(x, 'browser', 'user_agent', 'ua') ?? ''}>{s(x, 'browser', 'user_agent', 'ua') ?? '—'}</td>
+                    <td className="td"><Cell max={140} mono text={s(x, 'ip')} /></td><td className="td"><Cell max={360} text={s(x, 'browser', 'user_agent', 'ua')} /></td>
                   </Tr>
                 ))}</tbody>
               </Table>
@@ -166,7 +167,7 @@ export async function ActivityPage({ searchParams }: RouteCtx) {
                       <td className="td"><When value={whenOf(x, 'at', 'created_at', 'ts')} /></td>
                       <td className="td"><Badge tone={eventTone(ev.toLowerCase())}>{sentence(ev)}</Badge></td>
                       <td className="td"><CustomerLink id={idOf(x)} label={s(x, 'email', 'customer_email') ?? '—'} /></td>
-                      <td className="td">{s(x, 'detail', 'message', 'meta') ?? '—'}</td>
+                      <td className="td">{s(x, 'detail', 'message', 'meta') ? <ClampText text={s(x, 'detail', 'message', 'meta')!} title="Event detail" max={60} /> : '—'}</td>
                     </Tr>
                   );
                 })}</tbody>
