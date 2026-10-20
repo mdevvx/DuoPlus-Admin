@@ -129,15 +129,18 @@ const orderOf = (p: string) => { const i = PLATFORM_ORDER.indexOf(p.toLowerCase(
 const isPaused = (r: Row) => !!r.rate_limited_until && new Date(String(r.rate_limited_until)).getTime() > Date.now();
 const isDisabled = (r: Row) => String(r.status ?? '').toLowerCase() === 'disabled';
 
+/** Both quotas are rolling windows, so the remaining value can move up as well as down. YouTube's is an estimate. */
+const QUOTA_PERIOD: Record<string, string> = { youtube: 'today (estimate)', instagram: 'this hour' };
+
 /** Quota meter where the provider reports one; "N/A" where it does not (X, TikTok). */
 function QuotaCell({ row }: { row: Row }) {
   const limit = num(row.quota_limit);
-  if (!limit || row.quota_remaining === null || row.quota_remaining === undefined) return <span className="text-muted" title="This platform does not report a quota">N/A</span>;
+  if (!limit || row.quota_remaining === null || row.quota_remaining === undefined) return <span className="text-muted" title="No quota reported. TikTok, X and Twitch have none; YouTube and Instagram show a value once the bot reports it">N/A</span>;
   const used = Math.max(0, limit - num(row.quota_remaining));
   const pct = Math.min(100, Math.round((used / limit) * 100));
   return (
     <div className="min-w-[140px]">
-      <div className="num text-xs text-muted">{int(used)} / {int(limit)} · {pct}%</div>
+      <div className="num text-xs text-muted">{int(limit - used)} of {int(limit)} left {QUOTA_PERIOD[String(row.platform).toLowerCase()] ?? ''} · {pct}% used</div>
       <div className="mt-1 h-1.5 overflow-hidden rounded bg-subtle" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Quota used">
         <div className="h-full rounded" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--danger)' : pct >= 70 ? 'var(--warning)' : 'var(--success)' }} />
       </div>
@@ -149,7 +152,9 @@ function PlatformStatus({ row }: { row: Row }) {
   const status = str(row.status) ?? 'healthy';
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
-      <Badge tone={statusTone(status)}>{sentence(status)}</Badge>
+      <span title={status === 'disabled' ? 'No account is monitored on this platform yet. It switches to Healthy after the first check.' : undefined}>
+        <Badge tone={statusTone(status)}>{sentence(status)}</Badge>
+      </span>
       {isPaused(row) && <Badge tone="warning">Paused until {relative(String(row.rate_limited_until))}</Badge>}
     </span>
   );
