@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { RefreshCw, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
+import { RefreshButton } from '@/components/refresh-button';
 import { Badge, Card, EmptyState, Hero, HeroChip, MiniStat, StatCard, heroBtn, heroBtnSolid, When } from '@/components/ui';
 import { AreaChart, BarChart, Donut, MiniBars, ProgressBar, RankedBars, Sparkline } from '@/components/charts';
 import { int, sentence } from '@/lib/format';
@@ -16,7 +17,7 @@ export interface Overview {
 }
 
 export async function getOverview(): Promise<Overview> {
-  const d = obj(await wfcGet('overview', {}, 30));
+  const d = obj(await wfcGet('overview'));
   const series = obj(first(d, 'series', 'charts', 'daily'));
   const f = first(d, 'funnel');
   const funnel = Array.isArray(f)
@@ -69,7 +70,7 @@ export async function OverviewPage({ admin }: RouteCtx) {
         chips={<><HeroChip live>Live data</HeroChip><HeroChip>Payments via Polar</HeroChip></>}
         actions={<>
           <Link href={`${base}/customers`} className={heroBtn}><Users className="h-4 w-4" aria-hidden /> Customers</Link>
-          <Link href={base} className={heroBtnSolid}><RefreshCw className="h-4 w-4" aria-hidden /> Refresh</Link>
+          <RefreshButton className={heroBtnSolid} />
         </>}
         aside={`Updated ${new Date().toISOString().slice(11, 16)} UTC`}
         metrics={[

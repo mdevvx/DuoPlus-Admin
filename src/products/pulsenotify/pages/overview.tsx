@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Download, RefreshCw } from 'lucide-react';
+import { Download } from 'lucide-react';
+import { RefreshButton } from '@/components/refresh-button';
 import { Badge, Card, ErrorPanel, Hero, HeroChip, MiniStat, StatCard, heroBtn, heroBtnSolid } from '@/components/ui';
 import { AreaChart, BarChart, Donut, MiniBars, ProgressBar, Ring, SegmentBar, Sparkline } from '@/components/charts';
 import { int, money, platformLabel, sentence, statusTone } from '@/lib/format';
@@ -35,7 +36,7 @@ export function OverviewView({ o, name }: { o: Overview; name: string }) {
         chips={<><HeroChip live>Live data</HeroChip><HeroChip>{o.maintenance ? 'Maintenance mode on' : 'Maintenance mode off'}</HeroChip></>}
         actions={<>
           <Link href={`${base}/payments`} className={heroBtn}><Download className="h-4 w-4" aria-hidden /> Payments</Link>
-          <Link href={base} className={heroBtnSolid}><RefreshCw className="h-4 w-4" aria-hidden /> Refresh</Link>
+          <RefreshButton className={heroBtnSolid} />
         </>}
         aside={`Updated ${new Date().toISOString().slice(11, 16)} UTC`}
         metrics={[
