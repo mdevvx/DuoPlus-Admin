@@ -55,12 +55,12 @@ async function listDerived(p: CustomerParams) {
     db.from(T.contactEmails).select('discord_user_id,guild_id,email,created_at').limit(5000),
     db.from(T.dmLog).select('discord_user_id,guild_id,kind,status,created_at').order('created_at', { ascending: false }).limit(5000),
   ]);
-  type U = { discord_user_id: string; email: string | null; lifetime: number; guilds: Set<string>; lastDmAt: string | null; lastDmStatus: string | null; lastSeen: string };
+  type U = { discord_user_id: string; email: string | null; payments: number; lifetime: number; guilds: Set<string>; lastDmAt: string | null; lastDmStatus: string | null; lastSeen: string };
   const users = new Map<string, U>();
   const valid = (id: unknown) => /^\d{5,25}$/.test(String(id)); // drops placeholders such as 0
   const get = (id: unknown) => {
     const k = String(id);
-    const u = users.get(k) ?? { discord_user_id: k, email: null, lifetime: 0, guilds: new Set<string>(), lastDmAt: null, lastDmStatus: null, lastSeen: '' };
+    const u = users.get(k) ?? { discord_user_id: k, email: null, payments: 0, lifetime: 0, guilds: new Set<string>(), lastDmAt: null, lastDmStatus: null, lastSeen: '' };
     users.set(k, u);
     return u;
   };
@@ -68,6 +68,7 @@ async function listDerived(p: CustomerParams) {
   for (const r of (pay.data ?? []) as Row[]) {
     if (!valid(r.requested_by)) continue;
     const u = get(r.requested_by);
+    u.payments += 1;
     if (r.status === 'paid') { u.lifetime += num(r.amount_usd); if (r.guild_id) u.guilds.add(String(r.guild_id)); }
     seen(u, r.created_at);
   }
@@ -92,7 +93,8 @@ async function listDerived(p: CustomerParams) {
   return {
     derived: true,
     total: all.length,
-    rows: page.map((u) => ({ discord_user_id: u.discord_user_id, email: u.email, lifetime: u.lifetime, servers: u.guilds.size, last_dm_at: u.lastDmAt, last_dm_status: u.lastDmStatus })) as (Row & { discord_user_id: string; lifetime: number; servers: number })[],
+    // Only people with a payment or a shared email have anything to show on a detail page.
+    rows: page.map((u) => ({ discord_user_id: u.discord_user_id, email: u.email, has_detail: u.payments > 0 || !!u.email, lifetime: u.lifetime, servers: u.guilds.size, last_dm_at: u.lastDmAt, last_dm_status: u.lastDmStatus })) as (Row & { discord_user_id: string; lifetime: number; servers: number })[],
   };
 }
 

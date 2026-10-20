@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { Badge, Card, Cell, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Pagination, Select, Table, Tr } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
 import { CopyId } from '@/components/small-client';
@@ -34,7 +34,7 @@ export async function CustomersPage({ searchParams }: RouteCtx) {
           <thead><tr><th className="th">User</th><th className="th">Discord ID</th><th className="th">Email</th><th className="th">Last DM</th><th className="th text-right">Servers</th><th className="th text-right">Lifetime</th></tr></thead>
           <tbody>{data.rows.map((c) => (
             <Tr key={c.discord_user_id}>
-              <td className="td"><Cell max={220} text={names[c.discord_user_id]?.name ?? 'Unknown user'} href={`${path}/${c.discord_user_id}`} /></td>
+              <td className="td"><Cell max={220} text={names[c.discord_user_id]?.name ?? 'Unknown user'} href={c.has_detail ? `${path}/${c.discord_user_id}` : undefined} /></td>
               <td className="td"><CopyId value={c.discord_user_id} /></td>
               <td className="td"><Cell max={220} text={maskEmail(str(c.email))} /></td>
               <td className="td">{c.last_dm_at ? <div className="flex flex-wrap items-center gap-1.5"><DmStatus status={c.last_dm_status} /><span className="text-xs text-muted">{dateTime(str(c.last_dm_at)).slice(0, 10)}</span></div> : <span className="text-muted">—</span>}</td>
@@ -65,7 +65,7 @@ export async function CustomerDetailPage({ params, role, admin }: RouteCtx) {
   const id = snowflake.safeParse(params.id);
   if (!id.success) notFound();
   const d = await getCustomer(id.data);
-  if (!d) notFound();
+  if (!d) redirect(`${base}/customers`); // nothing to show: go back to the list instead of an error page
   await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'view.customer', target_type: 'customer', target_id: id.data });
   const infos = await guildInfoMap(d.paidServers.map((s) => s.guild_id));
   const c = d.contact;
