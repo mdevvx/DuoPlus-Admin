@@ -23,8 +23,13 @@ const modeOf = unstable_cache(async (ref: string): Promise<Mode> => {
     const order = await ask(`orders/${ref}`, token);
     if (order === 200) return 'live';
     if (order !== 404) return 'unknown';
-    const checkout = await ask(`checkouts/${ref}`, token);
-    return checkout === 200 ? 'live' : checkout === 404 ? 'test' : 'unknown';
+    // The stored reference may be an order, a checkout or a subscription ID: sandbox only if live knows none of them.
+    for (const kind of ['checkouts', 'subscriptions']) {
+      const status = await ask(`${kind}/${ref}`, token);
+      if (status === 200) return 'live';
+      if (status !== 404) return 'unknown';
+    }
+    return 'test';
   } catch {
     return 'unknown';
   }
