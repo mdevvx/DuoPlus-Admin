@@ -5,7 +5,7 @@ import { ServerIdentity } from '@/components/server-avatar';
 import type { GuildInfo } from '@/lib/discord';
 import { dateTime, money, platformLabel, providerLabel, sentence, statusTone } from '@/lib/format';
 import { STATE_LABEL, subscriptionState } from '../state';
-import { pick, str, type Row } from '../db';
+import { isTestGuild, pick, str, type Row } from '../db';
 import { SLUG } from '../db';
 
 export const base = `/p/${SLUG}`;
@@ -16,6 +16,11 @@ export function StateBadge({ billing, botPresent }: { billing: Row; botPresent: 
     card_subscription_id: str(billing.card_subscription_id), card_status: str(billing.card_status),
   }, botPresent);
   return <Badge tone={STATE_LABEL[s].tone}>{STATE_LABEL[s].label}</Badge>;
+}
+
+/** Marks data from a test server (TEST_GUILD_IDS) so it is never mistaken for live revenue. */
+export function TestBadge({ guildId }: { guildId: unknown }) {
+  return isTestGuild(guildId) ? <Badge tone="warning">Test</Badge> : null;
 }
 
 export function PaymentStatus({ status }: { status: unknown }) {
@@ -31,7 +36,7 @@ export function PaymentsMini({ rows }: { rows: Row[] }) {
       <tbody>{rows.map((p, i) => (
         <Tr key={i}>
           <td className="td num">{dateTime(str(p.paid_at ?? p.created_at))}</td><td className="td">{providerLabel(str(p.provider))}</td>
-          <td className="td num">{str(p.months)}</td><td className="td num text-right">{money(p.amount_usd as number)}</td><td className="td"><PaymentStatus status={p.status} /></td>
+          <td className="td num">{str(p.months)}</td><td className="td num text-right">{money(p.amount_usd as number)}</td><td className="td"><div className="flex flex-wrap items-center gap-1"><PaymentStatus status={p.status} /><TestBadge guildId={p.guild_id} /></div></td>
         </Tr>
       ))}</tbody>
     </Table>
@@ -69,7 +74,7 @@ export function ChannelsMini({ rows }: { rows: Row[] }) {
 export function ServerLink({ id, info, showId = true }: { id: string; info?: GuildInfo | null; showId?: boolean }) {
   return (
     <ServerIdentity id={id} info={info} size={28} showId={showId}
-      link={<Link className="text-accent hover:underline" data-row-link href={`${base}/servers/${id}`}>{info?.name ?? `Server …${id.slice(-6)}`}</Link>} />
+      link={<span className="inline-flex flex-wrap items-center gap-1.5"><Link className="text-accent hover:underline" data-row-link href={`${base}/servers/${id}`}>{info?.name ?? `Server …${id.slice(-6)}`}</Link><TestBadge guildId={id} /></span>} />
   );
 }
 

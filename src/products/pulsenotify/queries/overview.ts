@@ -1,6 +1,6 @@
 import 'server-only';
 import { parseFlag } from '../state';
-import { pn, T, count, daysFrom, iso, num, must, type Row } from '../db';
+import { pn, T, count, daysFrom, iso, num, must, liveOnly, type Row } from '../db';
 
 export interface Overview {
   cardActive: number; cryptoActive: number; whitelisted: number; trial: number;
@@ -24,21 +24,22 @@ export async function getOverview(): Promise<Overview> {
   const db = pn();
   const now = iso(new Date());
   const monthStart = iso(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)));
-  const b = () => db.from(T.billing).select('guild_id', { count: 'exact', head: true });
+  const b = () => liveOnly(db.from(T.billing).select('guild_id', { count: 'exact', head: true }));
+  const g = () => liveOnly(db.from(T.guilds).select('guild_id', { count: 'exact', head: true }));
 
   const [cardActive, cryptoActive, whitelisted, trial, newThisWeek, churn, trialsEnding, botPresent] = await Promise.all([
     count(b().eq('whitelisted', false).gt('paid_until', now).not('card_subscription_id', 'is', null)),
     count(b().eq('whitelisted', false).gt('paid_until', now).is('card_subscription_id', null)),
     count(b().eq('whitelisted', true)),
     count(b().eq('whitelisted', false).or(`paid_until.is.null,paid_until.lte.${now}`).gt('trial_ends_at', now)),
-    count(db.from(T.guilds).select('guild_id', { count: 'exact', head: true }).eq('bot_present', true).gte('created_at', iso(daysFrom(-7)))),
+    count(g().eq('bot_present', true).gte('created_at', iso(daysFrom(-7)))),
     count(b().eq('whitelisted', false).gte('paid_until', monthStart).lte('paid_until', now)),
     count(b().eq('whitelisted', false).or(`paid_until.is.null,paid_until.lte.${now}`).gt('trial_ends_at', now).lte('trial_ends_at', iso(daysFrom(3)))),
-    count(db.from(T.guilds).select('guild_id', { count: 'exact', head: true }).eq('bot_present', true)),
+    count(g().eq('bot_present', true)),
   ]);
 
   // MRR (estimate): paid ledger rows whose paid period still covers today, normalised to a month.
-  const paid = must(await db.from(T.payments).select('amount_usd,months,paid_at,created_at').eq('status', 'paid').gte('paid_at', iso(daysFrom(-370))).limit(5000), 'mrr payments') as Row[];
+  const paid = must(await liveOnly(db.from(T.payments).select('amount_usd,months,paid_at,created_at')).eq('status', 'paid').gte('paid_at', iso(daysFrom(-370))).limit(5000), 'mrr payments') as Row[];
   let mrr = 0;
   for (const p of paid) {
     const months = Math.max(1, num(p.months));
@@ -49,14 +50,14 @@ export async function getOverview(): Promise<Overview> {
   const since30 = iso(daysFrom(-30));
   const prevFrom = iso(daysFrom(-60));
   const [rev, srv, health, state, last, revPrev, srvPrev, removed] = await Promise.all([
-    db.from(T.payments).select('amount_usd,paid_at').eq('status', 'paid').gte('paid_at', since30).limit(5000),
-    db.from(T.guilds).select('created_at').gte('created_at', since30).limit(5000),
+    liveOnly(db.from(T.payments).select('amount_usd,paid_at')).eq('status', 'paid').gte('paid_at', since30).limit(5000),
+    liveOnly(db.from(T.guilds).select('created_at')).gte('created_at', since30).limit(5000),
     db.from(T.health).select('*').limit(20),
     db.from(T.botState).select('key,value').eq('key', 'maintenance_mode').maybeSingle(),
-    db.from(T.payments).select('*').order('created_at', { ascending: false }).limit(10),
-    db.from(T.payments).select('amount_usd').eq('status', 'paid').gte('paid_at', prevFrom).lt('paid_at', since30).limit(5000),
-    count(db.from(T.guilds).select('guild_id', { count: 'exact', head: true }).gte('created_at', prevFrom).lt('created_at', since30)),
-    count(db.from(T.guilds).select('guild_id', { count: 'exact', head: true }).eq('bot_present', false)),
+    db.from(T.payments).select('*').order('created_at', { ascending: false }).limit(10), // includes test rows, badged
+    liveOnly(db.from(T.payments).select('amount_usd')).eq('status', 'paid').gte('paid_at', prevFrom).lt('paid_at', since30).limit(5000),
+    count(g().gte('created_at', prevFrom).lt('created_at', since30)),
+    count(g().eq('bot_present', false)),
   ]);
 
   return {

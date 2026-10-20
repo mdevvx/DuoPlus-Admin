@@ -1,5 +1,6 @@
 import 'server-only';
 import { serviceClient, must, type Db } from '@/lib/supabase-server';
+import { env } from '@/lib/env';
 
 export const SLUG = 'pulsenotify';
 /** Service-role client on the pulsenotify schema. Only call after requireAdmin(). */
@@ -23,6 +24,17 @@ export const T = {
 } as const;
 
 export type Row = Record<string, unknown>;
+
+/** Servers used for testing (TEST_GUILD_IDS). Their payments are test/sandbox payments, not live revenue. */
+export const testGuildIds = (): string[] => (env().TEST_GUILD_IDS ?? '').split(',').map((x) => x.trim()).filter((x) => /^\d{5,25}$/.test(x));
+export const isTestGuild = (id: unknown): boolean => id !== null && id !== undefined && testGuildIds().includes(String(id));
+
+/** Keep only live data: drops rows of test servers from a Supabase query. No-op when no test servers are configured. */
+export function liveOnly<Q>(q: Q, col = 'guild_id'): Q {
+  const ids = testGuildIds();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ids.length ? (q as any).not(col, 'in', `(${ids.join(',')})`) : q;
+}
 
 /** First present, non-null value among candidate column names (schema is introspected, names may vary). */
 export function pick(row: Row | null | undefined, ...names: string[]): string | null {

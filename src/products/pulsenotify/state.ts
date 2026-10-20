@@ -38,9 +38,10 @@ export function parseFlag(v: unknown): boolean {
 }
 
 /** Link to a Polar subscription, built only from the stored id. */
-export function polarLink(subscriptionId: string | null | undefined, orgSlug: string | undefined): string | null {
+export function polarLink(subscriptionId: string | null | undefined, orgSlug: string | undefined, sandbox = false): string | null {
+  const host = sandbox ? 'https://sandbox.polar.sh' : 'https://polar.sh';
   if (!subscriptionId || !/^[\w-]{6,64}$/.test(subscriptionId)) return null;
   return orgSlug && /^[\w-]+$/.test(orgSlug)
-    ? `https://polar.sh/dashboard/${orgSlug}/sales/subscriptions/${subscriptionId}`
-    : `https://polar.sh/dashboard`;
+    ? `${host}/dashboard/${orgSlug}/sales/subscriptions/${subscriptionId}`
+    : `${host}/dashboard`;
 }
