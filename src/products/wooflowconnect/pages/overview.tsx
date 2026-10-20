@@ -38,8 +38,9 @@ const fmtStat = (k: string, v: number) => (PERCENTISH.test(k) ? `${v <= 1 ? Math
 
 export async function OverviewPage({ admin }: RouteCtx) {
   const r = await load(getOverview, base);
-  if (!r.ok) return r.panel;
-  const o = r.data, st = o.stats;
+  // Without data (key missing, server unreachable) keep the full layout, empty, with the reason on top.
+  const o: Overview = r.ok ? r.data : { stats: {}, funnel: [], signups: [], downloads: [], revenue: [], alerts: [], recent: [] };
+  const st = o.stats;
   const customers = n(st, 'customers', 'customers_total', 'total_customers', 'users');
   const trialing = n(st, 'trialing', 'trials', 'plan_trialing'), active = n(st, 'active', 'paying', 'plan_active');
   const pastDue = n(st, 'past_due', 'plan_past_due'), canceled = n(st, 'canceled', 'plan_canceled');
@@ -57,9 +58,10 @@ export async function OverviewPage({ admin }: RouteCtx) {
 
   return (
     <>
+      {!r.ok && <div className="mb-6">{r.panel}</div>}
       <Hero
         title={`Welcome back, ${name}`}
-        text={<>WooFlowConnect has <b>{int(customers)}</b> customers, <b>{int(active)}</b> paying and <b>{int(trialing)}</b> on trial, with <b>{int(online || stores)}</b> stores {online ? 'online' : 'activated'}.
+        text={!r.ok ? 'Connect the licence server to see customers, stores, payments and downloads for WooFlowConnect here.' : <>WooFlowConnect has <b>{int(customers)}</b> customers, <b>{int(active)}</b> paying and <b>{int(trialing)}</b> on trial, with <b>{int(online || stores)}</b> stores {online ? 'online' : 'activated'}.
           {o.alerts.length > 0 && <> {int(o.alerts.length)} item{o.alerts.length === 1 ? '' : 's'} need attention.</>}</>}
         chips={<><HeroChip live>Live data</HeroChip><HeroChip>Payments via Polar</HeroChip></>}
         actions={<>
