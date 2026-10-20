@@ -1,5 +1,5 @@
 import { ExternalLink } from 'lucide-react';
-import { EmptyState, ErrorPanel, FilterBar, PageHeader, Pagination, Select, Table, Tr, When } from '@/components/ui';
+import { DetailRow, EmptyState, ErrorPanel, FilterBar, PageHeader, Pagination, Select, Table, Tr, When } from '@/components/ui';
 import Link from 'next/link';
 import { DetailModal, CopyId } from '@/components/small-client';
 import { DateField } from '@/components/date-field';
@@ -61,12 +61,12 @@ export async function PaymentsPage({ searchParams, role }: RouteCtx) {
                         <PaymentStatus status={r.status} />
                       </div>
                       <dl className="divide-y divide-line text-sm">
-                        <div className="flex items-start justify-between gap-4 py-2.5"><dt className="text-muted">Server</dt><dd>{gid ? <CopyId value={gid} /> : '—'}</dd></div>
-                        <div className="flex items-start justify-between gap-4 py-2.5"><dt className="text-muted">Created</dt><dd className="text-right"><When value={str(r.created_at)} /></dd></div>
-                        <div className="flex items-start justify-between gap-4 py-2.5"><dt className="text-muted">Paid</dt><dd className="text-right"><When value={str(r.paid_at)} /></dd></div>
-                        <div className="flex items-start justify-between gap-4 py-2.5"><dt className="text-muted">Provider reference</dt><dd className="min-w-0 break-all text-right">{str(r.external_id) ? <CopyId value={String(r.external_id)} mono={false} /> : '—'}</dd></div>
-                        <div className="flex items-start justify-between gap-4 py-2.5"><dt className="text-muted">Requested by</dt><dd>{str(r.requested_by) ? <CopyId value={String(r.requested_by)} /> : '—'}</dd></div>
-                        <div className="flex items-start justify-between gap-4 py-2.5"><dt className="text-muted">Channel</dt><dd>{str(r.channel_id) ? <CopyId value={String(r.channel_id)} /> : '—'}</dd></div>
+                        <DetailRow label="Server">{gid ? <CopyId value={gid} /> : '—'}</DetailRow>
+                        <DetailRow label="Created"><When value={str(r.created_at)} /></DetailRow>
+                        <DetailRow label="Paid"><When value={str(r.paid_at)} /></DetailRow>
+                        <DetailRow label="Provider reference">{str(r.external_id) ? <CopyId value={String(r.external_id)} mono={false} /> : '—'}</DetailRow>
+                        <DetailRow label="Requested by">{str(r.requested_by) ? <CopyId value={String(r.requested_by)} /> : '—'}</DetailRow>
+                        <DetailRow label="Channel">{str(r.channel_id) ? <CopyId value={String(r.channel_id)} /> : '—'}</DetailRow>
                       </dl>
                       {gid && <Link className="btn mt-4 w-full" href={`${base}/servers/${gid}`}>Open server</Link>}
                     </DetailModal>

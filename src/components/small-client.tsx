@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Copy, Check, PanelRight, FileText } from 'lucide-react';
+import { Copy, Check, FileText } from 'lucide-react';
 import { ModalHeader } from './modal-header';
 
 /** Discord IDs are strings; show them monospaced and copyable. */
@@ -17,7 +17,7 @@ export function CopyId({ value, mono = true }: { value: string; mono?: boolean }
       }}
     >
       {value}
-      {done ? <Check className="h-3 w-3 text-success" aria-label="Copied" /> : <Copy className="h-3 w-3 text-muted" aria-hidden />}
+      {done ? <Check className="h-3.5 w-3.5 shrink-0 text-success" aria-label="Copied" /> : <Copy className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />}
     </button>
   );
 }
@@ -49,28 +49,13 @@ export function TableKeys() {
   return null;
 }
 
-/** Right-hand side sheet for quick views. */
-export function SideSheet({ trigger, title, children }: { trigger: string; title: string; children: ReactNode }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  return (
-    <>
-      <button type="button" className="btn h-7 px-2.5 text-xs" onClick={() => ref.current?.showModal()}>{trigger}</button>
-      <dialog ref={ref} className="sheet-in fixed inset-y-0 left-auto right-0 m-0 h-screen max-h-none w-[440px] max-w-[92vw] border-l text-left border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/40 backdrop:backdrop-blur-[2px]"
-        onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
-        <ModalHeader icon={PanelRight} title={title} onClose={() => ref.current?.close()} />
-        <div className="thin-scroll h-[calc(100vh-73px)] overflow-auto p-5">{children}</div>
-      </dialog>
-    </>
-  );
-}
-
 /** Centered detail modal opened from a table row button. */
 export function DetailModal({ trigger, title, children }: { trigger: string; title: string; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   return (
     <>
       <button type="button" className="btn h-7 px-2.5 text-xs" onClick={() => ref.current?.showModal()}>{trigger}</button>
-      <dialog ref={ref} className="w-[480px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised p-0 text-left text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
+      <dialog ref={ref} className="w-[520px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised p-0 text-left text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
         onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
         <ModalHeader icon={FileText} title={title} onClose={() => ref.current?.close()} />
         <div className="thin-scroll max-h-[65vh] overflow-auto px-5 py-4">{children}</div>

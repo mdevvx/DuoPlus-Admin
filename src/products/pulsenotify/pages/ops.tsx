@@ -1,4 +1,4 @@
-import { Badge, Card, EmptyState, ErrorPanel, KV, PageHeader, Pagination, FilterBar, Stat, Table, Tr, When } from '@/components/ui';
+import { Badge, Card, DetailRow, EmptyState, ErrorPanel, KV, PageHeader, Pagination, FilterBar, Stat, Table, Tr, When } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
 import { DateField } from '@/components/date-field';
 import { AuditTable } from '@/components/audit-table';
@@ -14,7 +14,7 @@ import { SLUG, num, str, type Row } from '../db';
 import { writeAudit } from '@/lib/audit';
 import { CopyId } from '@/components/small-client';
 import { DmStatus, PaymentStatus, dmKindLabel } from './shared';
-import { ClampText } from '@/components/small-client';
+import { ClampText, DetailModal } from '@/components/small-client';
 
 export async function SubscriptionsPage() {
   let lists;
@@ -148,14 +148,13 @@ function QuotaCell({ row, full }: { row: Row; full?: boolean }) {
   );
 }
 
+/** One tag per platform: a pause overrides the status, since it is what the admin needs to know. */
 function PlatformStatus({ row }: { row: Row }) {
   const status = str(row.status) ?? 'healthy';
+  if (isPaused(row)) return <Badge tone="warning">Paused, resumes {relative(String(row.rate_limited_until))}</Badge>;
   return (
-    <span className="inline-flex flex-wrap items-center gap-1.5">
-      <span title={status === 'disabled' ? 'No account is monitored on this platform yet. It switches to Healthy after the first check.' : undefined}>
-        <Badge tone={statusTone(status)}>{sentence(status)}</Badge>
-      </span>
-      {isPaused(row) && <Badge tone="warning">Resumes {relative(String(row.rate_limited_until))}</Badge>}
+    <span title={status === 'disabled' ? 'No account is monitored on this platform yet. It switches to Healthy after the first check.' : undefined}>
+      <Badge tone={statusTone(status)}>{sentence(status)}</Badge>
     </span>
   );
 }
@@ -192,9 +191,8 @@ export async function HealthPage({ role }: RouteCtx) {
               <Card key={i} className={bad ? 'border-warning' : undefined}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[15px] font-semibold">{platformLabel(str(p.platform))}</span>
-                  <Badge tone={statusTone(str(p.status) ?? 'healthy')}>{sentence(str(p.status) ?? 'healthy')}</Badge>
+                  <PlatformStatus row={p} />
                 </div>
-                {isPaused(p) && <div className="mt-2"><Badge tone="warning">Paused, resumes {relative(String(p.rate_limited_until))}</Badge></div>}
                 <div className="mt-4 flex items-end justify-between gap-3">
                   <div>
                     <div className="num text-[26px] font-semibold leading-8">{int(num(p.requests_today))}</div>
@@ -236,7 +234,7 @@ export async function HealthPage({ role }: RouteCtx) {
       )}
       {platforms.length === 0 ? <Card title="Platforms"><EmptyState title="No platform data yet" hint="A platform appears after its first check." /></Card> : (
         <Table label="Platforms">
-          <thead><tr>{['Platform', 'Status', 'Requests', 'Quota', 'Failures', 'Last success', 'Last error'].map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
+          <thead><tr>{['Platform', 'Status', 'Requests', 'Quota', 'Failures', ''].map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
           <tbody>{platforms.map((p, i) => (
             <Tr key={i}>
               <td className="td font-medium">{platformLabel(str(p.platform))}</td>
@@ -244,10 +242,24 @@ export async function HealthPage({ role }: RouteCtx) {
               <td className="td num">{int(num(p.requests_today))}</td>
               <td className="td"><QuotaCell row={p} /></td>
               <td className="td num">{int(num(p.consecutive_failures))}</td>
-              <td className="td"><When value={str(p.last_success_at)} /></td>
-              <td className="td">
-                <When value={str(p.last_error_at)} />
-                {str(p.last_error) && <div className="mt-1 max-w-[180px]"><ClampText text={String(p.last_error)} title="Last error" /></div>}
+              <td className="td text-right">
+                <DetailModal trigger="Details" title={`${platformLabel(str(p.platform))} details`}>
+                  <div className="mb-4 flex items-center justify-between rounded-lg bg-subtle px-4 py-3">
+                    <span className="font-semibold">{platformLabel(str(p.platform))}</span>
+                    <PlatformStatus row={p} />
+                  </div>
+                  <dl className="divide-y divide-line text-sm">
+                    <DetailRow label="Last success"><When value={str(p.last_success_at)} /></DetailRow>
+                    <DetailRow label="Last error"><When value={str(p.last_error_at)} /></DetailRow>
+                    <DetailRow label="Failures in a row">{int(num(p.consecutive_failures))}</DetailRow>
+                    <DetailRow label="Requests today">{int(num(p.requests_today))}</DetailRow>
+                    {isPaused(p) && <DetailRow label="Paused until"><When value={str(p.rate_limited_until)} /></DetailRow>}
+                  </dl>
+                  <div className="mt-4">
+                    <div className="mb-1 text-xs text-muted">Last error message</div>
+                    <p className="whitespace-pre-wrap break-words rounded-lg border border-line bg-subtle px-3 py-2.5 text-[13px] leading-5">{str(p.last_error) ?? 'No error recorded.'}</p>
+                  </div>
+                </DetailModal>
               </td>
             </Tr>
           ))}</tbody>

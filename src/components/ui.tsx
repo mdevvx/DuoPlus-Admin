@@ -331,3 +331,13 @@ export function RoleTag({ role, onDark }: { role: string; onDark?: boolean }) {
     </span>
   );
 }
+
+/** One label/value line inside a DetailModal's <dl>. */
+export function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-2.5">
+      <dt className="shrink-0 text-muted">{label}</dt>
+      <dd className="min-w-0 break-words text-right">{children}</dd>
+    </div>
+  );
+}
