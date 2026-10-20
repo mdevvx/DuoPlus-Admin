@@ -1,6 +1,9 @@
 import 'server-only';
 import { z } from 'zod';
 
+/** An empty `NAME=` line in a host's env settings counts as not set. */
+const blankToUndefined = <T extends z.ZodType>(t: T) => z.preprocess((v) => (v === '' ? undefined : v), t);
+
 const schema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20),
@@ -10,9 +13,9 @@ const schema = z.object({
   INITIAL_OWNER_EMAIL: z.string().optional(),
   POLAR_DASHBOARD_ORG_SLUG: z.string().optional(),
   DISCORD_BOT_TOKEN: z.string().optional(),
-  WFC_API_KEY: z.string().optional(),
-  WFC_API_BASE: z.url().optional(),
-  WFC_POLAR_ORG_SLUG: z.string().optional(),
+  WFC_API_KEY: blankToUndefined(z.string().optional()),
+  WFC_API_BASE: blankToUndefined(z.url().optional()),
+  WFC_POLAR_ORG_SLUG: blankToUndefined(z.string().optional()),
 });
 
 let cached: z.infer<typeof schema> | undefined;

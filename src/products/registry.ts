@@ -27,9 +27,11 @@ export interface AccessibleProduct {
 
 /** Products that exist in code AND in hub_products (not disabled) AND are assigned to this admin. */
 export async function accessibleProducts(admin: Admin): Promise<AccessibleProduct[]> {
-  const { data } = await hubDb().from('hub_products').select('slug,name,description,icon,status,logo');
+  let res = await hubDb().from('hub_products').select('slug,name,description,icon,status,logo');
+  // Until the product_branding migration has run there is no logo column; keep the panel up without it.
+  if (res.error) res = (await hubDb().from('hub_products').select('slug,name,description,icon,status')) as unknown as typeof res;
   const out: AccessibleProduct[] = [];
-  for (const row of data ?? []) {
+  for (const row of res.data ?? []) {
     const mod = MODULE_BY_SLUG[row.slug];
     const role = roleForProduct(admin, row.slug);
     if (!mod || !role || row.status === 'disabled') continue;
