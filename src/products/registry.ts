@@ -26,13 +26,13 @@ export interface AccessibleProduct {
 
 /** Products that exist in code AND in hub_products (not disabled) AND are assigned to this admin. */
 export async function accessibleProducts(admin: Admin): Promise<AccessibleProduct[]> {
-  const { data } = await hubDb().from('hub_products').select('slug,name,description,icon,status');
+  const { data } = await hubDb().from('hub_products').select('slug,name,description,icon,status,logo');
   const out: AccessibleProduct[] = [];
   for (const row of data ?? []) {
     const mod = MODULE_BY_SLUG[row.slug];
     const role = roleForProduct(admin, row.slug);
     if (!mod || !role || row.status === 'disabled') continue;
-    out.push({ slug: row.slug, name: row.name, description: row.description ?? '', icon: row.icon ?? mod.manifest.icon, logo: mod.manifest.logo, status: row.status, role, module: mod });
+    out.push({ slug: row.slug, name: row.name, description: row.description ?? '', icon: row.icon ?? mod.manifest.icon, logo: row.logo ?? mod.manifest.logo, status: row.status, role, module: mod });
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }

@@ -17,6 +17,7 @@ export const PERMISSIONS = {
   'contact.delete': 'admin',
   'reminder.send': 'admin',
   'maintenance.set': 'admin',
+  'product.branding': 'admin',
   'hub.admins': 'owner',
   'hub.audit': 'admin',
 } as const satisfies Record<string, Role>;

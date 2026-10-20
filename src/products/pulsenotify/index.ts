@@ -44,7 +44,7 @@ const pulsenotify: ProductModule = {
     reminders: { permission: 'read', render: RemindersPage },
     health: { permission: 'read', render: HealthPage },
     audit: { permission: 'hub.audit', render: AuditPage },
-    settings: { permission: 'read', render: () => SettingsPage() },
+    settings: { permission: 'read', render: ({ role }) => SettingsPage({ role, manifest: pulsenotify.manifest }) },
   },
   headline: async () => {
     const o = await getOverview();
