@@ -102,7 +102,7 @@ export async function CustomerDetailPage({ params, role, admin }: RouteCtx) {
         <Card title="Servers">
           {d.paidServers.length === 0 && d.owned.length === 0 ? <EmptyState title="No servers" /> : (
             <ul className="space-y-1">
-              {d.paidServers.map((g) => <li key={`p${g.guild_id}`} className="flex items-center gap-2"><ServerLink id={g.guild_id} info={infos[g.guild_id]} /> <span className="text-xs text-muted">paid for</span></li>)}
+              {d.paidServers.map((g) => <li key={`p${g.guild_id}`} className="flex items-center justify-between gap-3"><ServerLink id={g.guild_id} info={infos[g.guild_id]} /><Badge tone="success">Paid</Badge></li>)}
             </ul>
           )}
         </Card>

@@ -150,9 +150,10 @@ function QuotaCell({ row, full }: { row: Row; full?: boolean }) {
 }
 
 /** One tag per platform: a pause overrides the status, since it is what the admin needs to know. */
-function PlatformStatus({ row }: { row: Row }) {
+function PlatformStatus({ row, short }: { row: Row; short?: boolean }) {
   const status = str(row.status) ?? 'healthy';
-  if (isPaused(row)) return <Badge tone="warning">Paused, resumes {relative(String(row.rate_limited_until))}</Badge>;
+  // `short` (cards) shows only the state; the resume time lives in the table and the details dialog.
+  if (isPaused(row)) return <Badge tone="warning">{short ? 'Paused' : `Paused, resumes ${relative(String(row.rate_limited_until))}`}</Badge>;
   return (
     <span title={status === 'disabled' ? 'No account is monitored on this platform yet. It switches to Healthy after the first check.' : undefined}>
       <Badge tone={statusTone(status)}>{sentence(status)}</Badge>
@@ -192,7 +193,7 @@ export async function HealthPage({ role }: RouteCtx) {
               <Card key={i} className={bad ? 'border-warning' : undefined}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[15px] font-semibold">{platformLabel(str(p.platform))}</span>
-                  <PlatformStatus row={p} />
+                  <PlatformStatus row={p} short />
                 </div>
                 <div className="mt-4 flex items-end justify-between gap-3">
                   <div>
