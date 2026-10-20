@@ -5,7 +5,8 @@ import { ServerIdentity } from '@/components/server-avatar';
 import type { GuildInfo } from '@/lib/discord';
 import { dateTime, money, platformLabel, providerLabel, sentence, statusTone } from '@/lib/format';
 import { STATE_LABEL, subscriptionState } from '../state';
-import { isTestGuild, pick, str, type Row } from '../db';
+import { pick, str, type Row } from '../db';
+import { testPaymentIds } from '../polar';
 import { SLUG } from '../db';
 
 export const base = `/p/${SLUG}`;
@@ -18,9 +19,9 @@ export function StateBadge({ billing, botPresent }: { billing: Row; botPresent: 
   return <Badge tone={STATE_LABEL[s].tone}>{STATE_LABEL[s].label}</Badge>;
 }
 
-/** Marks data from a test server (TEST_GUILD_IDS) so it is never mistaken for live revenue. */
-export function TestBadge({ guildId }: { guildId: unknown }) {
-  return isTestGuild(guildId) ? <Badge tone="warning">Test</Badge> : null;
+/** Marks a payment made in Polar's sandbox so it is never mistaken for live revenue. */
+export function TestBadge({ test }: { test: boolean }) {
+  return test ? <Badge tone="warning">Sandbox</Badge> : null;
 }
 
 export function PaymentStatus({ status }: { status: unknown }) {
@@ -28,15 +29,16 @@ export function PaymentStatus({ status }: { status: unknown }) {
   return <Badge tone={s === 'paid' ? 'success' : s === 'pending' ? 'warning' : s === 'failed' ? 'danger' : 'neutral'}>{sentence(s)}</Badge>;
 }
 
-export function PaymentsMini({ rows }: { rows: Row[] }) {
+export async function PaymentsMini({ rows }: { rows: Row[] }) {
   if (rows.length === 0) return <EmptyState title="No payments" />;
+  const test = new Set(await testPaymentIds());
   return (
     <Table label="Payments" bare>
       <thead><tr><th className="th">Date</th><th className="th">Provider</th><th className="th">Months</th><th className="th text-right">Amount</th><th className="th">Status</th></tr></thead>
       <tbody>{rows.map((p, i) => (
         <Tr key={i}>
           <td className="td num">{dateTime(str(p.paid_at ?? p.created_at))}</td><td className="td">{providerLabel(str(p.provider))}</td>
-          <td className="td num">{str(p.months)}</td><td className="td num text-right">{money(p.amount_usd as number)}</td><td className="td"><div className="flex flex-wrap items-center gap-1"><PaymentStatus status={p.status} /><TestBadge guildId={p.guild_id} /></div></td>
+          <td className="td num">{str(p.months)}</td><td className="td num text-right">{money(p.amount_usd as number)}</td><td className="td"><div className="flex flex-wrap items-center gap-1"><PaymentStatus status={p.status} /><TestBadge test={test.has(String(p.id))} /></div></td>
         </Tr>
       ))}</tbody>
     </Table>
@@ -74,7 +76,7 @@ export function ChannelsMini({ rows }: { rows: Row[] }) {
 export function ServerLink({ id, info, showId = true }: { id: string; info?: GuildInfo | null; showId?: boolean }) {
   return (
     <ServerIdentity id={id} info={info} size={28} showId={showId}
-      link={<span className="inline-flex flex-wrap items-center gap-1.5"><Link className="text-accent hover:underline" data-row-link href={`${base}/servers/${id}`}>{info?.name ?? `Server …${id.slice(-6)}`}</Link><TestBadge guildId={id} /></span>} />
+      link={<span className="inline-flex flex-wrap items-center gap-1.5"><Link className="text-accent hover:underline" data-row-link href={`${base}/servers/${id}`}>{info?.name ?? `Server …${id.slice(-6)}`}</Link></span>} />
   );
 }
 
