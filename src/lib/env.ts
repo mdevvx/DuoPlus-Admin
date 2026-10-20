@@ -10,6 +10,9 @@ const schema = z.object({
   INITIAL_OWNER_EMAIL: z.string().optional(),
   POLAR_DASHBOARD_ORG_SLUG: z.string().optional(),
   DISCORD_BOT_TOKEN: z.string().optional(),
+  WFC_API_KEY: z.string().optional(),
+  WFC_API_BASE: z.url().optional(),
+  WFC_POLAR_ORG_SLUG: z.string().optional(),
 });
 
 let cached: z.infer<typeof schema> | undefined;

@@ -18,6 +18,8 @@ export const PERMISSIONS = {
   'reminder.send': 'admin',
   'maintenance.set': 'admin',
   'product.branding': 'admin',
+  'support.act': 'admin',
+  'support.danger': 'admin',
   'hub.admins': 'owner',
   'hub.audit': 'admin',
 } as const satisfies Record<string, Role>;
@@ -25,7 +27,7 @@ export type Permission = keyof typeof PERMISSIONS;
 
 /** Actions that additionally require a fresh second factor (<= 10 minutes). */
 export const DANGEROUS: ReadonlySet<Permission> = new Set<Permission>([
-  'server.whitelist', 'server.adjust_paid', 'contact.delete', 'maintenance.set', 'hub.admins',
+  'server.whitelist', 'server.adjust_paid', 'contact.delete', 'maintenance.set', 'hub.admins', 'support.danger',
 ]);
 
 /** Display form: first letter capital, rest lower case ("owner" -> "Owner"). */

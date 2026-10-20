@@ -5,12 +5,13 @@ import { roleForProduct, can, type Role } from '@/lib/roles';
 import type { Admin } from '@/lib/auth';
 import type { ProductModule, RouteDef } from './types';
 import pulsenotify from './pulsenotify';
+import wooflowconnect from './wooflowconnect';
 
 /**
  * Code side of the registry. Adding a product = add a folder under src/products/<slug>/ and list it here,
  * plus one row in hub.hub_products. The shell never mentions a specific product.
  */
-const MODULES: ProductModule[] = [pulsenotify];
+const MODULES: ProductModule[] = [pulsenotify, wooflowconnect];
 export const MODULE_BY_SLUG: Record<string, ProductModule> = Object.fromEntries(MODULES.map((m) => [m.manifest.slug, m]));
 
 export interface AccessibleProduct {

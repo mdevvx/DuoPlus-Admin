@@ -3,8 +3,7 @@ import { ConfirmAction } from '@/components/confirm-action';
 import { DateField } from '@/components/date-field';
 import { AuditTable } from '@/components/audit-table';
 import { can } from '@/lib/roles';
-import { BrandingForm } from '@/components/branding-form';
-import { hubDb } from '@/lib/supabase-server';
+import { BrandingCard } from '@/components/branding-card';
 import { dateTime, int, platformLabel, relative, sentence, statusTone } from '@/lib/format';
 import { PAGE_SIZE } from '@/lib/validation';
 import { getBotSettings, getMergedAudit, getPlatformHealth, getTikTokBlockRate, getAbandonedCheckouts, getFailedDms, getReminders, getSubscriptionHealth } from '../queries/ops';
@@ -292,15 +291,10 @@ export async function AuditPage({ searchParams }: RouteCtx) {
 
 export async function SettingsPage({ role, manifest }: { role: RouteCtx['role']; manifest: { name: string; icon: string; logo?: string } }) {
   const rows = await getBotSettings();
-  const { data: brand } = await hubDb().from('hub_products').select('name,logo').eq('slug', SLUG).single();
   return (
     <>
       <PageHeader title="Settings" description="Product branding, plus how the bot currently runs (read only, change on the bot's host)." updatedAt={new Date()} />
-      {can(role, 'product.branding') && (
-        <Card title="Branding">
-          <BrandingForm slug={SLUG} name={brand?.name ?? manifest.name} logo={brand?.logo ?? manifest.logo} icon={manifest.icon} />
-        </Card>
-      )}
+      <div className="mb-4"><BrandingCard slug={SLUG} role={role} manifest={manifest} /></div>
       <Card>
         {rows.length === 0 ? <EmptyState title="Configured on the bot's host" hint="Price, trial days, grace days and the reminder schedule are environment variables of the bot, not stored in the database." /> : (
           <KV items={rows.map((r) => [String(r.key).replace(/_/g, ' '), typeof r.value === 'object' ? JSON.stringify(r.value) : String(r.value)])} />
