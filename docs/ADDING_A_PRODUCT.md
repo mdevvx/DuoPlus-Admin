@@ -16,7 +16,7 @@ The shell renders whatever is registered; it never names a product.
 4. **Assign admins** in the Admins page (owners see every product automatically).
 5. **Mutations** must: call `requireAdmin({ product, permission })`, validate with zod, use `ensureStepUp` for dangerous
    permissions (add them to `DANGEROUS` in `src/lib/roles.ts`), and write the change plus its audit row in one SQL function
-   in `duolplus_admin` (copy the `pn_*` functions in the migration).
+   in `duolplus_admin` (copy the `dn_*` functions in the migration).
 6. Expose the product's Postgres schema under Settings > API > Exposed schemas.
 
 The sidebar, switcher, Home cards, command palette, CSV export route and permissions need no change.

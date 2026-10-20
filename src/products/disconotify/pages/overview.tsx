@@ -30,7 +30,7 @@ export function OverviewView({ o, name }: { o: Overview; name: string }) {
     <>
       <Hero
         title={`Welcome back, ${name}`}
-        text={<>PulseNotify has <b>{int(o.activeTotal)}</b> active subscriptions and <b>{int(o.botPresent)}</b> servers with the bot.
+        text={<>DiscoNotify has <b>{int(o.activeTotal)}</b> active subscriptions and <b>{int(o.botPresent)}</b> servers with the bot.
           {revDelta !== null && <> Paid revenue is {revDelta >= 0 ? 'up' : 'down'} <b>{Math.abs(revDelta).toFixed(1)}%</b> on the previous 30 days.</>}
           {o.trialsEnding > 0 && <> {int(o.trialsEnding)} trial{o.trialsEnding === 1 ? '' : 's'} end within 3 days.</>}</>}
         chips={<><HeroChip live>Live data</HeroChip><HeroChip>{o.maintenance ? 'Maintenance mode on' : 'Maintenance mode off'}</HeroChip></>}

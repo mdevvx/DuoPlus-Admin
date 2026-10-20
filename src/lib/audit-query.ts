@@ -18,11 +18,13 @@ export interface AuditRow {
   target_type: string | null; target_id: string | null; before: unknown; after: unknown; reason: string | null;
   ip: string | null;
 }
+const LEGACY_SLUGS: Record<string, string[]> = { disconotify: ['pulsenotify'] };
 const COLS = 'id,at,admin_email,product_slug,action,target_type,target_id,before,after,reason,ip';
 
 export async function queryAudit(f: AuditFilters, opts: { product?: string; limit?: number; paged?: boolean } = {}) {
   let q = hubDb().from('hub_audit_log').select(COLS, { count: opts.paged === false ? undefined : 'exact' }).order('at', { ascending: false });
-  if (opts.product) q = q.eq('product_slug', opts.product);
+  // Rows written before a product was renamed keep their old slug (the log is append-only).
+  if (opts.product) q = q.in('product_slug', [opts.product, ...(LEGACY_SLUGS[opts.product] ?? [])]);
   if (f.action) q = q.ilike('action', `${likeTerm(f.action)}%`);
   if (f.admin) q = q.ilike('admin_email', `%${likeTerm(f.admin)}%`);
   if (f.target) q = q.eq('target_id', f.target);

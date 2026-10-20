@@ -23,9 +23,9 @@ describe('roles (admins only)', () => {
   });
 
   it('product access: admins only see assigned products, owners see all', () => {
-    const admin: AdminAccess = { role: 'admin', products: { pulsenotify: 'admin' } };
+    const admin: AdminAccess = { role: 'admin', products: { disconotify: 'admin' } };
     const owner: AdminAccess = { role: 'owner', products: {} };
-    expect(roleForProduct(admin, 'pulsenotify')).toBe('admin');
+    expect(roleForProduct(admin, 'disconotify')).toBe('admin');
     expect(roleForProduct(admin, 'other')).toBeNull();
     expect(roleForProduct(owner, 'anything')).toBe('owner');
   });

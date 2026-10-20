@@ -1,7 +1,7 @@
 # DuoPlus Admin
 
 Secure internal admin panel for a multi-product company. One login, a product switcher, and one admin per product.
-The first product is **PulseNotify** (a Discord bot that sends social-media alerts, billed per server).
+The first product is **DiscoNotify** (a Discord bot that sends social-media alerts, billed per server).
 
 - **Admins only.** Two roles: `owner` (also manages admins) and `admin`. There is no support or viewer role.
 - **Stack:** Next.js 15 (App Router, TypeScript strict), TailwindCSS, Supabase (existing project), zod.
@@ -13,14 +13,14 @@ Everything lives in your **existing Supabase project** and database, in two sche
 
 | Schema | Owner | Purpose |
 |---|---|---|
-| `pulsenotify` | the bot (existing) | Servers, billing, payments, contacts, platform health. The panel reads it and changes it only through audited SQL functions. |
+| `disconotify` | the bot (existing) | Servers, billing, payments, contacts, platform health. The panel reads it and changes it only through audited SQL functions. |
 | `duolplus_admin` | this panel (new) | `hub_admins`, `hub_admin_products`, `hub_products`, `hub_audit_log` (append-only), `hub_login_attempts`, `hub_recovery_codes`. |
 
 ## Setup
 
 1. **Supabase Auth settings**: disable public sign-ups (Authentication > Sign In / Providers > "Allow new users to sign up" off).
 2. **Run the migration** `supabase/migrations/20261017000000_hub_schema.sql` (SQL editor or `supabase db push`).
-3. **Expose the schemas**: Settings > API > Exposed schemas must include `duolplus_admin` and `pulsenotify`.
+3. **Expose the schemas**: Settings > API > Exposed schemas must include `duolplus_admin` and `disconotify`.
 4. **Environment**: copy `.env.example` to `.env.local` and fill it in.
 5. **Create your login**: in Supabase Authentication > Users, add a user with your email and a strong password
    (tick Auto Confirm User). Set the same email as `INITIAL_OWNER_EMAIL`.
@@ -63,4 +63,4 @@ Sign in once with `INITIAL_OWNER_EMAIL` to create the first owner.
 
 - [docs/ADDING_A_PRODUCT.md](docs/ADDING_A_PRODUCT.md) - add a second product without touching the shell
 - [docs/SECURITY.md](docs/SECURITY.md) - threat model and what each role can do
-- [docs/PULSENOTIFY_ASSUMPTIONS.md](docs/PULSENOTIFY_ASSUMPTIONS.md) - column names assumed for the `pulsenotify` schema; check these first
+- [docs/DISCONOTIFY_ASSUMPTIONS.md](docs/DISCONOTIFY_ASSUMPTIONS.md) - column names assumed for the `disconotify` schema; check these first

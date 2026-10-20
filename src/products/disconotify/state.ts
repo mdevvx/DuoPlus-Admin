@@ -29,7 +29,7 @@ export const STATE_LABEL: Record<SubState, { label: string; tone: 'success' | 'w
   bot_removed: { label: 'Bot removed', tone: 'neutral' },
 };
 
-/** Maintenance flag as stored in pulsenotify_bot_state: true | "true" | {enabled: true}. */
+/** Maintenance flag as stored in notify_bot_state: true | "true" | {enabled: true}. */
 export function parseFlag(v: unknown): boolean {
   if (typeof v === 'boolean') return v;
   if (typeof v === 'string') return v.toLowerCase() === 'true';

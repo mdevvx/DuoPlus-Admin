@@ -1,25 +1,25 @@
 import 'server-only';
 import { serviceClient, must, type Db } from '@/lib/supabase-server';
 
-export const SLUG = 'pulsenotify';
-/** Service-role client on the pulsenotify schema. Only call after requireAdmin(). */
-export const pn = (): Db => serviceClient('pulsenotify');
+export const SLUG = 'disconotify';
+/** Service-role client on the disconotify schema. Only call after requireAdmin(). */
+export const pn = (): Db => serviceClient('disconotify');
 
 export const T = {
-  guilds: 'pulsenotify_guilds',
-  billing: 'pulsenotify_billing',
-  payments: 'pulsenotify_payments',
-  contacts: 'pulsenotify_user_contacts',
-  contactEmails: 'pulsenotify_contact_emails',
-  dmLog: 'pulsenotify_dm_log',
-  accounts: 'pulsenotify_platform_accounts',
-  channels: 'pulsenotify_notification_channels',
-  alerts: 'pulsenotify_alert_configurations',
-  events: 'pulsenotify_events',
-  live: 'pulsenotify_live_states',
-  health: 'pulsenotify_platform_health',
-  botAudit: 'pulsenotify_audit_logs',
-  botState: 'pulsenotify_bot_state',
+  guilds: 'notify_guilds',
+  billing: 'notify_billing',
+  payments: 'notify_payments',
+  contacts: 'notify_user_contacts',
+  contactEmails: 'notify_contact_emails',
+  dmLog: 'notify_dm_log',
+  accounts: 'notify_platform_accounts',
+  channels: 'notify_notification_channels',
+  alerts: 'notify_alert_configurations',
+  events: 'notify_events',
+  live: 'notify_live_states',
+  health: 'notify_platform_health',
+  botAudit: 'notify_audit_logs',
+  botState: 'notify_bot_state',
 } as const;
 
 export type Row = Record<string, unknown>;

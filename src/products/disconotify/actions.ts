@@ -39,7 +39,7 @@ async function billingOp(op: string, permission: Permission, fd: FormData, opts:
   const { admin, ip, ua, d } = await gate(permission, fd);
   if (opts.typed) mustMatch(d.confirm, await serverLabel(guildId));
   const days = opts.days ? opts.days(fd) : 0;
-  await callRpc(hubDb(), 'pn_billing_change', {
+  await callRpc(hubDb(), 'dn_billing_change', {
     p_op: op, p_guild: guildId, p_days: days, p_note: opts.note ? d.reason : null,
     p_admin: admin.id, p_admin_email: admin.email, p_ip: ip, p_ua: ua, p_reason: d.reason,
   });
@@ -68,7 +68,7 @@ export async function resetReminders(fd: FormData): Promise<ActionResult> {
   return runAction(async () => {
     const guildId = snowflake.parse(fd.get('guildId'));
     const { admin, ip, ua, d } = await gate('reminder.send', fd);
-    await callRpc(hubDb(), 'pn_reminder_reset', { p_guild: guildId, p_admin: admin.id, p_admin_email: admin.email, p_ip: ip, p_ua: ua, p_reason: d.reason });
+    await callRpc(hubDb(), 'dn_reminder_reset', { p_guild: guildId, p_admin: admin.id, p_admin_email: admin.email, p_ip: ip, p_ua: ua, p_reason: d.reason });
     return 'Reminder counters reset. The bot will send the next reminder on its schedule.';
   });
 }
@@ -77,7 +77,7 @@ async function contactOp(op: 'optout' | 'optin' | 'delete', permission: Permissi
   const userId = snowflake.parse(fd.get('userId'));
   const { admin, ip, ua, d } = await gate(permission, fd);
   if (op === 'delete') mustMatch(d.confirm, userId);
-  await callRpc(hubDb(), 'pn_contact_change', { p_op: op, p_user: userId, p_admin: admin.id, p_admin_email: admin.email, p_ip: ip, p_ua: ua, p_reason: d.reason });
+  await callRpc(hubDb(), 'dn_contact_change', { p_op: op, p_user: userId, p_admin: admin.id, p_admin_email: admin.email, p_ip: ip, p_ua: ua, p_reason: d.reason });
 }
 export async function disableReminders(fd: FormData): Promise<ActionResult> {
   return runAction(async () => { await contactOp('optout', 'contact.optin_out', fd); return 'Email reminders disabled'; });
@@ -94,7 +94,7 @@ export async function setMaintenance(fd: FormData): Promise<ActionResult> {
     const enabled = z.enum(['true', 'false']).parse(fd.get('enabled')) === 'true';
     const { admin, ip, ua, d } = await gate('maintenance.set', fd);
     mustMatch(d.confirm, 'MAINTENANCE');
-    await callRpc(hubDb(), 'pn_maintenance_set', { p_enabled: enabled, p_admin: admin.id, p_admin_email: admin.email, p_ip: ip, p_ua: ua, p_reason: d.reason });
+    await callRpc(hubDb(), 'dn_maintenance_set', { p_enabled: enabled, p_admin: admin.id, p_admin_email: admin.email, p_ip: ip, p_ua: ua, p_reason: d.reason });
     return enabled ? 'Maintenance mode is ON' : 'Maintenance mode is OFF';
   });
 }

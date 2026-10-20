@@ -6,7 +6,7 @@ import { ABSOLUTE_MS, IDLE_MS, sessionState } from '@/lib/session-policy';
 import { toCsv } from '@/lib/csv';
 import { maskEmail } from '@/lib/format';
 import { snowflake, likeTerm } from '@/lib/validation';
-import { parseFlag, polarLink, subscriptionState } from '@/products/pulsenotify/state';
+import { parseFlag, polarLink, subscriptionState } from '@/products/disconotify/state';
 import { failures } from '../scripts/check-contrast';
 
 describe('snowflakes', () => {

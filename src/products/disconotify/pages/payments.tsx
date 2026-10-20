@@ -26,7 +26,7 @@ export async function PaymentsPage({ searchParams, role }: RouteCtx) {
   return (
     <>
       <PageHeader title="Payments" description="Ledger across Polar (card) and NOWPayments (crypto). Read only: refunds happen in the provider." updatedAt={new Date()}
-        actions={can(role, 'export.csv') && <a className="btn" href={`/api/export/pulsenotify/payments${qs ? `?${qs}` : ''}`}>Export CSV</a>} />
+        actions={can(role, 'export.csv') && <a className="btn" href={`/api/export/disconotify/payments${qs ? `?${qs}` : ''}`}>Export CSV</a>} />
       <FilterBar action={path}>
         <Select name="provider" label="Provider" value={p.provider} options={[['', 'All'], ['polar', 'Polar (card)'], ['nowpayments', 'NOWPayments']]} />
         <Select name="mode" label="Mode" value={p.mode} options={[['live', 'Live'], ['test', 'Sandbox'], ['all', 'Live and test']]} />

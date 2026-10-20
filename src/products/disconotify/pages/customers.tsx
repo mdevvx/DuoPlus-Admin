@@ -26,7 +26,7 @@ export async function CustomersPage({ searchParams }: RouteCtx) {
         <input className="input w-64" name="q" placeholder="Username, email or Discord ID" defaultValue={p.q} />
         <Select name="optout" label="Reminders" value={p.optout} options={[['', 'All'], ['0', 'Allowed'], ['1', 'Opted out']]} />
       </FilterBar>
-      {data.missingTable ? <div className="card"><EmptyState title="Contacts table not found" hint="pulsenotify_user_contacts does not exist yet. Apply the bot's latest database migration, then reload." /></div> : data.rows.length === 0 ? <div className="card"><EmptyState title="No customers match" /></div> : (
+      {data.missingTable ? <div className="card"><EmptyState title="Contacts table not found" hint="notify_user_contacts does not exist yet. Apply the bot's latest database migration, then reload." /></div> : data.rows.length === 0 ? <div className="card"><EmptyState title="No customers match" /></div> : (
         <Table label="Customers">
           <thead><tr><th className="th">User</th><th className="th">Discord ID</th><th className="th">Email</th><th className="th">Consent</th><th className="th">Servers paid</th><th className="th text-right">Lifetime</th></tr></thead>
           <tbody>{data.rows.map((c) => (

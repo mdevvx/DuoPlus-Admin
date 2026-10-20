@@ -35,7 +35,7 @@ const modeOf = unstable_cache(async (ref: string): Promise<Mode> => {
   }
 }, ['polar-payment-mode'], { revalidate: 300 });
 
-/** IDs (pulsenotify_payments.id) of payments that belong to Polar's sandbox, not the live account. */
+/** IDs (notify_payments.id) of payments that belong to Polar's sandbox, not the live account. */
 export async function testPaymentIds(): Promise<string[]> {
   const { data } = await pn().from(T.payments).select('id,external_id').eq('provider', 'polar').limit(2000);
   const rows = ((data ?? []) as Row[]).filter((r) => r.external_id);

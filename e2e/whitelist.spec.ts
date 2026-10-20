@@ -41,7 +41,7 @@ test('login, switch product, whitelist, audit', async ({ page }) => {
   await page.waitForURL('/');
 
   await page.getByRole('button', { name: /DuoPlus Admin|Switch product/ }).first().click();
-  await page.getByRole('button', { name: /PulseNotify/ }).click();
+  await page.getByRole('button', { name: /DiscoNotify/ }).click();
   await page.getByRole('link', { name: 'Servers' }).click();
   await page.fill('input[name=q]', server);
   await page.click('button:has-text("Apply")');

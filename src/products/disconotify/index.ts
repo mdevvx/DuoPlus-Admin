@@ -18,8 +18,8 @@ import { SLUG, str } from './db';
 
 const base = `/p/${SLUG}`;
 
-const pulsenotify: ProductModule = {
-  manifest: { slug: SLUG, name: 'PulseNotify', description: 'Discord bot for social-media alerts, billed per server', icon: 'bell', logo: '/products/pulsenotify.png' },
+const disconotify: ProductModule = {
+  manifest: { slug: SLUG, name: 'DiscoNotify', description: 'Discord bot for social-media alerts, billed per server', icon: 'bell', logo: '/products/disconotify.png' },
   navigation: [
     { label: 'Overview', path: '', icon: 'overview', shortcut: 'o' },
     { label: 'Bot status', path: 'bot', icon: 'health', shortcut: 'k' },
@@ -44,7 +44,7 @@ const pulsenotify: ProductModule = {
     reminders: { permission: 'read', render: RemindersPage },
     health: { permission: 'read', render: HealthPage },
     audit: { permission: 'hub.audit', render: AuditPage },
-    settings: { permission: 'read', render: ({ role }) => SettingsPage({ role, manifest: pulsenotify.manifest }) },
+    settings: { permission: 'read', render: ({ role }) => SettingsPage({ role, manifest: disconotify.manifest }) },
   },
   headline: async () => {
     const o = await getOverview();
@@ -75,7 +75,7 @@ const pulsenotify: ProductModule = {
     ];
   },
   exports: {
-    payments: { permission: 'export.csv', filename: 'pulsenotify-payments', rows: exportPayments },
+    payments: { permission: 'export.csv', filename: 'disconotify-payments', rows: exportPayments },
   },
 };
-export default pulsenotify;
+export default disconotify;
