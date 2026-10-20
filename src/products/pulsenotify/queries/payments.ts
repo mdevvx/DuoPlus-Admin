@@ -15,7 +15,7 @@ export const paymentParams = z.object({
   page: z.coerce.number().int().min(1).max(100000).catch(1),
   provider: z.enum(['polar', 'nowpayments']).optional().catch(undefined),
   status: z.enum(['pending', 'paid', 'failed', 'expired']).optional().catch(undefined),
-  mode: z.enum(['live', 'test']).optional().catch(undefined),
+  mode: z.enum(['live', 'test', 'all']).catch('live'),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().catch(undefined),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().catch(undefined),
   min: z.coerce.number().min(0).max(1e6).optional().catch(undefined),
@@ -53,7 +53,10 @@ export async function listPayments(p: PaymentParams) {
   const testPaidTotal = paidRows.filter((r) => isTestGuild(r.guild_id)).reduce((a, r) => a + num(r.amount_usd), 0);
   const guildIds = [...new Set(rows.map((r) => r.guild_id).filter(Boolean).map(String))];
   const billing = guildIds.length ? (((await pn().from(T.billing).select('guild_id,card_subscription_id').in('guild_id', guildIds)).data ?? []) as Row[]) : [];
-  return { rows, total: res.count ?? rows.length, paidTotal, testPaidTotal, subByGuild: Object.fromEntries(billing.map((b) => [String(b.guild_id), (b.card_subscription_id as string | null) ?? null])) };
+  // How many sandbox payments exist, so the live view can point at them.
+  const test = testGuildIds();
+  const testCount = test.length ? ((await pn().from(T.payments).select('id', { count: 'exact', head: true }).in('guild_id', test)).count ?? 0) : 0;
+  return { rows, total: res.count ?? rows.length, paidTotal, testPaidTotal, testCount, subByGuild: Object.fromEntries(billing.map((b) => [String(b.guild_id), (b.card_subscription_id as string | null) ?? null])) };
 }
 
 export async function exportPayments(sp: Record<string, string | undefined>) {

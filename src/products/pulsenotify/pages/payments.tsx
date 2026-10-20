@@ -29,15 +29,17 @@ export async function PaymentsPage({ searchParams, role }: RouteCtx) {
         actions={can(role, 'export.csv') && <a className="btn" href={`/api/export/pulsenotify/payments${qs ? `?${qs}` : ''}`}>Export CSV</a>} />
       <FilterBar action={path}>
         <Select name="provider" label="Provider" value={p.provider} options={[['', 'All'], ['polar', 'Polar (card)'], ['nowpayments', 'NOWPayments']]} />
-        <Select name="mode" label="Mode" value={p.mode} options={[['', 'Live and test'], ['live', 'Live only'], ['test', 'Test only']]} />
+        <Select name="mode" label="Mode" value={p.mode} options={[['live', 'Live'], ['test', 'Test (sandbox)'], ['all', 'Live and test']]} />
         <Select name="status" label="Status" value={p.status} options={[['', 'All'], ['paid', 'Paid'], ['pending', 'Pending'], ['failed', 'Failed'], ['expired', 'Expired']]} />
         <DateField name="from" defaultValue={p.from} placeholder="From date" />
         <DateField name="to" defaultValue={p.to} placeholder="To date" />
         <input className="input w-24" type="number" step="0.01" name="min" placeholder="Min $" defaultValue={p.min} />
         <input className="input w-24" type="number" step="0.01" name="max" placeholder="Max $" defaultValue={p.max} />
       </FilterBar>
-      <p className="mb-3 text-sm text-muted">Live paid total for this filter: <span className="num font-semibold text-ink">{money(data.paidTotal)}</span>
-        {data.testPaidTotal > 0 && <> · Test (sandbox) paid: <span className="num font-semibold text-ink">{money(data.testPaidTotal)}</span>, not real revenue</>} · {data.total.toLocaleString('en-US')} rows</p>
+      {p.mode === 'test' && <p className="mb-3 rounded-lg bg-warning-soft px-4 py-3 text-warning" role="status">Sandbox payments from test servers. They are not real revenue and are left out of the Overview, MRR and live totals.</p>}
+      {p.mode === 'live' && data.testCount > 0 && <p className="mb-3 text-muted">{data.testCount} sandbox payment{data.testCount === 1 ? '' : 's'} are hidden from this live view. <Link className="font-medium text-accent hover:underline" href={`${path}?mode=test`}>View sandbox payments</Link></p>}
+      <p className="mb-3 text-sm text-muted">{p.mode === 'test' ? 'Sandbox' : 'Live'} paid total for this filter: <span className="num font-semibold text-ink">{money(p.mode === 'test' ? data.testPaidTotal : data.paidTotal)}</span>
+        {p.mode === 'all' && data.testPaidTotal > 0 && <> · Sandbox paid: <span className="num font-semibold text-ink">{money(data.testPaidTotal)}</span>, not real revenue</>} · {data.total.toLocaleString('en-US')} rows</p>
       {data.rows.length === 0 ? <div className="card"><EmptyState title="No payments match" /></div> : (
         <Table label="Payments">
           <thead><tr><th className="th">Created</th><th className="th">Provider</th><th className="th">Server</th><th className="th">Months</th><th className="th text-right">Amount</th><th className="th">Status</th><th className="th">Paid</th><th className="th" /></tr></thead>

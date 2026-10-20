@@ -54,7 +54,7 @@ export async function getOverview(): Promise<Overview> {
     liveOnly(db.from(T.guilds).select('created_at')).gte('created_at', since30).limit(5000),
     db.from(T.health).select('*').limit(20),
     db.from(T.botState).select('key,value').eq('key', 'maintenance_mode').maybeSingle(),
-    db.from(T.payments).select('*').order('created_at', { ascending: false }).limit(10), // includes test rows, badged
+    liveOnly(db.from(T.payments).select('*')).order('created_at', { ascending: false }).limit(10),
     liveOnly(db.from(T.payments).select('amount_usd')).eq('status', 'paid').gte('paid_at', prevFrom).lt('paid_at', since30).limit(5000),
     count(g().gte('created_at', prevFrom).lt('created_at', since30)),
     count(g().eq('bot_present', false)),
