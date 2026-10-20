@@ -114,11 +114,28 @@ export async function getPlatformHealth() {
   return { platforms: must(health, 'platform health') as Row[], maintenance: parseFlag((state.data as Row | null)?.value) };
 }
 
+/**
+ * TikTok has no quota, so the risk signal is how many enabled accounts are failing. A mass `error` means TikTok is
+ * blocking the host; `invalid` accounts (3 failed checks, usually renamed or deleted) need to be re-added.
+ * Counted from account status, not a per-check log, so it is a proxy for the share of failed checks.
+ */
+export interface TikTokBlock { total: number; error: number; invalid: number; errorShare: number }
+export async function getTikTokBlockRate(): Promise<TikTokBlock | null> {
+  const res = await pn().from(T.accounts).select('status').eq('platform', 'tiktok').eq('enabled', true).limit(20000);
+  if (res.error) return null;
+  const rows = (res.data ?? []) as Row[];
+  const count = (s: string) => rows.filter((r) => String(r.status ?? '').toLowerCase() === s).length;
+  const error = count('error');
+  return { total: rows.length, error, invalid: count('invalid'), errorShare: rows.length ? error / rows.length : 0 };
+}
+
 export async function productHealthSummary(): Promise<'ok' | 'warn' | 'down'> {
   const { platforms, maintenance } = await getPlatformHealth();
   if (maintenance) return 'warn';
-  const bad = platforms.filter((p) => !['ok', 'healthy', 'operational', 'up'].includes(String(p.status ?? 'ok').toLowerCase()));
-  return bad.length === 0 ? 'ok' : bad.length >= platforms.length ? 'down' : 'warn';
+  const active = platforms.filter((p) => String(p.status ?? '').toLowerCase() !== 'disabled');
+  const paused = (p: Row) => !!p.rate_limited_until && new Date(String(p.rate_limited_until)).getTime() > Date.now();
+  const bad = active.filter((p) => !['ok', 'healthy', 'operational', 'up'].includes(String(p.status ?? 'ok').toLowerCase()) || paused(p));
+  return bad.length === 0 ? 'ok' : bad.length >= active.length ? 'down' : 'warn';
 }
 
 // ---------------------------------------------------------------- audit (hub slice + bot log, merged by time)

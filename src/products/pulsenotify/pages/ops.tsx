@@ -1,19 +1,20 @@
-import { Badge, Card, EmptyState, ErrorPanel, KV, PageHeader, Pagination, FilterBar, Table, Tr } from '@/components/ui';
+import { Badge, Card, EmptyState, ErrorPanel, KV, PageHeader, Pagination, FilterBar, Stat, Table, Tr, When } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
 import { DateField } from '@/components/date-field';
 import { AuditTable } from '@/components/audit-table';
 import { can } from '@/lib/roles';
-import { dateTime } from '@/lib/format';
+import { dateTime, int, platformLabel, relative, sentence, statusTone } from '@/lib/format';
 import { PAGE_SIZE } from '@/lib/validation';
-import { getBotSettings, getMergedAudit, getPlatformHealth, getAbandonedCheckouts, getFailedDms, getReminders, getSubscriptionHealth } from '../queries/ops';
+import { getBotSettings, getMergedAudit, getPlatformHealth, getTikTokBlockRate, getAbandonedCheckouts, getFailedDms, getReminders, getSubscriptionHealth } from '../queries/ops';
 import { resetReminders, setMaintenance } from '../actions';
 import type { RouteCtx } from '@/products/types';
 import { GenericRows, ServerLink, base } from './shared';
 import { guildInfoMap } from '@/lib/discord';
-import { SLUG, num, str } from '../db';
+import { SLUG, num, str, type Row } from '../db';
 import { writeAudit } from '@/lib/audit';
 import { CopyId } from '@/components/small-client';
 import { DmStatus, PaymentStatus, dmKindLabel } from './shared';
+import { ClampText } from '@/components/small-client';
 
 export async function SubscriptionsPage() {
   let lists;
@@ -122,9 +123,48 @@ export async function RemindersPage({ role, admin }: RouteCtx) {
   );
 }
 
+const PLATFORM_ORDER = ['youtube', 'kick', 'instagram', 'twitter', 'x', 'tiktok'];
+const orderOf = (p: string) => { const i = PLATFORM_ORDER.indexOf(p.toLowerCase()); return i === -1 ? 99 : i; };
+
+const isPaused = (r: Row) => !!r.rate_limited_until && new Date(String(r.rate_limited_until)).getTime() > Date.now();
+const isDisabled = (r: Row) => String(r.status ?? '').toLowerCase() === 'disabled';
+
+/** Quota meter where the provider reports one; "n/a" where it does not (X, TikTok). */
+function QuotaCell({ row }: { row: Row }) {
+  const limit = num(row.quota_limit);
+  if (!limit || row.quota_remaining === null || row.quota_remaining === undefined) return <span className="text-muted">n/a</span>;
+  const used = Math.max(0, limit - num(row.quota_remaining));
+  const pct = Math.min(100, Math.round((used / limit) * 100));
+  return (
+    <div className="min-w-[140px]">
+      <div className="num text-xs text-muted">{int(used)} / {int(limit)} · {pct}%</div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded bg-subtle" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Quota used">
+        <div className="h-full rounded" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--danger)' : pct >= 70 ? 'var(--warning)' : 'var(--success)' }} />
+      </div>
+    </div>
+  );
+}
+
+function PlatformStatus({ row }: { row: Row }) {
+  const status = str(row.status) ?? 'healthy';
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <Badge tone={statusTone(status)}>{sentence(status)}</Badge>
+      {isPaused(row) && <Badge tone="warning">Paused until {relative(String(row.rate_limited_until))}</Badge>}
+    </span>
+  );
+}
+
 export async function HealthPage({ role }: RouteCtx) {
   let d;
-  try { d = await getPlatformHealth(); } catch { return <ErrorPanel message="Could not load platform health." retryHref={`${base}/health`} />; }
+  let tiktok;
+  try { [d, tiktok] = await Promise.all([getPlatformHealth(), getTikTokBlockRate().catch(() => null)]); } catch { return <ErrorPanel message="Could not load platform health." retryHref={`${base}/health`} />; }
+  const platforms = [...d.platforms].sort((x, y) => orderOf(String(x.platform ?? '')) - orderOf(String(y.platform ?? '')));
+  const active = platforms.filter((p) => !isDisabled(p));
+  const healthy = active.filter((p) => statusTone(str(p.status) ?? 'healthy') === 'success' && !isPaused(p)).length;
+  const attention = active.length - healthy;
+  const tiktokRow = platforms.find((p) => String(p.platform).toLowerCase() === 'tiktok');
+  const blocked = !!tiktokRow && isPaused(tiktokRow);
   return (
     <>
       <PageHeader title="Platform health" updatedAt={new Date()} description="Status of each monitored platform and the bot's maintenance flag."
@@ -132,8 +172,65 @@ export async function HealthPage({ role }: RouteCtx) {
           <ConfirmAction label={d.maintenance ? 'Turn maintenance OFF' : 'Turn maintenance ON'} danger={!d.maintenance} small={false} title="Maintenance mode" action={setMaintenance}
             hidden={{ enabled: String(!d.maintenance) }} typeToConfirm="MAINTENANCE" description="Writes the flag the bot reads. Alerts may pause while it is on." />
         )} />
-      <div className="mb-4"><Card><KV items={[['Maintenance mode', d.maintenance ? <Badge key="m" tone="warning">On</Badge> : <Badge key="m" tone="success">Off</Badge>]]} /></Card></div>
-      <Card title="Platforms"><GenericRows rows={d.platforms} label="Platforms" prefer={['platform', 'status', 'quota_used', 'quota_limit', 'error_count', 'last_success_at', 'last_error_at']} max={8} /></Card>
+      <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Card><Stat label="Platforms active" value={int(active.length)} hint={platforms.length > active.length ? `${platforms.length - active.length} disabled` : undefined} /></Card>
+        <Card><Stat label="Healthy" value={int(healthy)} /></Card>
+        <Card><Stat label="Needs attention" value={<span className={attention > 0 ? 'text-danger' : undefined}>{int(attention)}</span>} /></Card>
+        <Card><Stat label="Maintenance mode" value={d.maintenance ? <Badge tone="warning">On</Badge> : <Badge tone="success">Off</Badge>} /></Card>
+      </div>
+      {platforms.length > 0 && (
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {platforms.map((p, i) => (
+            <Card key={i}>
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-semibold">{platformLabel(str(p.platform))}</span>
+                <PlatformStatus row={p} />
+              </div>
+              <div className="mt-3"><QuotaCell row={p} /></div>
+              <div className="mt-2 text-xs text-muted">
+                <span className="num">{int(num(p.requests_today))}</span> requests today · {num(p.consecutive_failures) > 0 ? `${int(num(p.consecutive_failures))} failures in a row` : 'no failures'}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+      {tiktok && tiktok.total > 0 && (
+        <div className="mb-4">
+          <Card title="TikTok blocking">
+            <KV items={[
+              ['Platform', blocked ? <Badge key="b" tone="danger">Paused: TikTok is blocking the host</Badge> : <Badge key="b" tone="success">Not paused</Badge>],
+              ['Resumes', blocked && tiktokRow ? <When key="r" value={str(tiktokRow.rate_limited_until)} /> : '—'],
+              ['Enabled accounts', int(tiktok.total)],
+              ['Accounts in error', <Badge key="e" tone={tiktok.errorShare >= 0.5 ? 'danger' : tiktok.error > 0 ? 'warning' : 'success'}>{int(tiktok.error)} ({Math.round(tiktok.errorShare * 100)}%)</Badge>],
+              ['Invalid (re-add needed)', int(tiktok.invalid)],
+            ]} />
+            {tiktok.errorShare >= 0.5 && (
+              <p className="mt-3 text-[12.5px] text-danger">
+                {blocked ? 'Most TikTok accounts are failing and the platform is paused. This is a block, not an account problem.' : 'Most TikTok accounts are failing but the platform is not paused. That points to timeouts or a changed page, not a block.'}
+              </p>
+            )}
+          </Card>
+        </div>
+      )}
+      {platforms.length === 0 ? <Card title="Platforms"><EmptyState title="No platform data yet" hint="A platform appears after its first check." /></Card> : (
+        <Table label="Platforms">
+          <thead><tr>{['Platform', 'Status', 'Requests today', 'Quota', 'Failures in a row', 'Last success', 'Last error'].map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
+          <tbody>{platforms.map((p, i) => (
+            <Tr key={i}>
+              <td className="td font-medium">{platformLabel(str(p.platform))}</td>
+              <td className="td"><PlatformStatus row={p} /></td>
+              <td className="td num">{int(num(p.requests_today))}</td>
+              <td className="td"><QuotaCell row={p} /></td>
+              <td className="td num">{int(num(p.consecutive_failures))}</td>
+              <td className="td"><When value={str(p.last_success_at)} /></td>
+              <td className="td">
+                <When value={str(p.last_error_at)} />
+                {str(p.last_error) && <div className="mt-1 max-w-xs"><ClampText text={String(p.last_error)} title="Last error" /></div>}
+              </td>
+            </Tr>
+          ))}</tbody>
+        </Table>
+      )}
     </>
   );
 }

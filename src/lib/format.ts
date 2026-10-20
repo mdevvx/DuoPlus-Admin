@@ -50,7 +50,7 @@ export function statusTone(v: string | null | undefined): 'success' | 'warning' 
   const s = (v ?? '').toLowerCase();
   if (['ok', 'healthy', 'operational', 'up', 'active', 'paid', 'valid', 'live'].includes(s)) return 'success';
   if (['degraded', 'warn', 'warning', 'pending', 'trialing', 'canceled', 'cancelled'].includes(s)) return 'warning';
-  if (['down', 'error', 'failed', 'past_due', 'unpaid', 'incident', 'outage'].includes(s)) return 'danger';
+  if (['down', 'error', 'failed', 'past_due', 'unpaid', 'incident', 'outage', 'invalid'].includes(s)) return 'danger';
   return 'neutral';
 }
 

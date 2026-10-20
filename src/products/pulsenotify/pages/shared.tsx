@@ -87,6 +87,12 @@ export function GenericRows({ rows, prefer = [], label, max = 7, compact }: { ro
           const v = r[c];
           const s = v === null || v === undefined ? '—' : String(v);
           if (c === 'status' && typeof v === 'string') return <td key={c} className="td"><Badge tone={statusTone(v)}>{sentence(v)}</Badge></td>;
+          if (c === 'username' && typeof v === 'string' && String(r.platform).toLowerCase() === 'tiktok') {
+            return <td key={c} className="td"><a className="text-accent hover:underline" href={`https://www.tiktok.com/@${encodeURIComponent(v)}`} target="_blank" rel="noopener noreferrer">@{v}</a></td>;
+          }
+          if (c === 'platform_event_id' && typeof v === 'string' && String(r.platform).toLowerCase() === 'tiktok' && r.username) {
+            return <td key={c} className="td"><a className="text-accent hover:underline" href={`https://www.tiktok.com/@${encodeURIComponent(String(r.username))}/video/${encodeURIComponent(v)}`} target="_blank" rel="noopener noreferrer">Open video</a></td>;
+          }
           if (c === 'platform' && typeof v === 'string') return <td key={c} className="td">{platformLabel(v)}</td>;
           if (c === 'provider' && typeof v === 'string') return <td key={c} className="td">{providerLabel(v)}</td>;
           if (typeof v === 'string' && /(_type|^type|action|kind|category|level)$/.test(c) && /^[a-z0-9_.:-]{2,40}$/.test(v)) return <td key={c} className="td">{sentence(v)}</td>;
