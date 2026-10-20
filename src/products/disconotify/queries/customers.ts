@@ -57,6 +57,7 @@ async function listDerived(p: CustomerParams) {
   ]);
   type U = { discord_user_id: string; email: string | null; lifetime: number; guilds: Set<string>; lastDmAt: string | null; lastDmStatus: string | null; lastSeen: string };
   const users = new Map<string, U>();
+  const valid = (id: unknown) => /^\d{5,25}$/.test(String(id)); // drops placeholders such as 0
   const get = (id: unknown) => {
     const k = String(id);
     const u = users.get(k) ?? { discord_user_id: k, email: null, lifetime: 0, guilds: new Set<string>(), lastDmAt: null, lastDmStatus: null, lastSeen: '' };
@@ -65,19 +66,20 @@ async function listDerived(p: CustomerParams) {
   };
   const seen = (u: U, at: unknown) => { const s = String(at ?? ''); if (s > u.lastSeen) u.lastSeen = s; };
   for (const r of (pay.data ?? []) as Row[]) {
+    if (!valid(r.requested_by)) continue;
     const u = get(r.requested_by);
     if (r.status === 'paid') { u.lifetime += num(r.amount_usd); if (r.guild_id) u.guilds.add(String(r.guild_id)); }
     seen(u, r.created_at);
   }
   for (const r of (mails.data ?? []) as Row[]) {
-    if (!r.discord_user_id) continue;
+    if (!valid(r.discord_user_id)) continue;
     const u = get(r.discord_user_id);
     u.email ??= (r.email as string | null) ?? null;
     if (r.guild_id) u.guilds.add(String(r.guild_id));
     seen(u, r.created_at);
   }
   for (const r of (dms.data ?? []) as Row[]) {
-    if (!r.discord_user_id) continue;
+    if (!valid(r.discord_user_id)) continue;
     const u = get(r.discord_user_id);
     if (!u.lastDmAt) { u.lastDmAt = String(r.created_at); u.lastDmStatus = String(r.status ?? ''); }
     seen(u, r.created_at);

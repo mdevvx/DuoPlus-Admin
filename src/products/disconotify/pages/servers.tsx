@@ -118,7 +118,7 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
       </div>
       <div className="grid gap-4">
         <Card title={`Member emails (${d.memberEmails.length})`}>
-          <p className="mb-4 text-xs text-muted">Emails are shown in full, so this page view is audit-logged. Reminder counters: {num(b?.reminders_sent)} sent{b?.last_reminder_at ? `, last ${dateTime(str(b.last_reminder_at))}` : ''}.</p>
+          <p className="mb-4 text-muted">Emails are shown in full, so this page view is audit-logged. Reminder counters: {num(b?.reminders_sent)} sent{b?.last_reminder_at ? `, last ${dateTime(str(b.last_reminder_at))}` : ''}.</p>
           {d.memberEmails.length === 0 ? <EmptyState compact title="No member emails" hint="Emails members share with the bot in this server appear here" /> : (
             <Table label="Member emails" bare>
               <thead><tr><th className="th">Email</th><th className="th">Discord user ID</th><th className="th">Added</th><th className="th">Last DM</th></tr></thead>
@@ -162,7 +162,7 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
         <Card title="Recent events"><GenericRows compact rows={d.events} label="Events" prefer={['created_at', 'platform', 'event_type', 'title']} /></Card>
         <Card title="Bot activity log"><GenericRows compact rows={d.audit} label="Audit entries" prefer={['created_at', 'action', 'user_id']} /></Card>
       </div>
-      <p className="mt-4 text-xs text-muted">All server actions are written to the audit log with before/after values. <Link className="text-accent" href={`${base}/audit?target=${id.data}`}>View this server&apos;s audit trail</Link></p>
+      <p className="mt-4 text-muted">All server actions are written to the audit log with before/after values. <Link className="text-accent" href={`${base}/audit?target=${id.data}`}>View this server&apos;s audit trail</Link></p>
     </>
   );
 }

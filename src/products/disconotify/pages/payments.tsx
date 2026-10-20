@@ -38,7 +38,7 @@ export async function PaymentsPage({ searchParams, role }: RouteCtx) {
       </FilterBar>
       {p.mode === 'test' && <p className="mb-3 rounded-lg bg-warning-soft px-4 py-3 text-warning" role="status">Sandbox payments (Polar test mode). They are not real revenue and are left out of the Overview, MRR and live totals.</p>}
       {p.mode === 'live' && data.testCount > 0 && <p className="mb-3 text-muted">{data.testCount} sandbox payment{data.testCount === 1 ? '' : 's'} are hidden from this live view. <Link className="font-medium text-accent hover:underline" href={`${path}?mode=test`}>View sandbox payments</Link></p>}
-      <p className="mb-3 text-sm text-muted">{p.mode === 'test' ? 'Sandbox' : 'Live'} paid total for this filter: <span className="num font-semibold text-ink">{money(p.mode === 'test' ? data.testPaidTotal : data.paidTotal)}</span>
+      <p className="mb-3 text-muted">{p.mode === 'test' ? 'Sandbox' : 'Live'} paid total for this filter: <span className="num font-semibold text-ink">{money(p.mode === 'test' ? data.testPaidTotal : data.paidTotal)}</span>
         {p.mode === 'all' && data.testPaidTotal > 0 && <> · Sandbox paid: <span className="num font-semibold text-ink">{money(data.testPaidTotal)}</span>, not real revenue</>} · {data.total.toLocaleString('en-US')} rows</p>
       {data.rows.length === 0 ? <div className="card"><EmptyState title="No payments match" /></div> : (
         <Table label="Payments">

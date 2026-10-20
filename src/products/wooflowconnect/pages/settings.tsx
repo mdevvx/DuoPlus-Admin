@@ -33,7 +33,7 @@ export async function SettingsPage({ role, manifest }: { role: RouteCtx['role'];
             ['Key scopes', c.state === 'ok' ? c.scopes : null],
             ['Payments', org ? `Polar (${org})` : 'Polar (organisation slug not set)'],
           ]} />
-          <p className="mt-4 text-xs text-muted">The key lives in the server environment as WFC_API_KEY and is never sent to the browser. Support actions (grant days, suspend, cancel...) need a key created with “Read and support actions”.</p>
+          <p className="mt-4 text-muted">The key lives in the server environment as WFC_API_KEY and is never sent to the browser. Support actions (grant days, suspend, cancel...) need a key created with “Read and support actions”.</p>
         </Card>
       </div>
     </>

@@ -25,7 +25,7 @@ export default async function SettingsPage() {
           </div>
           <label className="mb-1.5 block text-[13px] font-medium">Nickname</label>
           <NicknameForm current={admin.displayName ?? ''} placeholder="How should we call you?" />
-          <p className="mt-2 text-xs text-muted">Shown in the sidebar, the top bar and the welcome banner, with your role tag next to it.</p>
+          <p className="mt-2 text-muted">Shown in the sidebar, the top bar and the welcome banner, with your role tag next to it.</p>
         </Card>
         <Card title="Your account">
           <KV items={[['Email', admin.email], ['Global role', roleLabel(admin.role)], ['Theme', roleLabel(await currentTheme())], ['Second factor', 'Authenticator app (required every session)']]} />
