@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Badge, Card, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Pagination, Select, Table, Tr } from '@/components/ui';
+import { Badge, Card, Cell, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Pagination, Select, Table, Tr } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
 import { CopyId } from '@/components/small-client';
 import { can } from '@/lib/roles';
@@ -10,8 +10,8 @@ import { PAGE_SIZE, snowflake } from '@/lib/validation';
 import { customerParams, getCustomer, listCustomers } from '../queries/customers';
 import { deleteContact, disableReminders, enableReminders } from '../actions';
 import type { RouteCtx } from '@/products/types';
-import { PaymentsMini, ServerLink, base } from './shared';
-import { guildInfoMap } from '@/lib/discord';
+import { DmStatus, PaymentsMini, ServerLink, base } from './shared';
+import { guildInfoMap, userInfoMap } from '@/lib/discord';
 import { SLUG, str } from '../db';
 
 export async function CustomersPage({ searchParams }: RouteCtx) {
@@ -19,14 +19,30 @@ export async function CustomersPage({ searchParams }: RouteCtx) {
   let data;
   try { data = await listCustomers(p); } catch { return <ErrorPanel message="Could not load customers." retryHref={`${base}/customers`} />; }
   const path = `${base}/customers`;
+  const names = data.derived ? await userInfoMap(data.rows.map((r) => r.discord_user_id)) : {};
   return (
     <>
-      <PageHeader title="Customers" description="Discord users with a contact on file. Emails are masked in this list." updatedAt={new Date()} />
+      <PageHeader title="Customers"
+        description={data.derived ? 'Discord users the bot has dealt with: who paid, shared an email or received a DM. Emails are masked in this list.' : 'Discord users with a contact on file. Emails are masked in this list.'}
+        updatedAt={new Date()} />
       <FilterBar action={path}>
-        <input className="input w-64" name="q" placeholder="Username, email or Discord ID" defaultValue={p.q} />
-        <Select name="optout" label="Reminders" value={p.optout} options={[['', 'All'], ['0', 'Allowed'], ['1', 'Opted out']]} />
+        <input className="input w-64" name="q" placeholder={data.derived ? 'Discord ID or email' : 'Username, email or Discord ID'} defaultValue={p.q} />
+        {!data.derived && <Select name="optout" label="Reminders" value={p.optout} options={[['', 'All'], ['0', 'Allowed'], ['1', 'Opted out']]} />}
       </FilterBar>
-      {data.missingTable ? <div className="card"><EmptyState title="Contacts table not found" hint="notify_user_contacts does not exist yet. Apply the bot's latest database migration, then reload." /></div> : data.rows.length === 0 ? <div className="card"><EmptyState title="No customers match" /></div> : (
+      {data.rows.length === 0 ? <div className="card"><EmptyState title="No customers match" hint={data.derived ? 'Nobody has paid, shared an email or been messaged by the bot yet.' : undefined} /></div> : data.derived ? (
+        <Table label="Customers">
+          <thead><tr><th className="th">User</th><th className="th">Discord ID</th><th className="th">Email</th><th className="th">Last DM</th><th className="th text-right">Servers</th><th className="th text-right">Lifetime</th></tr></thead>
+          <tbody>{data.rows.map((c) => (
+            <Tr key={c.discord_user_id}>
+              <td className="td"><Cell max={220} text={names[c.discord_user_id]?.name ?? 'Unknown user'} href={`${path}/${c.discord_user_id}`} /></td>
+              <td className="td"><CopyId value={c.discord_user_id} /></td>
+              <td className="td"><Cell max={220} text={maskEmail(str(c.email))} /></td>
+              <td className="td">{c.last_dm_at ? <div className="flex flex-wrap items-center gap-1.5"><DmStatus status={c.last_dm_status} /><span className="text-xs text-muted">{dateTime(str(c.last_dm_at)).slice(0, 10)}</span></div> : <span className="text-muted">—</span>}</td>
+              <td className="td num text-right">{c.servers}</td><td className="td num text-right">{money(c.lifetime)}</td>
+            </Tr>
+          ))}</tbody>
+        </Table>
+      ) : (
         <Table label="Customers">
           <thead><tr><th className="th">User</th><th className="th">Discord ID</th><th className="th">Email</th><th className="th">Consent</th><th className="th">Servers paid</th><th className="th text-right">Lifetime</th></tr></thead>
           <tbody>{data.rows.map((c) => (
@@ -53,10 +69,11 @@ export async function CustomerDetailPage({ params, role, admin }: RouteCtx) {
   await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'view.customer', target_type: 'customer', target_id: id.data });
   const infos = await guildInfoMap(d.paidServers.map((s) => s.guild_id));
   const c = d.contact;
+  const username = c ? str(c.discord_username) : (await userInfoMap([id.data]))[id.data]?.name ?? null;
   const hidden = { userId: id.data };
   return (
     <>
-      <PageHeader title={str(c?.discord_username) ?? `User ${id.data}`} description="Customer detail. Viewing this page is audit-logged." updatedAt={new Date()} />
+      <PageHeader title={username ?? `User ${id.data}`} description="Customer detail. Viewing this page is audit-logged." updatedAt={new Date()} />
       {c && (
         <div className="mb-4 flex flex-wrap gap-2">
           {can(role, 'contact.optin_out') && (c.reminders_opt_out
@@ -71,7 +88,11 @@ export async function CustomerDetailPage({ params, role, admin }: RouteCtx) {
           {c ? <KV items={[
             ['Discord ID', <CopyId key="i" value={id.data} />], ['Username', str(c.discord_username)], ['Email', `${str(c.email)}${c.email_verified ? ' (verified)' : ' (unverified)'}`],
             ['Consented', dateTime(str(c.consented_at))], ['Reminders', c.reminders_opt_out ? `Opted out ${dateTime(str(c.opted_out_at))}` : 'Allowed'],
-          ]} /> : <EmptyState title="No contact on file" hint="This user has payments but no stored email." />}
+          ]} /> : <KV items={[
+            ['Discord ID', <CopyId key="i" value={id.data} />], ['Username', username],
+            ['Email', d.sharedEmail ?? 'None shared'], ['Email shared in', d.sharedServers ? `${d.sharedServers} server${d.sharedServers === 1 ? '' : 's'}` : '—'],
+            ['Consent', 'Not tracked (no contacts table)'],
+          ]} />}
         </Card>
         <Card title="Summary">
           <KV items={[['Lifetime paid', money(d.lifetime)], ['Payments', String(d.payments.length)], ['Servers paid for', String(d.paidServers.length)]]} />

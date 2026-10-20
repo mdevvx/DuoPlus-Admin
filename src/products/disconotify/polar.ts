@@ -37,10 +37,13 @@ const modeOf = unstable_cache(async (ref: string): Promise<Mode> => {
 
 /** IDs (notify_payments.id) of payments that belong to Polar's sandbox, not the live account. */
 export async function testPaymentIds(): Promise<string[]> {
-  const { data } = await pn().from(T.payments).select('id,external_id').eq('provider', 'polar').limit(2000);
-  const rows = ((data ?? []) as Row[]).filter((r) => r.external_id);
+  const { data } = await pn().from(T.payments).select('id,external_id,checkout_url').eq('provider', 'polar').limit(2000);
+  const all = (data ?? []) as Row[];
+  // A stored checkout URL on Polar's sandbox host is conclusive on its own; no API call needed.
+  const sandboxUrl = (r: Row) => { try { return new URL(String(r.checkout_url)).hostname === 'sandbox.polar.sh'; } catch { return false; } };
+  const out: string[] = all.filter(sandboxUrl).map((r) => String(r.id));
+  const rows = all.filter((r) => r.external_id && !sandboxUrl(r));
   if (env().POLAR_ENV === 'sandbox') return rows.map((r) => String(r.id)); // a sandbox-configured panel only ever sees sandbox data
-  const out: string[] = [];
   for (let i = 0; i < rows.length; i += 10) {
     const chunk = rows.slice(i, i + 10);
     const modes = await Promise.all(chunk.map((r) => modeOf(String(r.external_id))));

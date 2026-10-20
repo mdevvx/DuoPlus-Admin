@@ -54,6 +54,34 @@ export async function guildInfoMap(ids: string[]): Promise<Record<string, GuildI
   return out;
 }
 
+export interface UserInfo { name: string; avatarUrl: string | null }
+
+async function fetchUser(id: string): Promise<UserInfo> {
+  const res = await fetch(`${API}/users/${id}`, { headers: authHeader(), cache: 'no-store', signal: AbortSignal.timeout(6000) });
+  if (res.status === 401) { rejectedUntil = Date.now() + 60_000; throw new Transient('token rejected'); }
+  if (!res.ok) throw new Transient(`discord ${res.status}`);
+  const u = (await res.json()) as { username?: string; global_name?: string | null; avatar?: string | null };
+  const name = u.global_name || u.username;
+  if (!name) throw new Transient('no name');
+  return { name, avatarUrl: u.avatar ? `https://cdn.discordapp.com/avatars/${id}/${u.avatar}.png?size=64` : null };
+}
+const cachedUser = unstable_cache(async (id: string) => fetchUser(id), ['discord-user'], { revalidate: SIX_HOURS });
+
+/** Display names for Discord users the bot has seen. Failures just return null; the panel falls back to the ID. */
+export async function userInfoMap(ids: string[]): Promise<Record<string, UserInfo | null>> {
+  const unique = [...new Set(ids)].filter((id) => /^\d{5,25}$/.test(id));
+  const out: Record<string, UserInfo | null> = {};
+  if (!process.env.DISCORD_BOT_TOKEN || Date.now() < rejectedUntil) return out;
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(6, unique.length) }, async () => {
+    while (next < unique.length) {
+      const id = unique[next++]!;
+      try { out[id] = await cachedUser(id); } catch { out[id] = null; }
+    }
+  }));
+  return out;
+}
+
 export const discordConfigured = () => !!process.env.DISCORD_BOT_TOKEN;
 
 /** Cheap token check (cached 60 s) so the UI can explain why names are missing. */
