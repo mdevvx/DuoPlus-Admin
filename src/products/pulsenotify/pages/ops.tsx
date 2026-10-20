@@ -129,10 +129,10 @@ const orderOf = (p: string) => { const i = PLATFORM_ORDER.indexOf(p.toLowerCase(
 const isPaused = (r: Row) => !!r.rate_limited_until && new Date(String(r.rate_limited_until)).getTime() > Date.now();
 const isDisabled = (r: Row) => String(r.status ?? '').toLowerCase() === 'disabled';
 
-/** Quota meter where the provider reports one; "n/a" where it does not (X, TikTok). */
+/** Quota meter where the provider reports one; "N/A" where it does not (X, TikTok). */
 function QuotaCell({ row }: { row: Row }) {
   const limit = num(row.quota_limit);
-  if (!limit || row.quota_remaining === null || row.quota_remaining === undefined) return <span className="text-muted">n/a</span>;
+  if (!limit || row.quota_remaining === null || row.quota_remaining === undefined) return <span className="text-muted" title="This platform does not report a quota">N/A</span>;
   const used = Math.max(0, limit - num(row.quota_remaining));
   const pct = Math.min(100, Math.round((used / limit) * 100));
   return (
@@ -225,7 +225,7 @@ export async function HealthPage({ role }: RouteCtx) {
               <td className="td"><When value={str(p.last_success_at)} /></td>
               <td className="td">
                 <When value={str(p.last_error_at)} />
-                {str(p.last_error) && <div className="mt-1 max-w-xs"><ClampText text={String(p.last_error)} title="Last error" /></div>}
+                {str(p.last_error) && <div className="mt-1 max-w-[200px]"><ClampText text={String(p.last_error)} title="Last error" /></div>}
               </td>
             </Tr>
           ))}</tbody>

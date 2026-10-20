@@ -37,7 +37,8 @@ export function TableKeys() {
     // Click anywhere on a row to open it (unless the click was on a control or selected text).
     const onClick = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
-      if (t.closest('a, button, input, select, textarea, label') || window.getSelection()?.toString()) return;
+      // Dialogs are rendered inside rows; clicks in or on the backdrop of one must not open the row.
+      if (t.closest('a, button, input, select, textarea, label, dialog') || window.getSelection()?.toString()) return;
       const row = t.closest('table[data-keynav] tbody tr');
       row?.querySelector<HTMLAnchorElement>('a[data-row-link]')?.click();
     };
@@ -63,6 +64,24 @@ export function SideSheet({ trigger, title, children }: { trigger: string; title
   );
 }
 
+/** Centered detail modal opened from a table row button. */
+export function DetailModal({ trigger, title, children }: { trigger: string; title: string; children: ReactNode }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  return (
+    <>
+      <button type="button" className="btn h-7 px-2.5 text-xs" onClick={() => ref.current?.showModal()}>{trigger}</button>
+      <dialog ref={ref} className="w-[480px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised p-0 text-left text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
+        onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
+        <ModalHeader icon={FileText} title={title} onClose={() => ref.current?.close()} />
+        <div className="thin-scroll max-h-[65vh] overflow-auto px-5 py-4">{children}</div>
+        <footer className="flex justify-end border-t border-line bg-subtle px-5 py-3.5">
+          <button type="button" className="btn btn-primary" onClick={() => ref.current?.close()}>Close</button>
+        </footer>
+      </dialog>
+    </>
+  );
+}
+
 /** One-line text with the rest behind a "See more" popup. Keeps long values (errors, reasons) from breaking tables. */
 export function ClampText({ text, title = 'Details', max = 64 }: { text: string; title?: string; max?: number }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -70,7 +89,7 @@ export function ClampText({ text, title = 'Details', max = 64 }: { text: string;
   if (text.length <= max) return <span>{text}</span>;
   return (
     <>
-      <span className="inline-flex max-w-[340px] items-center gap-2 align-middle">
+      <span className="inline-flex max-w-[220px] items-center gap-2 align-middle">
         <span className="truncate" title={text}>{text}</span>
         <button type="button" className="shrink-0 text-xs font-medium text-accent hover:underline" onClick={() => ref.current?.showModal()}>See more</button>
       </span>

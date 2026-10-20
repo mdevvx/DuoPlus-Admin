@@ -1,6 +1,7 @@
 import { ExternalLink } from 'lucide-react';
 import { EmptyState, ErrorPanel, FilterBar, PageHeader, Pagination, Select, Table, Tr, When } from '@/components/ui';
-import { SideSheet, CopyId } from '@/components/small-client';
+import Link from 'next/link';
+import { DetailModal, CopyId } from '@/components/small-client';
 import { DateField } from '@/components/date-field';
 import { money, providerLabel } from '@/lib/format';
 import { can } from '@/lib/roles';
@@ -51,14 +52,24 @@ export async function PaymentsPage({ searchParams, role }: RouteCtx) {
                 <td className="td text-right">
                   <span className="inline-flex items-center gap-2">
                     {polar && <a className="inline-flex items-center gap-1 text-xs text-accent" href={polar} target="_blank" rel="noopener noreferrer">Polar <ExternalLink className="h-3 w-3" aria-hidden /></a>}
-                    <SideSheet trigger="Quick view" title="Payment">
-                      <dl className="space-y-2 text-sm">
-                        <div><dt className="text-xs text-muted">Provider reference</dt><dd>{str(r.external_id) ? <CopyId value={String(r.external_id)} /> : '—'}</dd></div>
-                        <div><dt className="text-xs text-muted">Requested by (Discord ID)</dt><dd>{str(r.requested_by) ? <CopyId value={String(r.requested_by)} /> : '—'}</dd></div>
-                        <div><dt className="text-xs text-muted">Channel</dt><dd>{str(r.channel_id) ? <CopyId value={String(r.channel_id)} /> : '—'}</dd></div>
-                        <div><dt className="text-xs text-muted">Amount / months</dt><dd className="num">{money(r.amount_usd as number)} · {str(r.months)} mo</dd></div>
+                    <DetailModal trigger="Quick view" title="Payment details">
+                      <div className="mb-4 flex items-center justify-between rounded-lg bg-subtle px-4 py-3">
+                        <div>
+                          <div className="num text-2xl font-semibold">{money(r.amount_usd as number)}</div>
+                          <div className="text-xs text-muted">{str(r.months)} month{Number(r.months) === 1 ? '' : 's'} · {providerLabel(str(r.provider))}</div>
+                        </div>
+                        <PaymentStatus status={r.status} />
+                      </div>
+                      <dl className="divide-y divide-line text-sm">
+                        <div className="flex items-start justify-between gap-4 py-2.5"><dt className="text-muted">Server</dt><dd>{gid ? <CopyId value={gid} /> : '—'}</dd></div>
+                        <div className="flex items-start justify-between gap-4 py-2.5"><dt className="text-muted">Created</dt><dd className="text-right"><When value={str(r.created_at)} /></dd></div>
+                        <div className="flex items-start justify-between gap-4 py-2.5"><dt className="text-muted">Paid</dt><dd className="text-right"><When value={str(r.paid_at)} /></dd></div>
+                        <div className="flex items-start justify-between gap-4 py-2.5"><dt className="text-muted">Provider reference</dt><dd className="min-w-0 break-all text-right">{str(r.external_id) ? <CopyId value={String(r.external_id)} mono={false} /> : '—'}</dd></div>
+                        <div className="flex items-start justify-between gap-4 py-2.5"><dt className="text-muted">Requested by</dt><dd>{str(r.requested_by) ? <CopyId value={String(r.requested_by)} /> : '—'}</dd></div>
+                        <div className="flex items-start justify-between gap-4 py-2.5"><dt className="text-muted">Channel</dt><dd>{str(r.channel_id) ? <CopyId value={String(r.channel_id)} /> : '—'}</dd></div>
                       </dl>
-                    </SideSheet>
+                      {gid && <Link className="btn mt-4 w-full" href={`${base}/servers/${gid}`}>Open server</Link>}
+                    </DetailModal>
                   </span>
                 </td>
               </Tr>

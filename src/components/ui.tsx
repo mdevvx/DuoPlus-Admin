@@ -100,8 +100,8 @@ export function When({ value }: { value?: string | Date | null }) {
   if (!d || Number.isNaN(d.getTime())) return <span className="text-muted">—</span>;
   const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
   return (
-    <div className="num whitespace-nowrap leading-tight">
-      <div>{date}</div>
+    <div className="num leading-tight">
+      <div className="whitespace-nowrap">{date}</div>
       <div className="text-xs text-muted">{d.toISOString().slice(11, 16)} UTC · {relative(d)}</div>
     </div>
   );
