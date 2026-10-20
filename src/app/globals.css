@@ -127,7 +127,7 @@ body {
   .input { @apply h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink placeholder:text-muted; }
   .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .th { @apply sticky top-0 z-10 bg-subtle px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted; }
-  .td { @apply px-3 py-3 align-middle; }
+  .td { @apply break-words px-3 py-3 align-middle; }
   tbody tr:has(a[data-row-link]) { cursor: pointer; }
   tbody tr:focus-within { background: var(--subtle); }
   .section-label { @apply px-2.5 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted; }

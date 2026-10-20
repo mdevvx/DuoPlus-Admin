@@ -8,7 +8,7 @@ import { PAGE_SIZE } from '@/lib/validation';
 import { getBotSettings, getMergedAudit, getPlatformHealth, getTikTokBlockRate, getAbandonedCheckouts, getFailedDms, getReminders, getSubscriptionHealth } from '../queries/ops';
 import { resetReminders, setMaintenance } from '../actions';
 import type { RouteCtx } from '@/products/types';
-import { GenericRows, ServerLink, base } from './shared';
+import { ServerLink, base } from './shared';
 import { guildInfoMap } from '@/lib/discord';
 import { SLUG, num, str, type Row } from '../db';
 import { writeAudit } from '@/lib/audit';
@@ -133,13 +133,13 @@ const isDisabled = (r: Row) => String(r.status ?? '').toLowerCase() === 'disable
 const QUOTA_PERIOD: Record<string, string> = { youtube: 'today (estimate)', instagram: 'this hour' };
 
 /** Quota meter where the provider reports one; "N/A" where it does not (X, TikTok). */
-function QuotaCell({ row }: { row: Row }) {
+function QuotaCell({ row, full }: { row: Row; full?: boolean }) {
   const limit = num(row.quota_limit);
-  if (!limit || row.quota_remaining === null || row.quota_remaining === undefined) return <span className="text-muted" title="No quota reported. TikTok, X and Twitch have none; YouTube and Instagram show a value once the bot reports it">N/A</span>;
+  if (!limit || row.quota_remaining === null || row.quota_remaining === undefined) return <span className="text-sm text-muted" title="No quota reported. TikTok, X and Twitch have none; YouTube and Instagram show a value once the bot reports it">N/A</span>;
   const used = Math.max(0, limit - num(row.quota_remaining));
   const pct = Math.min(100, Math.round((used / limit) * 100));
   return (
-    <div className="min-w-[140px]">
+    <div className={full ? undefined : 'min-w-[140px]'}>
       <div className="num text-xs text-muted">{int(limit - used)} of {int(limit)} left {QUOTA_PERIOD[String(row.platform).toLowerCase()] ?? ''} · {pct}% used</div>
       <div className="mt-1 h-1.5 overflow-hidden rounded bg-subtle" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Quota used">
         <div className="h-full rounded" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--danger)' : pct >= 70 ? 'var(--warning)' : 'var(--success)' }} />
@@ -155,7 +155,7 @@ function PlatformStatus({ row }: { row: Row }) {
       <span title={status === 'disabled' ? 'No account is monitored on this platform yet. It switches to Healthy after the first check.' : undefined}>
         <Badge tone={statusTone(status)}>{sentence(status)}</Badge>
       </span>
-      {isPaused(row) && <Badge tone="warning">Paused until {relative(String(row.rate_limited_until))}</Badge>}
+      {isPaused(row) && <Badge tone="warning">Resumes {relative(String(row.rate_limited_until))}</Badge>}
     </span>
   );
 }
@@ -184,19 +184,36 @@ export async function HealthPage({ role }: RouteCtx) {
         <Card><Stat label="Maintenance mode" value={d.maintenance ? <Badge tone="warning">On</Badge> : <Badge tone="success">Off</Badge>} /></Card>
       </div>
       {platforms.length > 0 && (
-        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {platforms.map((p, i) => (
-            <Card key={i}>
-              <div className="flex items-start justify-between gap-2">
-                <span className="font-semibold">{platformLabel(str(p.platform))}</span>
-                <PlatformStatus row={p} />
-              </div>
-              <div className="mt-3"><QuotaCell row={p} /></div>
-              <div className="mt-2 text-xs text-muted">
-                <span className="num">{int(num(p.requests_today))}</span> requests today · {num(p.consecutive_failures) > 0 ? `${int(num(p.consecutive_failures))} failures in a row` : 'no failures'}
-              </div>
-            </Card>
-          ))}
+        <div className="mb-5 grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(230px,1fr))]">
+          {platforms.map((p, i) => {
+            const bad = !isDisabled(p) && (statusTone(str(p.status) ?? 'healthy') !== 'success' || isPaused(p));
+            const failing = num(p.consecutive_failures);
+            return (
+              <Card key={i} className={bad ? 'border-warning' : undefined}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[15px] font-semibold">{platformLabel(str(p.platform))}</span>
+                  <Badge tone={statusTone(str(p.status) ?? 'healthy')}>{sentence(str(p.status) ?? 'healthy')}</Badge>
+                </div>
+                {isPaused(p) && <div className="mt-2"><Badge tone="warning">Paused, resumes {relative(String(p.rate_limited_until))}</Badge></div>}
+                <div className="mt-4 flex items-end justify-between gap-3">
+                  <div>
+                    <div className="num text-[26px] font-semibold leading-8">{int(num(p.requests_today))}</div>
+                    <div className="text-xs text-muted">requests today</div>
+                  </div>
+                  <div className="text-right">
+                    <div className={failing > 0 ? 'num text-[26px] font-semibold leading-8 text-danger' : 'num text-[26px] font-semibold leading-8'}>{int(failing)}</div>
+                    <div className="text-xs text-muted">failures in a row</div>
+                  </div>
+                </div>
+                <div className="mt-4 border-t border-line pt-3">
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">Quota</div>
+                  <QuotaCell row={p} full />
+                </div>
+                <div className="mt-3 text-xs text-muted">Last success: {p.last_success_at ? relative(String(p.last_success_at)) : 'never'}</div>
+                {bad && str(p.last_error) && <div className="mt-2 text-xs text-danger"><ClampText text={String(p.last_error)} title={`${platformLabel(str(p.platform))} last error`} max={60} /></div>}
+              </Card>
+            );
+          })}
         </div>
       )}
       {tiktok && tiktok.total > 0 && (
@@ -219,7 +236,7 @@ export async function HealthPage({ role }: RouteCtx) {
       )}
       {platforms.length === 0 ? <Card title="Platforms"><EmptyState title="No platform data yet" hint="A platform appears after its first check." /></Card> : (
         <Table label="Platforms">
-          <thead><tr>{['Platform', 'Status', 'Requests today', 'Quota', 'Failures in a row', 'Last success', 'Last error'].map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
+          <thead><tr>{['Platform', 'Status', 'Requests', 'Quota', 'Failures', 'Last success', 'Last error'].map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
           <tbody>{platforms.map((p, i) => (
             <Tr key={i}>
               <td className="td font-medium">{platformLabel(str(p.platform))}</td>
@@ -230,7 +247,7 @@ export async function HealthPage({ role }: RouteCtx) {
               <td className="td"><When value={str(p.last_success_at)} /></td>
               <td className="td">
                 <When value={str(p.last_error_at)} />
-                {str(p.last_error) && <div className="mt-1 max-w-[200px]"><ClampText text={String(p.last_error)} title="Last error" /></div>}
+                {str(p.last_error) && <div className="mt-1 max-w-[180px]"><ClampText text={String(p.last_error)} title="Last error" /></div>}
               </td>
             </Tr>
           ))}</tbody>

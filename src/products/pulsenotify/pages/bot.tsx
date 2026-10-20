@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Badge, Card, EmptyState, ErrorPanel, FilterBar, PageHeader, Pagination, Select, Stat, Table, Tr } from '@/components/ui';
 import { CopyId } from '@/components/small-client';
-import { dateOnly, int, platformLabel } from '@/lib/format';
+import { dateOnly, int, platformLabel, sentence } from '@/lib/format';
 import { PAGE_SIZE } from '@/lib/validation';
 import { botParams, getBotDashboard, listBotServers } from '../queries/bot';
 import type { RouteCtx } from '@/products/types';
@@ -40,7 +40,7 @@ export async function BotStatusPage({ searchParams }: RouteCtx) {
         <Card title="Platform status" action={<Link className="text-xs text-accent" href={`${base}/health`}>Details</Link>}>
           {dash.health.length === 0 ? <EmptyState title="No platform data" /> : (
             <ul className="space-y-2">{dash.health.map((h, i) => { const s = str(h.status) ?? 'unknown'; return (
-              <li key={i} className="flex justify-between"><span>{platformLabel(str(h.platform ?? h.name))}</span><Badge tone={ok(s) ? 'success' : 'warning'}>{s}</Badge></li>
+              <li key={i} className="flex justify-between"><span>{platformLabel(str(h.platform ?? h.name))}</span><Badge tone={ok(s) ? 'success' : 'warning'}>{sentence(s)}</Badge></li>
             ); })}</ul>
           )}
         </Card>

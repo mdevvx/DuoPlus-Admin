@@ -89,7 +89,7 @@ export function ClampText({ text, title = 'Details', max = 64 }: { text: string;
   if (text.length <= max) return <span>{text}</span>;
   return (
     <>
-      <span className="inline-flex max-w-[220px] items-center gap-2 align-middle">
+      <span className="inline-flex max-w-full items-center gap-2 align-middle">
         <span className="truncate" title={text}>{text}</span>
         <button type="button" className="shrink-0 text-xs font-medium text-accent hover:underline" onClick={() => ref.current?.showModal()}>See more</button>
       </span>

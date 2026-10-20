@@ -128,7 +128,7 @@ export function TableSkeleton({ rows = 8, cols = 5 }: { rows?: number; cols?: nu
 export function Table({ children, label, bare }: { children: ReactNode; label: string; bare?: boolean }) {
   return (
     <div className={bare ? '-mx-5 -mb-5 overflow-hidden' : 'card overflow-hidden'}>
-      <div className="max-h-[calc(100vh-260px)] overflow-auto">
+      <div className="max-h-[calc(100vh-260px)] overflow-y-auto overflow-x-hidden">
         <table className="w-full border-collapse text-sm" aria-label={label} data-keynav>{children}</table>
       </div>
     </div>
