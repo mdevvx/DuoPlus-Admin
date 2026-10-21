@@ -16,8 +16,8 @@ export function CopyId({ value, mono = true }: { value: string; mono?: boolean }
         try { await navigator.clipboard.writeText(value); setDone(true); setTimeout(() => setDone(false), 1500); } catch { /* clipboard blocked */ }
       }}
     >
-      <span className={/^\d{15,}$/.test(value) ? 'inline-block min-w-[19ch] text-right' : undefined}>{value}</span>
       {done ? <Check className="h-3.5 w-3.5 shrink-0 text-success" aria-label="Copied" /> : <Copy className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />}
+      <span>{value}</span>
     </button>
   );
 }
