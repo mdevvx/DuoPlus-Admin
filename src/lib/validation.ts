@@ -25,6 +25,21 @@ export function flatParams(sp: Record<string, string | string[] | undefined>): R
   return Object.fromEntries(Object.entries(sp).map(([k, v]) => [k, firstParam(v)]));
 }
 
+/** Multi-value filters travel as one comma-separated URL param ("a,b"), so links stay shareable. */
+export function splitCsv(v: string | undefined | null): string[] {
+  return [...new Set((v ?? '').split(',').map((s) => s.trim()).filter(Boolean))];
+}
+
+/** Comma-separated subset of `allowed`; unknown values are dropped, empty becomes undefined. */
+export function csvEnum(allowed: readonly string[]) {
+  return z.string().transform((v) => splitCsv(v).filter((x) => allowed.includes(x)).join(',') || undefined).optional().catch(undefined);
+}
+
+/** Comma-separated free-text tags (each trimmed, at most `max` tags of `len` chars). */
+export function csvText(max = 10, len = 100) {
+  return z.string().transform((v) => splitCsv(v).slice(0, max).map((x) => x.slice(0, len)).join(',') || undefined).optional().catch(undefined);
+}
+
 /** Escape a user search term for use inside a PostgREST `ilike` filter value. */
 export function likeTerm(q: string): string {
   return q.replace(/[%_\\,()*]/g, (c) => `\\${c}`);

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Download, ExternalLink } from 'lucide-react';
-import { Badge, Card, Cell, EmptyState, FilterBar, PageHeader, Pagination, Select, Stat, Table, Tr, When } from '@/components/ui';
+import { Badge, Card, Cell, EmptyState, FilterBar, PageHeader, Pagination, Select, Stat, TagInput, Table, Tr, When } from '@/components/ui';
 import { AuditTable } from '@/components/audit-table';
 import { DateField } from '@/components/date-field';
 import { env } from '@/lib/env';
@@ -217,9 +217,9 @@ export async function AuditPage({ searchParams }: RouteCtx) {
     <>
       <PageHeader title="Audit" description="Admin actions on this product: customer views, support actions, exports and branding." updatedAt={new Date()} />
       <FilterBar action={`${base}/audit`}>
-        <input className="input w-44" name="action" placeholder="Action prefix" defaultValue={f.action} />
-        <input className="input w-52" name="admin" placeholder="Admin email contains" defaultValue={f.admin} />
-        <input className="input w-44" name="target" placeholder="Customer ID" defaultValue={f.target} />
+        <TagInput name="action" placeholder="Action prefix" value={f.action} className="w-52" />
+        <TagInput name="admin" placeholder="Admin email contains" value={f.admin} className="w-60" />
+        <TagInput name="target" placeholder="Customer ID" value={f.target} className="w-52" />
         <DateField name="from" defaultValue={f.from} placeholder="From date" />
         <DateField name="to" defaultValue={f.to} placeholder="To date" />
       </FilterBar>

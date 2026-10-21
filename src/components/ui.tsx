@@ -197,6 +197,7 @@ export function Pagination({ base, params, page, pageSize, total }: {
 }
 
 export { FilterBar } from './filter-bar';
+export { TagSelect, TagInput } from './tag-select';
 
 export function Select({ name, value, options, label }: { name: string; value?: string; options: [string, string][]; label: string }) {
   return (

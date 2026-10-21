@@ -1,6 +1,6 @@
 import 'server-only';
 import { z } from 'zod';
-import { PAGE_SIZE, snowflake } from '@/lib/validation';
+import { PAGE_SIZE, csvEnum, snowflake, splitCsv } from '@/lib/validation';
 import { pn, T, daysFrom, iso, must, pick, type Row } from '../db';
 
 export const SERVER_STATES = ['trial', 'active', 'lapsed', 'whitelisted', 'card_past_due', 'bot_removed'] as const;
@@ -9,7 +9,7 @@ export const SORTS = ['guild_id', 'paid_until', 'trial_ends_at'] as const;
 export const serverParams = z.object({
   page: z.coerce.number().int().min(1).max(100000).catch(1),
   q: z.string().trim().max(100).optional().catch(undefined),
-  state: z.enum(SERVER_STATES).optional().catch(undefined),
+  state: csvEnum(SERVER_STATES), // one or more states, comma-separated (matches any)
   sort: z.enum(SORTS).catch('guild_id'),
   dir: z.enum(['asc', 'desc']).catch('desc'),
 });
@@ -29,21 +29,31 @@ export async function listServers(p: ServerParams): Promise<{ rows: ServerRow[];
       return { rows: [], total: 0 }; // guilds have no name column: search is by server ID
     }
   }
-  if (p.state === 'bot_removed') {
+  const states = splitCsv(p.state);
+  const removedOnly = states.length === 1 && states[0] === 'bot_removed';
+  let removed: string[] = [];
+  if (states.includes('bot_removed')) {
     const g = must(await db.from(T.guilds).select('guild_id').eq('bot_present', false).limit(2000), 'removed guilds') as Row[];
-    const removed = g.map((r) => String(r.guild_id));
-    ids = ids ? ids.filter((i) => removed.includes(i)) : removed;
+    removed = g.map((r) => String(r.guild_id));
+    if (removedOnly) ids = ids ? ids.filter((i) => removed.includes(i)) : removed;
   }
   if (ids && ids.length === 0) return { rows: [], total: 0 };
 
   let q = db.from(T.billing).select('*', { count: 'exact' });
   if (ids) q = q.in('guild_id', ids);
-  switch (p.state) {
-    case 'trial': q = q.eq('whitelisted', false).or(`paid_until.is.null,paid_until.lte.${now}`).gt('trial_ends_at', now); break;
-    case 'active': q = q.eq('whitelisted', false).gt('paid_until', now); break;
-    case 'lapsed': q = q.eq('whitelisted', false).or(`paid_until.is.null,paid_until.lte.${now}`).or(`trial_ends_at.is.null,trial_ends_at.lte.${now}`); break;
-    case 'whitelisted': q = q.eq('whitelisted', true); break;
-    case 'card_past_due': q = q.eq('card_status', 'past_due'); break;
+  // Several states match any of them: each state is one clause of a single OR.
+  const unpaid = `or(paid_until.is.null,paid_until.lte.${now})`;
+  const clause: Record<string, string> = {
+    trial: `and(whitelisted.eq.false,${unpaid},trial_ends_at.gt.${now})`,
+    active: `and(whitelisted.eq.false,paid_until.gt.${now})`,
+    lapsed: `and(whitelisted.eq.false,${unpaid},or(trial_ends_at.is.null,trial_ends_at.lte.${now}))`,
+    whitelisted: 'whitelisted.eq.true',
+    card_past_due: 'card_status.eq.past_due',
+  };
+  if (!removedOnly && states.length) {
+    const parts = states.filter((s) => clause[s]).map((s) => clause[s]!);
+    if (removed.length) parts.push(`guild_id.in.(${removed.join(',')})`);
+    if (parts.length) q = q.or(parts.join(','));
   }
   const res = await q.order(p.sort, { ascending: p.dir === 'asc', nullsFirst: false }).range((p.page - 1) * PAGE_SIZE, p.page * PAGE_SIZE - 1);
   const billing = must(res, 'servers') as Row[];

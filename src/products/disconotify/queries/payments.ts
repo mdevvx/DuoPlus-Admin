@@ -1,6 +1,6 @@
 import 'server-only';
 import { z } from 'zod';
-import { PAGE_SIZE, uuid } from '@/lib/validation';
+import { PAGE_SIZE, csvEnum, splitCsv, uuid } from '@/lib/validation';
 import { pn, T, must, num, type Row } from '../db';
 import { testPaymentIds } from '../polar';
 
@@ -14,8 +14,8 @@ export async function searchPayments(q: string) {
 
 export const paymentParams = z.object({
   page: z.coerce.number().int().min(1).max(100000).catch(1),
-  provider: z.enum(['polar', 'nowpayments']).optional().catch(undefined),
-  status: z.enum(['pending', 'paid', 'failed', 'expired']).optional().catch(undefined),
+  provider: csvEnum(['polar', 'nowpayments']),
+  status: csvEnum(['pending', 'paid', 'failed', 'expired']),
   mode: z.enum(['live', 'test', 'all']).catch('live'),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().catch(undefined),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().catch(undefined),
@@ -29,8 +29,8 @@ export type PaymentParams = z.infer<typeof paymentParams>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function apply(q: any, p: PaymentParams, test: string[]): any {
   let r = q;
-  if (p.provider) r = r.eq('provider', p.provider);
-  if (p.status) r = r.eq('status', p.status);
+  if (p.provider) r = r.in('provider', splitCsv(p.provider));
+  if (p.status) r = r.in('status', splitCsv(p.status));
   if (p.mode === 'test') r = r.in('id', test.length ? test : ['00000000-0000-0000-0000-000000000000']);
   if (p.mode === 'live' && test.length) r = r.not('id', 'in', `(${test.join(',')})`);
   if (p.from) r = r.gte('created_at', `${p.from}T00:00:00Z`);

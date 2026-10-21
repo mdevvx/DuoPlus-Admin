@@ -1,6 +1,6 @@
 import 'server-only';
-import { auditFilters, queryAudit } from '@/lib/audit-query';
-import { PAGE_SIZE } from '@/lib/validation';
+import { auditFilters, orTerm, queryAudit } from '@/lib/audit-query';
+import { PAGE_SIZE, splitCsv } from '@/lib/validation';
 import { parseFlag } from '../state';
 import { pn, T, daysFrom, iso, must, pick, type Row } from '../db';
 import { SLUG } from '../db';
@@ -144,8 +144,11 @@ export async function getMergedAudit(sp: Record<string, string | undefined>) {
   const need = f.page * PAGE_SIZE;
   const hub = await queryAudit({ ...f, page: 1 }, { product: SLUG, paged: false, limit: need });
   let botQ = pn().from(T.botAudit).select('*').order('created_at', { ascending: false }).limit(need);
-  if (f.action) botQ = botQ.ilike('action', `${f.action.replace(/[%_,()*\\]/g, '')}%`);
-  if (f.target) botQ = botQ.eq('guild_id', f.target);
+  const actions = splitCsv(f.action).map(orTerm).filter(Boolean);
+  const targets = splitCsv(f.target);
+  const admins = splitCsv(f.admin).map((a) => a.toLowerCase());
+  if (actions.length) botQ = botQ.or(actions.map((t) => `action.ilike."${t}%"`).join(','));
+  if (targets.length) botQ = botQ.in('guild_id', targets);
   const bot = await botQ;
   const botRows = ((bot.data ?? []) as Row[]).map((r, i) => ({
     id: Number(r.id ?? i), at: String(r.created_at ?? r.at ?? ''), admin_email: null, product_slug: SLUG,
@@ -153,7 +156,7 @@ export async function getMergedAudit(sp: Record<string, string | undefined>) {
     before: null, after: r.details ?? r.metadata ?? null, reason: pick(r, 'reason', 'message'), ip: null, source: 'bot' as const,
   }));
   const merged = [...hub.rows.map((r) => ({ ...r, source: 'hub' as const })), ...botRows]
-    .filter((r) => (!f.admin || (r.admin_email ?? '').includes(f.admin)) && (!f.from || r.at >= f.from) && (!f.to || r.at <= `${f.to}T23:59:59Z`))
+    .filter((r) => (admins.length === 0 || admins.some((a) => (r.admin_email ?? '').toLowerCase().includes(a))) && (!f.from || r.at >= f.from) && (!f.to || r.at <= `${f.to}T23:59:59Z`))
     .sort((a, b) => (a.at < b.at ? 1 : -1));
   return { rows: merged.slice((f.page - 1) * PAGE_SIZE, f.page * PAGE_SIZE), total: hub.total + (bot.data?.length ?? 0), f };
 }

@@ -65,7 +65,7 @@ export function Sidebar({ products, user }: { products: ShellProduct[]; user: Sh
         <div className={sideLabel}>Product</div>
         <div className="relative">
           <button className="flex w-full items-center gap-3 rounded-xl border border-side-line bg-white/5 px-3 py-2.5 text-left transition-colors hover:bg-white/10" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}>
-            {current?.logo ? <ProductMark logo={current.logo} icon={current.icon} size={36} className="shrink-0 rounded-lg" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-side-active text-side-accent"><Icon name={current?.icon ?? 'home'} /></span>}
+            {current?.logo ? <ProductMark logo={current.logo} icon={current.icon} size={36} className="shrink-0 rounded-lg" /> : <Logo size={36} />}
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[13.5px] font-semibold leading-tight text-white">{current?.name ?? 'All products'}</span>
               <span className="block text-xs leading-tight text-side-muted">{current ? 'Switch product' : 'Choose a product'}</span>
@@ -75,7 +75,7 @@ export function Sidebar({ products, user }: { products: ShellProduct[]; user: Sh
           </button>
           {open && (
             <ul role="listbox" className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 rounded-xl border border-side-line bg-side-bg2 p-1.5 shadow-pop">
-              <li><button className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-side-ink hover:bg-white/10" onClick={() => { setOpen(false); router.push('/'); }}><Icon name="home" /> <span className="flex-1 text-left">Home</span>{!current && <Check className="h-4 w-4 text-side-accent" aria-hidden />}</button></li>
+              <li><button className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-side-ink hover:bg-white/10" onClick={() => { setOpen(false); router.push('/'); }}><Logo size={20} /> <span className="flex-1 text-left">Home</span>{!current && <Check className="h-4 w-4 text-side-accent" aria-hidden />}</button></li>
               {products.map((p) => (
                 <li key={p.slug}>
                   <button className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-side-ink hover:bg-white/10" onClick={() => { setOpen(false); router.push(`/p/${p.slug}`); }}>

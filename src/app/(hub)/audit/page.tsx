@@ -3,7 +3,7 @@ import { requirePage } from '@/lib/auth';
 import { auditFilters, queryAudit } from '@/lib/audit-query';
 import { flatParams, PAGE_SIZE } from '@/lib/validation';
 import { AuditTable } from '@/components/audit-table';
-import { FilterBar, PageHeader, Pagination } from '@/components/ui';
+import { FilterBar, PageHeader, Pagination, TagInput } from '@/components/ui';
 import { can } from '@/lib/roles';
 import { DateField } from '@/components/date-field';
 
@@ -24,9 +24,9 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
         updatedAt={new Date()}
         actions={can(role, 'export.csv') && <a className="btn" href={`/api/export/hub/audit${exportQs ? `?${exportQs}` : ''}`}>Export CSV</a>} />
       <FilterBar action="/audit">
-        <input className="input w-44" name="action" placeholder="Action prefix (server.)" defaultValue={f.action} />
-        <input className="input w-52" name="admin" placeholder="Admin email contains" defaultValue={f.admin} />
-        <input className="input w-40" name="target" placeholder="Target ID" defaultValue={f.target} />
+        <TagInput name="action" placeholder="Action prefix (server.)" value={f.action} className="w-56" />
+        <TagInput name="admin" placeholder="Admin email contains" value={f.admin} className="w-60" />
+        <TagInput name="target" placeholder="Target ID" value={f.target} className="w-48" />
         <DateField name="from" defaultValue={f.from} placeholder="From date" />
         <DateField name="to" defaultValue={f.to} placeholder="To date" />
       </FilterBar>

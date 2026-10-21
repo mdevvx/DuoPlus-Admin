@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Badge, Card, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Pagination, Select, SortHeader, Stat, Table, Tr, When } from '@/components/ui';
+import { Badge, Card, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Pagination, SortHeader, Stat, TagSelect, Table, Tr, When } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
 import { CopyId } from '@/components/small-client';
 import { can } from '@/lib/roles';
@@ -30,7 +30,7 @@ export async function ServersPage({ searchParams }: RouteCtx) {
       <DiscordNotice />
       <FilterBar action={path}>
         <input className="input w-64" name="q" placeholder="Server ID" defaultValue={p.q} />
-        <Select name="state" label="State" value={p.state} options={[['', 'All'], ['trial', 'Trial'], ['active', 'Active'], ['lapsed', 'Lapsed'], ['whitelisted', 'Whitelisted'], ['card_past_due', 'Card past due'], ['bot_removed', 'Bot removed']]} />
+        <TagSelect name="state" label="State" value={p.state} options={[['', 'All'], ['trial', 'Trial'], ['active', 'Active'], ['lapsed', 'Lapsed'], ['whitelisted', 'Whitelisted'], ['card_past_due', 'Card past due'], ['bot_removed', 'Bot removed']]} />
       </FilterBar>
       {data.rows.length === 0 ? <div className="card"><EmptyState title="No servers match" hint="Change the search or filters." /></div> : (
         <Table label="Servers">

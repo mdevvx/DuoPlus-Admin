@@ -1,4 +1,4 @@
-import { Badge, Card, DetailRow, EmptyState, ErrorPanel, KV, PageHeader, Pagination, FilterBar, Stat, Table, Tr, When } from '@/components/ui';
+import { Badge, Card, DetailRow, EmptyState, ErrorPanel, KV, PageHeader, Pagination, FilterBar, Stat, TagInput, Table, Tr, When } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
 import { DateField } from '@/components/date-field';
 import { AuditTable } from '@/components/audit-table';
@@ -278,9 +278,9 @@ export async function AuditPage({ searchParams }: RouteCtx) {
     <>
       <PageHeader title="Audit" description="Admin actions on this product merged with the bot's own audit log." updatedAt={new Date()} />
       <FilterBar action={`${base}/audit`}>
-        <input className="input w-44" name="action" placeholder="Action prefix" defaultValue={f.action} />
-        <input className="input w-52" name="admin" placeholder="Admin email contains" defaultValue={f.admin} />
-        <input className="input w-44" name="target" placeholder="Server ID" defaultValue={f.target} />
+        <TagInput name="action" placeholder="Action prefix" value={f.action} className="w-52" />
+        <TagInput name="admin" placeholder="Admin email contains" value={f.admin} className="w-60" />
+        <TagInput name="target" placeholder="Server ID" value={f.target} className="w-52" />
         <DateField name="from" defaultValue={f.from} placeholder="From date" />
         <DateField name="to" defaultValue={f.to} placeholder="To date" />
       </FilterBar>

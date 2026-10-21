@@ -1,5 +1,5 @@
 import { ExternalLink } from 'lucide-react';
-import { DetailRow, EmptyState, ErrorPanel, FilterBar, PageHeader, Pagination, Select, Table, Tr, When } from '@/components/ui';
+import { DetailRow, EmptyState, ErrorPanel, FilterBar, PageHeader, Pagination, Select, TagSelect, Table, Tr, When } from '@/components/ui';
 import Link from 'next/link';
 import { DetailModal, CopyId } from '@/components/small-client';
 import { DateField } from '@/components/date-field';
@@ -28,9 +28,9 @@ export async function PaymentsPage({ searchParams, role }: RouteCtx) {
       <PageHeader title="Payments" description="Ledger across Polar (card) and NOWPayments (crypto). Read only: refunds happen in the provider." updatedAt={new Date()}
         actions={can(role, 'export.csv') && <a className="btn" href={`/api/export/disconotify/payments${qs ? `?${qs}` : ''}`}>Export CSV</a>} />
       <FilterBar action={path}>
-        <Select name="provider" label="Provider" value={p.provider} options={[['', 'All'], ['polar', 'Polar (card)'], ['nowpayments', 'NOWPayments']]} />
+        <TagSelect name="provider" label="Provider" value={p.provider} options={[['', 'All'], ['polar', 'Polar (card)'], ['nowpayments', 'NOWPayments']]} />
         <Select name="mode" label="Mode" value={p.mode} options={[['live', 'Live'], ['test', 'Sandbox'], ['all', 'Live and test']]} />
-        <Select name="status" label="Status" value={p.status} options={[['', 'All'], ['paid', 'Paid'], ['pending', 'Pending'], ['failed', 'Failed'], ['expired', 'Expired']]} />
+        <TagSelect name="status" label="Status" value={p.status} options={[['', 'All'], ['paid', 'Paid'], ['pending', 'Pending'], ['failed', 'Failed'], ['expired', 'Expired']]} />
         <DateField name="from" defaultValue={p.from} placeholder="From date" />
         <DateField name="to" defaultValue={p.to} placeholder="To date" />
         <input className="input w-24" type="number" step="0.01" name="min" placeholder="Min $" defaultValue={p.min} />
