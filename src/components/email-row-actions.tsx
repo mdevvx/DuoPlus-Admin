@@ -1,19 +1,17 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import Link from 'next/link';
 import { addContact, batchStatus, cancelBatch, cancelEmail, eraseAddress, removeContact, retryEmail, revealContact, setMarketing } from '@/products/disconotify/email-actions';
 import { ConfirmAction } from './confirm-action';
 
 type Status = Awaited<ReturnType<typeof batchStatus>>;
 
-export function OutboxActions({ id, status, canAgain, base, canAct }: { id: string; status: string; canAgain: boolean; base: string; canAct: boolean }) {
+export function OutboxActions({ id, status, canAct }: { id: string; status: string; canAct: boolean }) {
   if (!canAct) return null;
   return (
     <span className="inline-flex items-center gap-1.5">
-      {status === 'failed' && <ConfirmAction label="Retry" title="Retry this email" description="Queues it again right away with the attempt counter reset." reasonRequired={false} action={retryEmail} hidden={{ id }} />}
-      {status === 'queued' && <ConfirmAction label="Cancel" title="Cancel this email" description="It will not be sent." reasonRequired={false} danger action={cancelEmail} hidden={{ id }} />}
-      {canAgain && <Link className="btn h-7 px-2.5 text-xs" href={`${base}/email/send?again=${encodeURIComponent(id)}`}>Send again</Link>}
+      {status === 'failed' && <ConfirmAction label="Retry" title="Retry this email" description="Queues it again right away with the attempt counter reset." reasonRequired={false} compact action={retryEmail} hidden={{ id }} />}
+      {status === 'queued' && <ConfirmAction label="Cancel" title="Cancel this email" description="It will not be sent." reasonRequired={false} danger compact action={cancelEmail} hidden={{ id }} />}
     </span>
   );
 }
@@ -71,9 +69,9 @@ export function ContactActions({ id, unsubscribed, owner, canAct }: { id: string
   return (
     <span className="inline-flex items-center gap-1.5">
       {owner && (unsubscribed
-        ? <ConfirmAction label="Re-subscribe" title="Re-subscribe to marketing emails" description="Only do this if the person asked you to." action={setMarketing} hidden={{ id, op: 'resubscribe' }} />
-        : <ConfirmAction label="Unsubscribe" title="Unsubscribe from marketing emails" description="Done on the person's behalf. They will no longer get reminders." action={setMarketing} hidden={{ id, op: 'unsubscribe' }} />)}
-      {canAct && <ConfirmAction label="Remove" title="Remove this contact" description="The address stops receiving emails for this server." reasonRequired={false} danger action={removeContact} hidden={{ id }} />}
+        ? <ConfirmAction label="Re-subscribe" title="Re-subscribe to marketing emails" description="Only do this if the person asked you to." compact action={setMarketing} hidden={{ id, op: 'resubscribe' }} />
+        : <ConfirmAction label="Unsubscribe" title="Unsubscribe from marketing emails" description="Done on the person's behalf. They will no longer get reminders." compact action={setMarketing} hidden={{ id, op: 'unsubscribe' }} />)}
+      {canAct && <ConfirmAction label="Remove" title="Remove this contact" description="The address stops receiving emails for this server." reasonRequired={false} danger compact action={removeContact} hidden={{ id }} />}
     </span>
   );
 }

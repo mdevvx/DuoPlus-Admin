@@ -21,7 +21,7 @@ const labelCls = 'mb-1.5 block text-[13px] font-medium';
  * while the dialog asks for the code or shows an error. All of it is re-validated server-side.
  */
 export function ConfirmAction({
-  label, title, description, action, hidden, fields = [], typeToConfirm, reasonRequired = true, danger = false, small = true,
+  label, title, description, action, hidden, fields = [], typeToConfirm, reasonRequired = true, danger = false, small = true, compact = false,
 }: {
   label: string; title: string; description?: string;
   action: (fd: FormData) => Promise<ActionResultClient>;
@@ -32,6 +32,8 @@ export function ConfirmAction({
   reasonRequired?: boolean;
   danger?: boolean;
   small?: boolean;
+  /** Table-row size, matching the Details button. */
+  compact?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
@@ -100,7 +102,7 @@ export function ConfirmAction({
   const Icon = danger ? AlertTriangle : ShieldCheck;
   return (
     <>
-      <button type="button" className={clsx('btn', small ? '' : 'h-9', danger && 'text-danger')} onClick={() => ref.current?.showModal()}>{label}</button>
+      <button type="button" className={clsx('btn', small ? '' : 'h-9', compact && 'h-7 px-2.5 text-xs', danger && 'text-danger')} onClick={() => ref.current?.showModal()}>{label}</button>
       <dialog
         ref={ref}
         className="w-[500px] max-w-[92vw] overflow-hidden rounded-xl text-left border border-line bg-raised p-0 text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
