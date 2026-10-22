@@ -58,7 +58,7 @@ export function DetailModal({ trigger, title, children }: { trigger: string; tit
       <dialog ref={ref} className="w-[520px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised p-0 text-left text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
         onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
         <ModalHeader icon={FileText} title={title} onClose={() => ref.current?.close()} />
-        <div className="thin-scroll max-h-[65vh] overflow-auto px-5 py-4">{children}</div>
+        <div className="thin-scroll max-h-[65vh] overflow-y-auto overflow-x-hidden px-5 py-4">{children}</div>
         <footer className="flex justify-end border-t border-line bg-subtle px-5 py-3.5">
           <button type="button" className="btn btn-primary" onClick={() => ref.current?.close()}>Close</button>
         </footer>

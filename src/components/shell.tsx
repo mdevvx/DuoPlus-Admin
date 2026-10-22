@@ -130,9 +130,13 @@ export function Crumbs({ products }: { products: ShellProduct[] }) {
     trail.push({ label: p?.name ?? m[1]!, href: `/p/${m[1]}` });
     const rest = (m[2] ?? '').split('/').filter(Boolean);
     if (rest[0]) {
-      const item = p?.nav.find((n) => n.path === rest[0]);
-      trail.push({ label: item?.label ?? rest[0], href: rest.length > 1 ? `/p/${m[1]}/${rest[0]}` : undefined });
-      if (rest.length > 1) trail.push({ label: 'Details' });
+      // Nested pages (email/templates/…) match the longest navigation path; anything below it is "Details".
+      const joined = rest.join('/');
+      const item = (p?.nav ?? []).filter((n) => n.path && (joined === n.path || joined.startsWith(n.path + '/'))).sort((a, b) => b.path.length - a.path.length)[0];
+      const depth = item ? item.path.split('/').length : 1;
+      const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/[-_]/g, ' ');
+      trail.push({ label: item?.label ?? cap(rest[0]), href: rest.length > depth ? `/p/${m[1]}/${rest.slice(0, depth).join('/')}` : undefined });
+      if (rest.length > depth) trail.push({ label: 'Details' });
     } else trail.push({ label: 'Overview' });
   } else if (path !== '/') {
     const names: Record<string, string> = { '/audit': 'Audit log', '/admins': 'Admins', '/settings': 'Settings' };

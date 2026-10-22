@@ -18,10 +18,10 @@ export function TemplateToggle({ tplKey, enabled, disabled }: { tplKey: string; 
   if (disabled) return <span className="text-muted">{enabled ? 'On' : 'Off'}</span>;
   if (enabled) {
     return <ConfirmAction label="Switch off" title="Switch off automatic emails" description="Customers will stop receiving this email. Manual sends of this template still work." action={toggleTemplate}
-      hidden={{ key: tplKey, enabled: 'false' }} reasonRequired={false} />;
+      hidden={{ key: tplKey, enabled: 'false' }} reasonRequired={false} compact />;
   }
   return (
-    <button type="button" className="btn" disabled={pending} onClick={() => start(async () => {
+    <button type="button" className="btn h-7 px-2.5 text-xs" disabled={pending} onClick={() => start(async () => {
       const fd = new FormData(); fd.set('key', tplKey); fd.set('enabled', 'true');
       const r = await toggleTemplate(fd);
       toast(r.ok, r.ok ? r.message : r.error);
