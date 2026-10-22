@@ -121,24 +121,51 @@ export const contactParams = z.object({
 });
 export type ContactParams = z.infer<typeof contactParams>;
 
-export async function listContacts(p: ContactParams) {
+export interface ContactRow extends Row { id: string; guild_id: string; email: string; source: string; created_at: string | null; marketing_unsubscribed_at: string | null; member: boolean }
+
+/**
+ * Every address we can email: contacts added through the email section, plus the addresses members shared with
+ * the bot (older table, no row id, managed through the customer record). Merged and de-duplicated by server + address.
+ */
+export async function allContacts(): Promise<ContactRow[]> {
   const db = pn();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const apply = (q: any) => {
-    let r = q;
-    if (p.guild) r = r.eq('guild_id', p.guild);
-    const m = splitCsv(p.marketing);
-    if (m.length === 1 && m[0] === 'unsubscribed') r = r.not('marketing_unsubscribed_at', 'is', null);
-    if (m.length === 1 && m[0] === 'subscribed') r = r.is('marketing_unsubscribed_at', null);
-    return r;
-  };
-  const res = await apply(db.from(T.emailContacts).select('*', { count: 'exact' })).order('created_at', { ascending: false }).range((p.page - 1) * PAGE_SIZE, p.page * PAGE_SIZE - 1);
-  const rows = must(res, 'contacts') as Row[];
-  const [all, unsub] = await Promise.all([
-    db.from(T.emailContacts).select('*', { count: 'exact', head: true }),
-    db.from(T.emailContacts).select('*', { count: 'exact', head: true }).not('marketing_unsubscribed_at', 'is', null),
+  const [fresh, old] = await Promise.all([
+    db.from(T.emailContacts).select('*').limit(20000),
+    db.from(T.contactEmails).select('guild_id,email,discord_user_id,created_at').limit(20000),
   ]);
-  return { rows, total: (res.count as number | null) ?? rows.length, all: all.count ?? 0, unsubscribed: unsub.count ?? 0 };
+  if (fresh.error && old.error) throw new Error('contacts query failed');
+  const rows: ContactRow[] = ((fresh.data ?? []) as Row[]).map((r) => ({
+    ...r, id: String(r.id), guild_id: String(r.guild_id), email: String(pick(r, 'email', 'address') ?? ''), source: str(r.source) ?? 'manual',
+    created_at: str(r.created_at), marketing_unsubscribed_at: str(r.marketing_unsubscribed_at), member: false,
+  }));
+  const seen = new Set(rows.map((r) => `${r.guild_id}:${r.email.toLowerCase()}`));
+  const legacy = ((old.data ?? []) as Row[]).filter((r) => r.email && !seen.has(`${r.guild_id}:${String(r.email).toLowerCase()}`));
+  const optedOut = new Set<string>();
+  const users = [...new Set(legacy.map((r) => String(r.discord_user_id)).filter((x) => /^\d+$/.test(x)))];
+  for (let i = 0; i < users.length; i += 200) {
+    const res = await db.from(T.contacts).select('discord_user_id').eq('reminders_opt_out', true).in('discord_user_id', users.slice(i, i + 200));
+    for (const r of (res.data ?? []) as Row[]) optedOut.add(String(r.discord_user_id));
+  }
+  for (const r of legacy) {
+    rows.push({
+      ...r, id: `m.${r.guild_id}.${r.discord_user_id}`, guild_id: String(r.guild_id), email: String(r.email), source: 'member',
+      created_at: str(r.created_at), marketing_unsubscribed_at: optedOut.has(String(r.discord_user_id)) ? 'opted_out' : null, member: true,
+    });
+  }
+  return rows.sort((x, y) => String(y.created_at ?? '').localeCompare(String(x.created_at ?? '')));
+}
+
+export async function listContacts(p: ContactParams) {
+  const everyone = await allContacts();
+  const m = splitCsv(p.marketing);
+  const rows = everyone.filter((r) => (!p.guild || r.guild_id === p.guild)
+    && !(m.length === 1 && m[0] === 'unsubscribed' && !r.marketing_unsubscribed_at)
+    && !(m.length === 1 && m[0] === 'subscribed' && r.marketing_unsubscribed_at));
+  const unsubscribed = everyone.filter((r) => r.marketing_unsubscribed_at).length;
+  return {
+    rows: rows.slice((p.page - 1) * PAGE_SIZE, p.page * PAGE_SIZE), total: rows.length,
+    all: everyone.length, unsubscribed, subscribed: everyone.length - unsubscribed, filtered: !!(p.guild || m.length),
+  };
 }
 
 export const sentCount = (rows: Row[]) => rows.reduce((a, r) => a + num(r.sent30), 0);
@@ -256,15 +283,10 @@ export async function hasRecentTest(adminEmail: string): Promise<boolean> {
 
 /** Contacts for the owner's CSV export. Addresses stay masked unless `full=1` is in the request; the route audit-logs every export. */
 export async function exportEmailContacts(sp: Record<string, string | undefined>) {
-  const { data, error } = await pn().from(T.emailContacts).select('*').order('created_at', { ascending: false }).limit(20000);
-  if (error) throw new Error('export query failed');
-  return ((data ?? []) as Row[]).map((r) => {
-    const email = pick(r, 'email', 'address') ?? '';
-    return {
-      email: sp.full === '1' ? email : email.replace(/^(.).*(@.*)$/, '$1***$2'), guild_id: r.guild_id, source: r.source, discord_user_id: r.discord_user_id,
-      marketing_unsubscribed_at: r.marketing_unsubscribed_at, created_at: r.created_at,
-    };
-  });
+  return (await allContacts()).slice(0, 20000).map((r) => ({
+    email: sp.full === '1' ? r.email : r.email.replace(/^(.).*(@.*)$/, '$1***$2'), guild_id: r.guild_id, source: r.source, discord_user_id: r.discord_user_id ?? '',
+    marketing_unsubscribed_at: r.marketing_unsubscribed_at ?? '', created_at: r.created_at ?? '',
+  }));
 }
 
 // ---- helpers for the existing pages ----

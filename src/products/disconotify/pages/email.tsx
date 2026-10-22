@@ -4,7 +4,7 @@ import { ClampText, CopyBlock, CopyId, DetailModal } from '@/components/small-cl
 import { EmailEditor } from '@/components/email-editor';
 import { DateField } from '@/components/date-field';
 import { EmailSend } from '@/components/email-send';
-import { AddContact, BatchProgress, ContactActions, EraseAddress, OutboxActions, RevealAddress } from '@/components/email-row-actions';
+import { AddContact, BatchProgress, ContactActions, EraseAddress, ExportMenu, OutboxActions, RevealAddress } from '@/components/email-row-actions';
 import { LayoutForm, RestoreButton, ScheduleForm, TemplateToggle } from '@/components/email-forms';
 import { guildInfoMap } from '@/lib/discord';
 import { int, maskEmail, relative, sentence } from '@/lib/format';
@@ -191,22 +191,24 @@ export async function EmailContactsPage({ searchParams, role }: RouteCtx) {
   const params = Object.fromEntries(Object.entries(p).filter(([k, v]) => k !== 'page' && v !== undefined).map(([k, v]) => [k, String(v)]));
   return (
     <>
-      <PageHeader title="Email contacts" description="One row per server and address. Addresses are masked; revealing one is written to the audit log." updatedAt={new Date()}
-        actions={<div className="flex flex-wrap gap-2">
+      <PageHeader title="Email contacts" description="Every address we can email, one row per server and address. Addresses are masked; revealing one is written to the audit log." updatedAt={new Date()}
+        actions={<>
+          {owner && <ExportMenu items={[
+            { label: 'Masked addresses', hint: 'Safe to share. The export is audit-logged.', href: exportUrl },
+            { label: 'Full addresses', hint: 'Contains personal data. The export is audit-logged.', href: `${exportUrl}?full=1` },
+          ]} />}
           {canAct && <AddContact />}
-          {owner && <EraseAddress />}
-          {owner && <a className="btn" href={`${exportUrl}`}>Export CSV</a>}
-          {owner && <a className="btn" href={`${exportUrl}?full=1`} title="Includes full addresses. The export is audit-logged.">Export full addresses</a>}
-        </div>} />
-      <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        </>} />
+      <div className="mb-5 grid max-w-3xl grid-cols-3 gap-4">
         <Card><Stat label="Contacts" value={int(data.all)} /></Card>
-        <Card><Stat label="Unsubscribed from marketing" value={int(data.unsubscribed)} /></Card>
+        <Card><Stat label="Subscribed to marketing" value={int(data.subscribed)} /></Card>
+        <Card><Stat label="Unsubscribed" value={int(data.unsubscribed)} /></Card>
       </div>
       <FilterBar action={path}>
         <input className="input w-40" name="guild" inputMode="numeric" placeholder="Server ID" defaultValue={p.guild} />
         <TagSelect name="marketing" label="Marketing" value={p.marketing} options={[['', 'All'], ['subscribed', 'Subscribed'], ['unsubscribed', 'Unsubscribed']]} />
       </FilterBar>
-      {data.rows.length === 0 ? <div className="card"><EmptyState title="No contacts match" /></div> : (
+      {data.rows.length === 0 ? <div className="card"><EmptyState title={data.filtered ? 'No contacts match' : 'No email contacts yet'} hint={data.filtered ? 'Change or clear the filters.' : 'Addresses appear when someone activates a trial or checks out. You can also add one manually.'} /></div> : (
         <Table label="Email contacts">
           <thead><tr>{['Address', 'Server', 'Marketing', 'Added', ''].map((h, i) => <th key={i} className="th">{h}</th>)}</tr></thead>
           <tbody>{data.rows.map((r, i) => {
@@ -215,19 +217,26 @@ export async function EmailContactsPage({ searchParams, role }: RouteCtx) {
             return (
               <Tr key={i}>
                 <td className="td whitespace-nowrap">
-                  <div>{canAct ? <RevealAddress id={String(r.id)} masked={maskEmail(pick(r, 'email', 'address'))} /> : maskEmail(pick(r, 'email', 'address'))}</div>
+                  <div>{canAct ? <RevealAddress id={r.id} masked={maskEmail(r.email)} /> : maskEmail(r.email)}</div>
                   {str(r.discord_user_id) && <div className="text-xs text-muted">Discord user {String(r.discord_user_id)}</div>}
                 </td>
                 <td className="td">{gid ? <ServerLink id={gid} info={infos[gid]} showId={false} /> : '—'}</td>
                 <td className="td whitespace-nowrap">{un ? <Badge tone="warning">Unsubscribed</Badge> : <Badge tone="success">Subscribed</Badge>}</td>
                 <td className="td whitespace-nowrap"><div><When value={str(r.created_at)} /></div><div className="text-xs text-muted">{sentence(str(r.source))}</div></td>
-                <td className="td whitespace-nowrap text-right"><ContactActions id={String(r.id)} unsubscribed={!!un} owner={owner} canAct={canAct} /></td>
+                <td className="td whitespace-nowrap text-right">{r.member ? <span className="text-xs text-muted" title="Shared by a member. Manage it on the customer record.">Member</span> : <ContactActions id={r.id} unsubscribed={!!un} owner={owner} canAct={canAct} />}</td>
               </Tr>
             );
           })}</tbody>
         </Table>
       )}
       <Pagination base={path} params={params} page={p.page} pageSize={PAGE_SIZE} total={data.total} />
+      {owner && (
+        <div className="mt-6">
+          <Card title="Privacy request" action={<EraseAddress />}>
+            <p className="text-muted">Deletes one address from every server&apos;s contacts and from the outbox, for example after a data-erasure request. This cannot be undone and is audit-logged.</p>
+          </Card>
+        </div>
+      )}
     </>
   );
 }

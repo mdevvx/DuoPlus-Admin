@@ -8,7 +8,7 @@ import { previewEmail, saveTemplate, sendTest, type PreviewResult } from '@/prod
 import { hasErrors, validateTemplate } from '@/products/disconotify/email/validate';
 import { htmlToText } from '@/products/disconotify/email/render';
 import { PREHEADER_MAX, SAMPLES, SUBJECT_MAX, VARIABLES } from '@/products/disconotify/email/vars';
-import { EmailButtonPicker } from './email-button';
+import { EmailButtonList, EmailButtonPicker } from './email-button';
 import { fieldLabel as label } from './form';
 import { useToast } from './toast';
 
@@ -171,6 +171,7 @@ export function EmailEditor({ accent, adminEmail, tplKey, version, category, can
               <EmailButtonPicker accent={accent} onInsert={addButton} />
               <span className="text-xs text-muted">Adds a clickable button that opens one of your links or any https:// address.</span>
             </div>
+            <div className="mt-3"><EmailButtonList html={v.html} accent={accent} onChange={(html) => set('html', html)} /></div>
           </div>
         )}
 

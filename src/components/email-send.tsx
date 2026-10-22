@@ -9,7 +9,7 @@ import { htmlToText } from '@/products/disconotify/email/render';
 import { SUBJECT_MAX, VAR_NAMES } from '@/products/disconotify/email/vars';
 import { DateField } from './date-field';
 import { Card } from './ui';
-import { EmailButtonPicker } from './email-button';
+import { EmailButtonList, EmailButtonPicker } from './email-button';
 import { fieldLabel as label } from './form';
 import { useToast } from './toast';
 
@@ -170,8 +170,9 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
               <label className="block"><span className={label}>Subject</span><input className="input" value={custom.subject} maxLength={SUBJECT_MAX + 50} onChange={(e) => setCustom({ ...custom, subject: e.target.value })} /></label>
               <div className="flex flex-wrap items-center gap-2">
                 <EmailButtonPicker accent={accent} onInsert={(html, text) => setCustom((c) => ({ ...c, html: `${c.html.trimEnd()}\n${html}`, text: text ? `${c.text.trimEnd()}\n\n${text}` : c.text }))} />
-                <span className="text-xs text-muted">Buttons are added at the end of the body.</span>
+                <span className="text-xs text-muted">Buttons are added at the end of the body. Use the list below to move them.</span>
               </div>
+              <EmailButtonList html={custom.html} accent={accent} onChange={(html) => setCustom((c) => ({ ...c, html }))} />
               <label className="block"><span className={label}>HTML body</span><textarea className="input h-48 resize-y py-2 font-mono text-xs" value={custom.html} onChange={(e) => setCustom({ ...custom, html: e.target.value })} /></label>
               <label className="block"><span className={label}>Plain text <button type="button" className="ml-2 text-accent hover:underline" onClick={() => setCustom({ ...custom, text: htmlToText(custom.html) })}>Generate from HTML</button></span>
                 <textarea className="input h-28 resize-y py-2 font-mono text-xs" value={custom.text} onChange={(e) => setCustom({ ...custom, text: e.target.value })} /></label>

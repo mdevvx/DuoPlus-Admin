@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buttonHtml } from '@/products/disconotify/email/button';
+import { listButtons, moveBlock, removeBlock, replaceBlock, splitBlocks } from '@/products/disconotify/email/blocks';
 import { renderTemplate, htmlToText, contrastOnWhite } from '@/products/disconotify/email/render';
 import { sanitizeEmailHtml } from '@/products/disconotify/email/sanitize';
 import { hasErrors, validateTemplate } from '@/products/disconotify/email/validate';
@@ -70,5 +71,31 @@ describe('email buttons', () => {
   it('uses dark text on a light colour', () => {
     expect(buttonHtml({ ...base, href: '{{{manage_url}}}', color: '#FFE08A' })).toContain('color:#1b1b22');
     expect(buttonHtml({ ...base, href: '{{{manage_url}}}', color: '#1B1B88' })).toContain('color:#ffffff');
+  });
+});
+
+describe('moving buttons', () => {
+  const b1 = buttonHtml({ text: 'First', href: '{{{manage_url}}}', style: 'filled', color: '#5B6CF0', align: 'center' });
+  const b2 = buttonHtml({ text: 'Tom & "Jerry"', href: 'https://example.com/a?x=1&y=2', style: 'outline', color: '#1B1B88', align: 'left' });
+  const body = `<h1>Hello</h1>\n<p>Intro <b>text</b></p>\n${b1}\n<table><tr><td><p>nested</p></td></tr></table>\n${b2}\nplain tail`;
+
+  it('splits top-level blocks without touching their content', () => {
+    const blocks = splitBlocks(body);
+    expect(blocks).toEqual(['<h1>Hello</h1>', '<p>Intro <b>text</b></p>', b1, '<table><tr><td><p>nested</p></td></tr></table>', b2, 'plain tail']);
+  });
+  it('lists buttons and reads them back', () => {
+    const list = listButtons(body);
+    expect(list.map((x) => x.index)).toEqual([2, 4]);
+    expect(list[1]!.spec).toEqual({ text: 'Tom & "Jerry"', href: 'https://example.com/a?x=1&y=2', style: 'outline', color: '#1B1B88', align: 'left' });
+  });
+  it('moves a button up and down, and stops at the ends', () => {
+    expect(splitBlocks(moveBlock(body, 2, -1))[1]).toBe(b1);
+    expect(splitBlocks(moveBlock(body, 2, 1))[3]).toBe(b1);
+    expect(moveBlock(body, 0, -1)).toBe(body);
+    expect(moveBlock(body, 5, 1)).toBe(body);
+  });
+  it('removes and replaces a block', () => {
+    expect(splitBlocks(removeBlock(body, 2))).not.toContain(b1);
+    expect(splitBlocks(replaceBlock(body, 2, '<p>x</p>'))[2]).toBe('<p>x</p>');
   });
 });

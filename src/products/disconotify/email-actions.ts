@@ -322,7 +322,10 @@ export async function eraseAddress(fd: FormData): Promise<ActionResult> {
 export async function revealContact(id: string): Promise<{ ok: true; email: string } | { ok: false; error: string }> {
   try {
     const { admin } = await gate('email.contact');
-    const { data } = await pn().from(T.emailContacts).select('*').eq('id', idSchema.parse(id)).maybeSingle();
+    const member = /^m\.(\d{5,25})\.(\d{5,25})$/.exec(id); // an address a member shared with the bot
+    const { data } = member
+      ? await pn().from(T.contactEmails).select('guild_id,email').eq('guild_id', member[1]!).eq('discord_user_id', member[2]!).limit(1).maybeSingle()
+      : await pn().from(T.emailContacts).select('*').eq('id', idSchema.parse(id)).maybeSingle();
     const row = data as Record<string, unknown> | null;
     const email = row ? pick(row, 'email', 'address') : null;
     if (!row || !email) return { ok: false, error: 'Contact not found.' };

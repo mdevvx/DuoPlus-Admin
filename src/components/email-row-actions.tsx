@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { addContact, batchStatus, cancelBatch, cancelEmail, eraseAddress, removeContact, retryEmail, revealContact, revealOutboxEmail, setMarketing } from '@/products/disconotify/email-actions';
 import { CopyButton } from './small-client';
 import { ConfirmAction } from './confirm-action';
+import { ChevronDown, Download } from 'lucide-react';
 import { Card, Stat } from './ui';
+import { usePopupFit } from './popup-fit';
 
 type Status = Awaited<ReturnType<typeof batchStatus>>;
 
@@ -91,5 +93,37 @@ export function EraseAddress() {
     <ConfirmAction label="Delete an address everywhere" title="Delete this address everywhere" danger small={false} action={eraseAddress} hidden={{}}
       description="Deletes the address from every server's contacts and from the outbox. This cannot be undone."
       fields={[{ name: 'email', label: 'Email address' }, { name: 'confirm', label: 'Type the address again to confirm' }]} />
+  );
+}
+
+/** One Export button with the two choices inside, instead of a button per choice in the page header. */
+export function ExportMenu({ items }: { items: { label: string; hint: string; href: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const list = usePopupFit<HTMLDivElement>(open);
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', down);
+    document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('mousedown', down); document.removeEventListener('keydown', key); };
+  }, [open]);
+  return (
+    <div className="relative" ref={box}>
+      <button type="button" className="btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Download className="h-4 w-4" aria-hidden /> Export <ChevronDown className="h-4 w-4 text-muted" aria-hidden />
+      </button>
+      {open && (
+        <div ref={list} role="menu" className="absolute right-0 top-[calc(100%+4px)] z-30 w-72 rounded-xl border border-line bg-surface p-1.5 shadow-pop">
+          {items.map((i) => (
+            <a key={i.href} role="menuitem" href={i.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2 hover:bg-subtle">
+              <span className="block text-sm font-medium">{i.label}</span>
+              <span className="block text-xs text-muted">{i.hint}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

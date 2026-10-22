@@ -30,15 +30,15 @@ export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: R
 
 export function PageHeader({ title, description, actions, updatedAt, icon }: { title: string; description?: string; actions?: ReactNode; updatedAt?: Date; icon?: ReactNode }) {
   return (
-    <div className="mb-7 flex items-start justify-between gap-6">
-      <div className="flex min-w-0 items-center gap-4">
+    <div className="mb-7 flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+      <div className="flex min-w-0 flex-1 basis-[22rem] items-center gap-4">
         {icon}
         <div className="min-w-0">
           <h1 className="text-[22px] font-semibold leading-8 tracking-normal">{title}</h1>
           {description && <p className="mt-1 max-w-2xl text-muted">{description}</p>}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
         {updatedAt && (
           <span className="num inline-flex items-center gap-1.5 rounded bg-subtle px-2.5 py-1 text-xs text-muted">
             <Clock className="h-3 w-3" aria-hidden /> Updated {updatedAt.toISOString().slice(11, 19)} UTC
