@@ -139,6 +139,17 @@ function QuotaCell({ row, full }: { row: Row; full?: boolean }) {
   if (!limit || row.quota_remaining === null || row.quota_remaining === undefined) return <span className="text-sm text-muted" title="No quota reported. TikTok, X and Twitch have none; YouTube and Instagram show a value once the bot reports it">N/A</span>;
   const used = Math.max(0, limit - num(row.quota_remaining));
   const pct = Math.min(100, Math.round((used / limit) * 100));
+  // A pause with nothing left means the provider throttled us, so "100% used" would overstate what the bot spent.
+  if (isPaused(row) && num(row.quota_remaining) <= 0) {
+    return (
+      <div className={full ? undefined : 'min-w-[140px]'}>
+        <div className="num text-xs text-danger">Rate limited · resumes {relative(String(row.rate_limited_until))}</div>
+        <div className="mt-1 h-1.5 overflow-hidden rounded bg-subtle" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Quota exhausted">
+          <div className="h-full rounded" style={{ width: '100%', background: 'var(--danger)' }} />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={full ? undefined : 'min-w-[140px]'}>
       <div className="num text-xs text-muted">{int(limit - used)} of {int(limit)} left {QUOTA_PERIOD[String(row.platform).toLowerCase()] ?? ''} · {pct}% used</div>
