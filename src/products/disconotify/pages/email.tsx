@@ -64,7 +64,8 @@ export async function EmailTemplatePage({ params, role, admin }: RouteCtx) {
   const key = params.key ?? '';
   let t: Row | null;
   let versions: Row[] | null;
-  try { [t, versions] = await Promise.all([getTemplate(key), getVersions(key)]); } catch { return <ErrorPanel message="Could not load this template." retryHref={`${root}/templates/${key}`} />; }
+  let accent = '#5B6CF0';
+  try { [t, versions] = await Promise.all([getTemplate(key), getVersions(key), getLayout().then((l) => { accent = l.layout.accent_color; })]).then((r) => [r[0], r[1]] as const); } catch { return <ErrorPanel message="Could not load this template." retryHref={`${root}/templates/${key}`} />; }
   if (!t) return <div className="card"><EmptyState title="Template not found" hint="It may have been removed." /></div>;
   const category = str(t.category) ?? 'transactional';
   const builtIn = key in BUILT_IN;
@@ -79,7 +80,7 @@ export async function EmailTemplatePage({ params, role, admin }: RouteCtx) {
         <span><b>Sent when:</b> {BUILT_IN[key]?.trigger ?? 'Only when sent manually.'}</span>
         {builtIn && <span className="text-muted">Built-in: the key and the trigger cannot be changed.</span>}
       </div>
-      <EmailEditor adminEmail={admin.email} tplKey={key} version={version} category={category} builtIn={builtIn} canEdit={edit}
+      <EmailEditor accent={accent} adminEmail={admin.email} tplKey={key} version={version} category={category} builtIn={builtIn} canEdit={edit}
         initial={{ name: pick(t, 'name') ?? key, description: pick(t, 'description') ?? '', subject: pick(t, 'subject') ?? '', preheader: pick(t, 'preheader') ?? '', html: pick(t, 'body_html') ?? '', text: pick(t, 'body_text') ?? '' }} />
       <div className="mt-6">
         <Card title="History">
@@ -276,15 +277,17 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
 export async function EmailSendPage({ searchParams, admin }: RouteCtx) {
   let templates: Row[];
   let again: Row | null = null;
+  let accent = '#5B6CF0';
   try {
     templates = await listTemplates();
+    accent = (await getLayout()).layout.accent_color;
     if (searchParams.again) again = await getOutboxRow(searchParams.again);
   } catch { return <ErrorPanel message="Could not load the send page." retryHref={`${root}/send`} />; }
   const vars = (again?.variables ?? {}) as Record<string, unknown>;
   return (
     <>
       <PageHeader title="Send email" description="For anything the automatic emails do not cover. Emails are queued and the bot sends them within about a minute." updatedAt={new Date()} />
-      <EmailSend adminEmail={admin.email} base={base}
+      <EmailSend accent={accent} adminEmail={admin.email} base={base}
         templates={templates.map((t) => ({ key: String(t.key), name: pick(t, 'name') ?? String(t.key), category: pick(t, 'category') ?? 'transactional', subject: pick(t, 'subject') ?? '', preheader: pick(t, 'preheader') ?? '', html: pick(t, 'body_html') ?? '', text: pick(t, 'body_text') ?? '' }))}
         prefill={again || /^\d{5,25}$/.test(searchParams.guild ?? '') ? { guildId: str(again?.guild_id) ?? searchParams.guild, templateKey: str(again?.template_key) ?? undefined, subject: str(again?.subject_override) ?? undefined, html: str(again?.body_html) ?? undefined, text: str(again?.body_text) ?? undefined, marketing: vars.marketing === true } : undefined} />
     </>

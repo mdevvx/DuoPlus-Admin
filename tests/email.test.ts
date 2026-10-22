@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { buttonHtml } from '@/products/disconotify/email/button';
 import { renderTemplate, htmlToText, contrastOnWhite } from '@/products/disconotify/email/render';
 import { sanitizeEmailHtml } from '@/products/disconotify/email/sanitize';
 import { hasErrors, validateTemplate } from '@/products/disconotify/email/validate';
@@ -49,5 +50,25 @@ describe('settings', () => {
   it('computes contrast and plain text', () => {
     expect(contrastOnWhite('#000000')).toBeGreaterThan(20);
     expect(htmlToText('<p>Hi <a href="https://a.com">there</a></p>')).toBe('Hi there (https://a.com)');
+  });
+});
+
+describe('email buttons', () => {
+  const base = { text: 'Open <it>', style: 'filled' as const, color: '#5B6CF0', align: 'center' as const };
+  it('keeps a variable link and its styling through the sanitizer', () => {
+    for (const href of ['{{{manage_url}}}', 'https://example.com/a?b=1', 'mailto:help@example.com']) {
+      for (const style of ['filled', 'outline'] as const) {
+        const html = buttonHtml({ ...base, style, href });
+        const clean = sanitizeEmailHtml(html);
+        expect(clean).toContain(`href="${href}"`);
+        expect(clean).toContain('border-radius:8px');
+        expect(clean).toContain('Open &lt;it&gt;');
+        expect(hasErrors(validateTemplate({ subject: 's', preheader: '', html: clean, text: 't', category: 'transactional' }))).toBe(false);
+      }
+    }
+  });
+  it('uses dark text on a light colour', () => {
+    expect(buttonHtml({ ...base, href: '{{{manage_url}}}', color: '#FFE08A' })).toContain('color:#1b1b22');
+    expect(buttonHtml({ ...base, href: '{{{manage_url}}}', color: '#1B1B88' })).toContain('color:#ffffff');
   });
 });

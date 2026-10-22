@@ -8,18 +8,19 @@ import { previewEmail, saveTemplate, sendTest, type PreviewResult } from '@/prod
 import { hasErrors, validateTemplate } from '@/products/disconotify/email/validate';
 import { htmlToText } from '@/products/disconotify/email/render';
 import { PREHEADER_MAX, SAMPLES, SUBJECT_MAX, VARIABLES } from '@/products/disconotify/email/vars';
+import { EmailButtonPicker } from './email-button';
 import { useToast } from './toast';
 
 type Field = 'subject' | 'preheader' | 'html' | 'text';
 interface Props {
-  adminEmail: string; tplKey: string; version: number; category: string; builtIn: boolean; canEdit: boolean;
+  accent: string; adminEmail: string; tplKey: string; version: number; category: string; builtIn: boolean; canEdit: boolean;
   initial: { name: string; description: string; subject: string; preheader: string; html: string; text: string };
 }
 
 const label = 'mb-1.5 block text-[13px] font-medium';
 const draftKey = (k: string, v: number) => `email-draft:${k}:${v}`;
 
-export function EmailEditor({ adminEmail, tplKey, version, category, canEdit, initial }: Props) {
+export function EmailEditor({ accent, adminEmail, tplKey, version, category, canEdit, initial }: Props) {
   const [testTo, setTestTo] = useState(adminEmail);
   const [v, setV] = useState(initial);
   const [tab, setTab] = useState<'html' | 'text'>('html');
@@ -78,6 +79,14 @@ export function EmailEditor({ adminEmail, tplKey, version, category, canEdit, in
     requestAnimationFrame(() => { el.focus(); el.setSelectionRange(start + snippet.length, start + snippet.length); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Puts the button where the cursor was in the HTML body and, optionally, its link at the end of the plain text. */
+  function addButton(html: string, text: string) {
+    setTab('html');
+    focus.current = 'html';
+    insert(html);
+    if (text) setV((s) => ({ ...s, text: `${s.text.trimEnd()}\n\n${text}` }));
+  }
 
   function save() {
     setError(null);
@@ -158,11 +167,9 @@ export function EmailEditor({ adminEmail, tplKey, version, category, canEdit, in
                   onClick={() => insert(x.url && focus.current === 'html' ? `{{{${x.name}}}}` : `{{${x.name}}}`)}>{x.name}</button>
               ))}
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {VARIABLES.filter((x) => x.url && x.name !== 'unsubscribe_url').map((x) => (
-                <button key={x.name} type="button" className="btn h-7 px-2.5 text-xs" onClick={() => { setTab('html'); focus.current = 'html'; insert(`<a href="{{{${x.name}}}}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:#5B6CF0;color:#ffffff;text-decoration:none">Open link</a>`); }}>
-                  + Button: {x.name.replace('_url', '')}</button>
-              ))}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <EmailButtonPicker accent={accent} onInsert={addButton} />
+              <span className="text-[12px] text-muted">Adds a clickable button that opens one of your links or any https:// address.</span>
             </div>
           </div>
         )}

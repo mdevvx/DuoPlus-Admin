@@ -8,6 +8,7 @@ import { hasErrors, validateTemplate } from '@/products/disconotify/email/valida
 import { htmlToText } from '@/products/disconotify/email/render';
 import { SUBJECT_MAX, VAR_NAMES } from '@/products/disconotify/email/vars';
 import { DateField } from './date-field';
+import { EmailButtonPicker } from './email-button';
 import { useToast } from './toast';
 
 export interface TemplateOption { key: string; name: string; category: string; subject: string; preheader: string; html: string; text: string }
@@ -29,7 +30,7 @@ function Section({ n, title, children }: { n: number; title: string; children: R
   );
 }
 
-export function EmailSend({ templates, base, prefill, adminEmail }: { templates: TemplateOption[]; base: string; prefill?: Prefill; adminEmail: string }) {
+export function EmailSend({ templates, base, prefill, adminEmail, accent }: { templates: TemplateOption[]; base: string; prefill?: Prefill; adminEmail: string; accent: string }) {
   const [testTo, setTestTo] = useState(adminEmail);
   const [recMode, setRecMode] = useState<'server' | 'filter' | 'addresses'>('server');
   const [guildId, setGuildId] = useState(prefill?.guildId ?? '');
@@ -173,6 +174,10 @@ export function EmailSend({ templates, base, prefill, adminEmail }: { templates:
           ) : (
             <div className="space-y-4">
               <label className="block"><span className={label}>Subject</span><input className="input" value={custom.subject} maxLength={SUBJECT_MAX + 50} onChange={(e) => setCustom({ ...custom, subject: e.target.value })} /></label>
+              <div className="flex flex-wrap items-center gap-2">
+                <EmailButtonPicker accent={accent} onInsert={(html, text) => setCustom((c) => ({ ...c, html: `${c.html.trimEnd()}\n${html}`, text: text ? `${c.text.trimEnd()}\n\n${text}` : c.text }))} />
+                <span className="text-[12px] text-muted">Buttons are added at the end of the body.</span>
+              </div>
               <label className="block"><span className={label}>HTML body</span><textarea className="input h-48 resize-y py-2 font-mono text-[12.5px]" value={custom.html} onChange={(e) => setCustom({ ...custom, html: e.target.value })} /></label>
               <label className="block"><span className={label}>Plain text <button type="button" className="ml-2 text-accent hover:underline" onClick={() => setCustom({ ...custom, text: htmlToText(custom.html) })}>Generate from HTML</button></span>
                 <textarea className="input h-28 resize-y py-2 font-mono text-[12.5px]" value={custom.text} onChange={(e) => setCustom({ ...custom, text: e.target.value })} /></label>
