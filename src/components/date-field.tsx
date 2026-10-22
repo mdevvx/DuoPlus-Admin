@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import clsx from 'clsx';
+import { applyFilters } from './filter-bar';
 import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -17,7 +19,11 @@ const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
  * Replaces the browser's native picker so the calendar follows the light/dark theme.
  */
 export function DateField({ name, defaultValue, placeholder = 'Select date', ariaLabel }: { name: string; defaultValue?: string; placeholder?: string; ariaLabel?: string }) {
-  const [value, setValue] = useState(defaultValue ?? '');
+  const [value, setRaw] = useState(defaultValue ?? '');
+  const hidden = useRef<HTMLInputElement>(null);
+  // Follow the URL (Clear all, back button); user picks apply the filter straight away.
+  useEffect(() => { setRaw(defaultValue ?? ''); }, [defaultValue]);
+  const setValue = (v: string) => { flushSync(() => setRaw(v)); applyFilters(hidden.current); };
   const [open, setOpen] = useState(false);
   const [up, setUp] = useState(false);
   const today = new Date();
@@ -44,7 +50,7 @@ export function DateField({ name, defaultValue, placeholder = 'Select date', ari
 
   return (
     <div className="relative" ref={ref}>
-      <input type="hidden" name={name} value={value} />
+      <input ref={hidden} type="hidden" name={name} value={value} />
       <button type="button" aria-label={ariaLabel ?? placeholder} aria-haspopup="dialog" aria-expanded={open}
         className={clsx('input flex w-40 items-center justify-between gap-2 text-left', !label && 'text-muted')} onClick={(e) => { setUp(window.innerHeight - e.currentTarget.getBoundingClientRect().bottom < 340); setOpen(!open); }}>
         <span className="truncate">{label || placeholder}</span>

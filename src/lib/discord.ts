@@ -1,5 +1,6 @@
 import 'server-only';
 import { unstable_cache } from 'next/cache';
+import { hubDb } from './supabase-server';
 
 export interface GuildInfo { name: string; iconUrl: string | null }
 export type DiscordStatus = 'ok' | 'missing' | 'invalid' | 'unreachable';
@@ -11,7 +12,9 @@ class Transient extends Error {}
 
 // After Discord rejects the token we stop calling it for a minute instead of failing 50 times per page.
 let rejectedUntil = 0;
-// Servers the bot is not in (404/403) are remembered briefly in memory, never in the persistent cache.
+// Servers the bot is not in (404/403) are remembered only for a few seconds in memory, never in the persistent cache,
+// so a re-added bot gets its name back on the next refresh.
+const MISS_TTL = 20_000;
 const misses = new Map<string, number>();
 
 const authHeader = () => ({ Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` });
@@ -20,19 +23,44 @@ const authHeader = () => ({ Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}
 async function fetchGuild(id: string): Promise<GuildInfo> {
   const res = await fetch(`${API}/guilds/${id}`, { headers: authHeader(), cache: 'no-store', signal: AbortSignal.timeout(6000) });
   if (res.status === 401) { rejectedUntil = Date.now() + 60_000; throw new Transient('token rejected'); }
-  if (res.status === 404 || res.status === 403) { misses.set(id, Date.now() + 10 * 60_000); throw new Transient('not in server'); }
+  if (res.status === 404 || res.status === 403) { misses.set(id, Date.now() + MISS_TTL); throw new Transient('not in server'); }
   if (!res.ok) throw new Transient(`discord ${res.status}`);
   const g = (await res.json()) as { name?: string; icon?: string | null };
   if (!g.name) throw new Transient('no name');
   const ext = g.icon?.startsWith('a_') ? 'gif' : 'png';
-  return { name: g.name, iconUrl: g.icon ? `https://cdn.discordapp.com/icons/${id}/${g.icon}.${ext}?size=64` : null };
+  const info = { name: g.name, iconUrl: g.icon ? `https://cdn.discordapp.com/icons/${id}/${g.icon}.${ext}?size=64` : null };
+  void saveSnapshot(id, info); // runs only on a cache miss, so this stays a few writes per day
+  return info;
+}
+
+/** Remember the last known identity so a server the bot later leaves still shows its name and icon. */
+async function saveSnapshot(id: string, info: GuildInfo): Promise<void> {
+  try {
+    await hubDb().from('hub_guild_snapshots').upsert({ guild_id: id, name: info.name, icon_url: info.iconUrl, updated_at: new Date().toISOString() });
+  } catch { /* best effort: the table may not be migrated yet */ }
+}
+
+async function loadSnapshots(ids: string[]): Promise<Record<string, GuildInfo>> {
+  const out: Record<string, GuildInfo> = {};
+  const valid = ids.filter((i) => /^\d{5,25}$/.test(i));
+  if (valid.length === 0) return out;
+  try {
+    const { data } = await hubDb().from('hub_guild_snapshots').select('guild_id,name,icon_url').in('guild_id', valid);
+    for (const r of (data ?? []) as { guild_id: string; name: string; icon_url: string | null }[]) out[String(r.guild_id)] = { name: r.name, iconUrl: r.icon_url };
+  } catch { /* table missing or unreachable: fall back to the ID */ }
+  return out;
 }
 
 const cached = unstable_cache(async (id: string) => fetchGuild(id), ['discord-guild'], { revalidate: SIX_HOURS });
 
 export async function getGuildInfo(id: string): Promise<GuildInfo | null> {
-  if (!/^\d{5,25}$/.test(id) || !process.env.DISCORD_BOT_TOKEN) return null;
-  if (Date.now() < rejectedUntil || (misses.get(id) ?? 0) > Date.now()) return null;
+  if (!/^\d{5,25}$/.test(id)) return null;
+  const live = await liveGuild(id);
+  return live ?? (await loadSnapshots([id]))[id] ?? null;
+}
+
+async function liveGuild(id: string): Promise<GuildInfo | null> {
+  if (!process.env.DISCORD_BOT_TOKEN || Date.now() < rejectedUntil || (misses.get(id) ?? 0) > Date.now()) return null;
   try {
     return await cached(id);
   } catch {
@@ -48,9 +76,15 @@ export async function guildInfoMap(ids: string[]): Promise<Record<string, GuildI
   await Promise.all(Array.from({ length: Math.min(6, unique.length) }, async () => {
     while (next < unique.length) {
       const id = unique[next++]!;
-      out[id] = await getGuildInfo(id);
+      out[id] = await liveGuild(id);
     }
   }));
+  // Servers Discord no longer answers for (the bot left) fall back to the last saved name and icon.
+  const missing = unique.filter((id) => !out[id]);
+  if (missing.length) {
+    const saved = await loadSnapshots(missing);
+    for (const id of missing) out[id] = saved[id] ?? null;
+  }
   return out;
 }
 
