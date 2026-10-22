@@ -12,14 +12,15 @@ import { useToast } from './toast';
 
 type Field = 'subject' | 'preheader' | 'html' | 'text';
 interface Props {
-  tplKey: string; version: number; category: string; builtIn: boolean; canEdit: boolean;
+  adminEmail: string; tplKey: string; version: number; category: string; builtIn: boolean; canEdit: boolean;
   initial: { name: string; description: string; subject: string; preheader: string; html: string; text: string };
 }
 
 const label = 'mb-1.5 block text-[13px] font-medium';
 const draftKey = (k: string, v: number) => `email-draft:${k}:${v}`;
 
-export function EmailEditor({ tplKey, version, category, canEdit, initial }: Props) {
+export function EmailEditor({ adminEmail, tplKey, version, category, canEdit, initial }: Props) {
+  const [testTo, setTestTo] = useState(adminEmail);
   const [v, setV] = useState(initial);
   const [tab, setTab] = useState<'html' | 'text'>('html');
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
@@ -92,7 +93,7 @@ export function EmailEditor({ tplKey, version, category, canEdit, initial }: Pro
 
   function test() {
     startTest(async () => {
-      const res = await sendTest({ key: tplKey, subject: v.subject, html: v.html, text: v.text, category, sample });
+      const res = await sendTest({ key: tplKey, subject: v.subject, html: v.html, text: v.text, category, sample, to: testTo });
       toast(res.ok, res.ok ? res.message : res.error);
     });
   }
@@ -185,9 +186,16 @@ export function EmailEditor({ tplKey, version, category, canEdit, initial }: Pro
             {dirty && <button type="button" className="btn" onClick={() => setV(initial)}>Discard changes</button>}
           </div>
         ) : <p className="text-muted">Only admins can edit templates.</p>}
-        <div className="flex items-center gap-3">
-          <button type="button" className="btn" disabled={testing || hasErrors(issues)} onClick={test}>{testing ? 'Queuing…' : 'Send me a test'}</button>
-          <span className="text-[12px] text-muted">Sends the content above, even unsaved, to your own address with the chosen sample data. Limit: 5 per 10 minutes.</span>
+        <div className="rounded-lg border border-line p-3">
+          <label className="block">
+            <span className={label}>Send a test to</span>
+            <span className="flex flex-wrap items-center gap-2">
+              <input className="input max-w-xs" type="email" value={testTo} placeholder={adminEmail} onChange={(e) => setTestTo(e.target.value)} aria-label="Test recipient" />
+              <button type="button" className="btn" disabled={testing || hasErrors(issues) || !testTo.trim()} onClick={test}>{testing ? 'Queuing…' : 'Send test'}</button>
+              {testTo.trim().toLowerCase() !== adminEmail.toLowerCase() && <button type="button" className="text-[13px] text-accent hover:underline" onClick={() => setTestTo(adminEmail)}>Use my address</button>}
+            </span>
+          </label>
+          <p className="mt-2 text-[12px] text-muted">Sends the content above, even unsaved, with the chosen sample data and a [TEST] subject. Limit: 5 per 10 minutes.</p>
         </div>
       </div>
 

@@ -29,7 +29,8 @@ function Section({ n, title, children }: { n: number; title: string; children: R
   );
 }
 
-export function EmailSend({ templates, base, prefill }: { templates: TemplateOption[]; base: string; prefill?: Prefill }) {
+export function EmailSend({ templates, base, prefill, adminEmail }: { templates: TemplateOption[]; base: string; prefill?: Prefill; adminEmail: string }) {
+  const [testTo, setTestTo] = useState(adminEmail);
   const [recMode, setRecMode] = useState<'server' | 'filter' | 'addresses'>('server');
   const [guildId, setGuildId] = useState(prefill?.guildId ?? '');
   const [states, setStates] = useState<string[]>([]);
@@ -88,7 +89,7 @@ export function EmailSend({ templates, base, prefill }: { templates: TemplateOpt
   function test() {
     startTest(async () => {
       const key = mode === 'template' ? tplKey : '';
-      const res = await sendTest({ key, subject: body.subject, html: body.html, text: body.text || htmlToText(body.html), category: body.category, sample: 'normal' });
+      const res = await sendTest({ key, subject: body.subject, html: body.html, text: body.text || htmlToText(body.html), category: body.category, sample: 'normal', to: testTo });
       toast(res.ok, res.ok ? res.message : res.error);
     });
   }
@@ -200,8 +201,10 @@ export function EmailSend({ templates, base, prefill }: { templates: TemplateOpt
             {when === 'later' && <p className="text-[12px] text-muted">Up to 30 days ahead. A scheduled batch can be cancelled from its progress page while it is still queued.</p>}
 
             <div className="flex flex-wrap items-center gap-3">
-              <button type="button" className="btn" disabled={testing || !contentOk} onClick={test}>{testing ? 'Queuing…' : 'Send a test to me first'}</button>
-              <span className="text-[12px] text-muted">{bulk ? 'Required before a send to more than 20 people.' : 'Strongly recommended.'}</span>
+              <label className="flex items-center gap-2 text-[13px]"><span className="font-medium">Send a test to</span>
+                <input className="input w-64" type="email" value={testTo} placeholder={adminEmail} onChange={(e) => setTestTo(e.target.value)} aria-label="Test recipient" /></label>
+              <button type="button" className="btn" disabled={testing || !contentOk || !testTo.trim()} onClick={test}>{testing ? 'Queuing…' : 'Send test'}</button>
+              <span className="text-[12px] text-muted">{bulk ? 'A test is required before a send to more than 20 people.' : 'Strongly recommended.'}</span>
             </div>
 
             {n >= 2 && <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} /> I confirm sending this to {n} recipients.</label>}

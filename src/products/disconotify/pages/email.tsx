@@ -61,7 +61,7 @@ export async function EmailTemplatesPage({ role }: RouteCtx) {
   );
 }
 
-export async function EmailTemplatePage({ params, role }: RouteCtx) {
+export async function EmailTemplatePage({ params, role, admin }: RouteCtx) {
   const key = params.key ?? '';
   let t: Row | null;
   let versions: Row[] | null;
@@ -80,7 +80,7 @@ export async function EmailTemplatePage({ params, role }: RouteCtx) {
         <span><b>Sent when:</b> {BUILT_IN[key]?.trigger ?? 'Only when sent manually.'}</span>
         {builtIn && <span className="text-muted">Built-in: the key and the trigger cannot be changed.</span>}
       </div>
-      <EmailEditor tplKey={key} version={version} category={category} builtIn={builtIn} canEdit={edit}
+      <EmailEditor adminEmail={admin.email} tplKey={key} version={version} category={category} builtIn={builtIn} canEdit={edit}
         initial={{ name: pick(t, 'name') ?? key, description: pick(t, 'description') ?? '', subject: pick(t, 'subject') ?? '', preheader: pick(t, 'preheader') ?? '', html: pick(t, 'body_html') ?? '', text: pick(t, 'body_text') ?? '' }} />
       <div className="mt-6">
         <Card title="History">
@@ -273,7 +273,7 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
 
 // ---- Send (manual) ----
 
-export async function EmailSendPage({ searchParams }: RouteCtx) {
+export async function EmailSendPage({ searchParams, admin }: RouteCtx) {
   let templates: Row[];
   let again: Row | null = null;
   try {
@@ -284,7 +284,7 @@ export async function EmailSendPage({ searchParams }: RouteCtx) {
   return (
     <>
       <PageHeader title="Send email" description="For anything the automatic emails do not cover. Emails are queued and the bot sends them within about a minute." updatedAt={new Date()} />
-      <EmailSend base={base}
+      <EmailSend adminEmail={admin.email} base={base}
         templates={templates.map((t) => ({ key: String(t.key), name: pick(t, 'name') ?? String(t.key), category: pick(t, 'category') ?? 'transactional', subject: pick(t, 'subject') ?? '', preheader: pick(t, 'preheader') ?? '', html: pick(t, 'body_html') ?? '', text: pick(t, 'body_text') ?? '' }))}
         prefill={again || /^\d{5,25}$/.test(searchParams.guild ?? '') ? { guildId: str(again?.guild_id) ?? searchParams.guild, templateKey: str(again?.template_key) ?? undefined, subject: str(again?.subject_override) ?? undefined, html: str(again?.body_html) ?? undefined, text: str(again?.body_text) ?? undefined, marketing: vars.marketing === true } : undefined} />
     </>

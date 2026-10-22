@@ -161,21 +161,22 @@ async function buildContent(c: z.infer<typeof contentSchema>, unsaved?: { subjec
   return { marketing, template_key: c.key, subject_override: c.subject?.trim() || null, body_html: null, body_text: null, extra };
 }
 
-/** Queues one test email to the admin's own address with the content currently in the editor. Allowed for every editor. */
-export async function sendTest(input: { key: string; subject: string; html: string; text: string; category: string; sample: string }): Promise<ActionResult> {
+/** Queues one test email with the content currently in the editor. It goes to the address given, or to the admin's own. Allowed for every editor. */
+export async function sendTest(input: { key: string; subject: string; html: string; text: string; category: string; sample: string; to?: string }): Promise<ActionResult> {
   return runAction(async () => {
     const { admin, ip, ua } = await gate('read');
     const sample = SAMPLES.find((s) => s.id === input.sample) ?? SAMPLES[0]!;
+    const to = input.to?.trim() ? z.email('Enter a valid email address for the test').parse(input.to.trim().toLowerCase()) : admin.email;
     // An empty key means a custom email that has no template behind it.
     const c = input.key
       ? await buildContent({ mode: 'template', key: keySchema.parse(input.key), extra: {} }, { subject: input.subject, html: input.html, text: input.text, category: input.category })
       : await buildContent({ mode: 'custom', subject: input.subject, preheader: '', html: input.html, text: input.text, marketing: input.category === 'marketing' });
     const row = {
-      to_email: admin.email, guild_id: null, template_key: c.template_key, subject_override: `[TEST] ${c.subject_override}`, body_html: c.body_html, body_text: c.body_text,
+      to_email: to, guild_id: null, template_key: c.template_key, subject_override: `[TEST] ${c.subject_override}`, body_html: c.body_html, body_text: c.body_text,
       variables: { ...sample.values, ...(c.marketing ? { marketing: true } : {}) }, send_after: null,
     };
     await callRpc(hubDb(), 'dn_email_send', { p_rows: [row], p_test: true, p_summary: {}, p_admin: admin.id, p_admin_email: admin.email, p_ip: ip, p_ua: ua, p_reason: null });
-    return 'Test queued. It reaches your inbox within about 2 minutes if the bot is online.';
+    return `Test queued for ${to === admin.email ? 'your address' : to}. It arrives within about 2 minutes if the bot is online.`;
   });
 }
 
