@@ -140,7 +140,7 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
             ['Activated by', act2.activated_by ? <CopyId key="ab" value={String(act2.activated_by)} /> : '—'],
             ['Invited by', act2.invited_by ? <CopyId key="ib" value={String(act2.invited_by)} /> : '—'],
           ]} />
-          {notStarted && act2.activation_required === true && <p className="mt-3 rounded-lg bg-warning-soft px-3.5 py-2.5 text-[13px] text-warning">The trial has not started. Alerts are paused until the admin activates it on the website.</p>}
+          {notStarted && act2.activation_required === true && <p className="mt-3 rounded-lg bg-warning-soft px-3.5 py-2.5 text-sm text-warning">The trial has not started. Alerts are paused until the admin activates it on the website.</p>}
         </Card>
         <Card title={`Email contacts${d.emailContacts ? ` (${d.emailContacts.length})` : ''}`} action={can(role, 'email.contact') ? <AddContact guildId={id.data} /> : undefined}>
           {d.emailContacts === null ? <EmptyState compact title="Email contacts not available yet" hint="Apply the bot's email migration" /> : d.emailContacts.length === 0 ? <EmptyState compact title="No email contacts" hint="Addresses appear here when someone activates a trial or checks out" /> : (
@@ -157,7 +157,7 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
             </Table>
           )}
         </Card>
-        <Card title="Email timeline" action={<Link className="text-[13px] text-accent hover:underline" href={`${base}/email/outbox?guild=${id.data}`}>Open in outbox</Link>}>
+        <Card title="Email timeline" action={<Link className="text-sm text-accent hover:underline" href={`${base}/email/outbox?guild=${id.data}`}>Open in outbox</Link>}>
           {d.emailTimeline === null ? <EmptyState compact title="Email log not available yet" hint="Apply the bot's email migration" /> : d.emailTimeline.length === 0 ? <EmptyState compact title="No emails for this server yet" /> : (
             <Table label="Email timeline" bare>
               <thead><tr><th className="th">When</th><th className="th">Template</th><th className="th">Kind</th><th className="th">Status</th><th className="th">Subject</th></tr></thead>

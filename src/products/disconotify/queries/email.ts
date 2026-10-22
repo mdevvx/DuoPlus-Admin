@@ -63,8 +63,8 @@ export const OUTBOX_STATUSES = ['queued', 'sending', 'sent', 'failed', 'skipped'
 export const outboxParams = z.object({
   page: z.coerce.number().int().min(1).max(100000).catch(1),
   status: csvEnum(OUTBOX_STATUSES),
-  template: z.string().trim().max(60).regex(/^[\w-]+$/).optional().catch(undefined),
-  kind: z.enum(['auto', 'manual']).optional().catch(undefined),
+  template: z.string().transform((v) => splitCsv(v).filter((x) => /^[\w-]{1,60}$/.test(x)).join(',') || undefined).optional().catch(undefined),
+  kind: csvEnum(['auto', 'manual']),
   guild: z.string().regex(/^\d{5,25}$/).optional().catch(undefined),
   by: z.string().trim().toLowerCase().max(254).optional().catch(undefined),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().catch(undefined),
@@ -76,8 +76,14 @@ export async function listOutbox(p: OutboxParams) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let q: any = pn().from(T.emailOutbox).select('*', { count: 'exact' });
   if (p.status) q = q.in('status', splitCsv(p.status));
-  if (p.template) q = p.template === 'custom' ? q.is('template_key', null) : q.eq('template_key', p.template);
-  if (p.kind) q = q.eq('kind', p.kind);
+  if (p.template) {
+    const keys = splitCsv(p.template).filter((k) => k !== 'custom');
+    const custom = splitCsv(p.template).includes('custom');
+    if (keys.length && custom) q = q.or(`template_key.in.(${keys.join(',')}),template_key.is.null`);
+    else if (keys.length) q = q.in('template_key', keys);
+    else q = q.is('template_key', null);
+  }
+  if (p.kind) q = q.in('kind', splitCsv(p.kind));
   if (p.guild) q = q.eq('guild_id', p.guild);
   if (p.by) q = q.eq('created_by', p.by);
   if (p.from) q = q.gte('created_at', `${p.from}T00:00:00Z`);
@@ -111,7 +117,7 @@ export async function outboxHealth() {
 export const contactParams = z.object({
   page: z.coerce.number().int().min(1).max(100000).catch(1),
   guild: z.string().regex(/^\d{5,25}$/).optional().catch(undefined),
-  marketing: z.enum(['subscribed', 'unsubscribed']).optional().catch(undefined),
+  marketing: csvEnum(['subscribed', 'unsubscribed']),
 });
 export type ContactParams = z.infer<typeof contactParams>;
 
@@ -121,8 +127,9 @@ export async function listContacts(p: ContactParams) {
   const apply = (q: any) => {
     let r = q;
     if (p.guild) r = r.eq('guild_id', p.guild);
-    if (p.marketing === 'unsubscribed') r = r.not('marketing_unsubscribed_at', 'is', null);
-    if (p.marketing === 'subscribed') r = r.is('marketing_unsubscribed_at', null);
+    const m = splitCsv(p.marketing);
+    if (m.length === 1 && m[0] === 'unsubscribed') r = r.not('marketing_unsubscribed_at', 'is', null);
+    if (m.length === 1 && m[0] === 'subscribed') r = r.is('marketing_unsubscribed_at', null);
     return r;
   };
   const res = await apply(db.from(T.emailContacts).select('*', { count: 'exact' })).order('created_at', { ascending: false }).range((p.page - 1) * PAGE_SIZE, p.page * PAGE_SIZE - 1);

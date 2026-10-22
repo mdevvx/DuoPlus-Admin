@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom';
 import { Check, ChevronDown, X } from 'lucide-react';
 import clsx from 'clsx';
 import { applyFilters } from './filter-bar';
+import { usePopupFit } from './popup-fit';
 
 const split = (v?: string) => [...new Set((v ?? '').split(',').map((s) => s.trim()).filter(Boolean))];
 
@@ -36,6 +37,7 @@ export function TagSelect({ name, label, value, options }: { name: string; label
   const { tags, commit, hidden } = useTags(value, (v) => choices.some(([o]) => o === v));
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const list = usePopupFit<HTMLUListElement>(open);
   const text = (v: string) => choices.find(([o]) => o === v)?.[1] ?? v;
 
   useEffect(() => {
@@ -64,7 +66,7 @@ export function TagSelect({ name, label, value, options }: { name: string; label
         </span>
       </div>
       {open && (
-        <ul role="listbox" aria-multiselectable className="absolute left-0 top-[calc(100%+4px)] z-30 min-w-full rounded-xl border border-line bg-surface p-1.5 shadow-pop">
+        <ul ref={list} role="listbox" aria-multiselectable className="absolute left-0 top-[calc(100%+4px)] z-30 min-w-full rounded-xl border border-line bg-surface p-1.5 shadow-pop">
           {choices.map(([v, l]) => {
             const on = tags.includes(v);
             return (

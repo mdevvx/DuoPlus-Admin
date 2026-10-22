@@ -8,26 +8,20 @@ import { hasErrors, validateTemplate } from '@/products/disconotify/email/valida
 import { htmlToText } from '@/products/disconotify/email/render';
 import { SUBJECT_MAX, VAR_NAMES } from '@/products/disconotify/email/vars';
 import { DateField } from './date-field';
+import { Card } from './ui';
 import { EmailButtonPicker } from './email-button';
+import { fieldLabel as label } from './form';
 import { useToast } from './toast';
 
 export interface TemplateOption { key: string; name: string; category: string; subject: string; preheader: string; html: string; text: string }
 interface Prefill { guildId?: string; templateKey?: string; subject?: string; html?: string; text?: string; marketing?: boolean }
 
-const label = 'mb-1.5 block text-[13px] font-medium';
 const TIMES = Array.from({ length: 96 }, (_, i) => `${String(Math.floor(i / 4)).padStart(2, '0')}:${String((i % 4) * 15).padStart(2, '0')}`);
 const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const STATES: [string, string][] = [['trial', 'Trial'], ['active', 'Active (paid)'], ['card_past_due', 'Card past due'], ['lapsed', 'Lapsed'], ['whitelisted', 'Whitelisted']];
 
 function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
-  return (
-    <section className="card p-5">
-      <h2 className="mb-4 flex items-center gap-2.5 text-[15px] font-semibold">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft text-[12px] text-accent">{n}</span>{title}
-      </h2>
-      {children}
-    </section>
-  );
+  return <Card title={`${n}. ${title}`}>{children}</Card>;
 }
 
 export function EmailSend({ templates, base, prefill, adminEmail, accent }: { templates: TemplateOption[]; base: string; prefill?: Prefill; adminEmail: string; accent: string }) {
@@ -126,7 +120,7 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
           <div role="radiogroup" aria-label="Recipients" className="mb-4 flex flex-wrap gap-2">
             {([['server', 'One server'], ['filter', 'Servers by state'], ['addresses', 'Pasted addresses']] as const).map(([v, l]) => (
               <button key={v} type="button" role="radio" aria-checked={recMode === v} onClick={() => setRecMode(v)}
-                className={clsx('rounded-lg border px-3 py-1.5 text-[13px] font-medium', recMode === v ? 'border-accent bg-accent-soft text-accent' : 'border-line hover:bg-subtle')}>{l}</button>
+                className={clsx('rounded-lg border px-3 py-1.5 text-sm font-medium', recMode === v ? 'border-accent bg-accent-soft text-accent' : 'border-line hover:bg-subtle')}>{l}</button>
             ))}
           </div>
           {recMode === 'server' && <label className="block"><span className={label}>Server ID</span><input className="input max-w-sm" inputMode="numeric" value={guildId} onChange={(e) => setGuildId(e.target.value)} placeholder="1234567890123456789" /></label>}
@@ -138,28 +132,28 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
             </fieldset>
           )}
           {recMode === 'addresses' && <label className="block"><span className={label}>Addresses <span className="font-normal text-muted">· separated by spaces, commas or new lines. Sent with no server, so server variables are empty.</span></span>
-            <textarea className="input h-28 resize-y py-2 font-mono text-[12.5px]" value={addresses} onChange={(e) => setAddresses(e.target.value)} /></label>}
+            <textarea className="input h-28 resize-y py-2 font-mono text-xs" value={addresses} onChange={(e) => setAddresses(e.target.value)} /></label>}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button type="button" className="btn" disabled={checking} onClick={runCheck}>{checking ? 'Checking…' : 'Check recipients'}</button>
             {check?.ok && (
-              <span role="status" className="text-[13px]">
+              <span role="status" className="text-sm">
                 <b className="num">{check.total}</b> email{check.total === 1 ? '' : 's'}{check.servers > 0 && <> across <b className="num">{check.servers}</b> server{check.servers === 1 ? '' : 's'}</>}
                 {(check.skipped.noContacts + check.skipped.unsubscribed + check.skipped.invalid) > 0 && (
                   <span className="text-muted"> · skipped: {[check.skipped.noContacts && `${check.skipped.noContacts} server(s) with no email`, check.skipped.unsubscribed && `${check.skipped.unsubscribed} unsubscribed`, check.skipped.invalid && `${check.skipped.invalid} invalid`].filter(Boolean).join(', ')}</span>
                 )}
               </span>
             )}
-            {check && !check.ok && <span role="alert" className="text-[13px] text-danger">{check.error}</span>}
+            {check && !check.ok && <span role="alert" className="text-sm text-danger">{check.error}</span>}
           </div>
-          {check?.ok && check.sample.length > 0 && <p className="mt-2 text-[12px] text-muted">First addresses: {check.sample.join(', ')}</p>}
-          {check?.ok && check.overLimit && <p role="alert" className="mt-2 text-[13px] text-danger">That is more than the 200 recipients per hour a manual send can reach. Narrow it down.</p>}
+          {check?.ok && check.sample.length > 0 && <p className="mt-2 text-xs text-muted">First addresses: {check.sample.join(', ')}</p>}
+          {check?.ok && check.overLimit && <p role="alert" className="mt-2 text-sm text-danger">That is more than the 200 recipients per hour a manual send can reach. Narrow it down.</p>}
         </Section>
 
         <Section n={2} title="Content">
           <div role="radiogroup" aria-label="Content" className="mb-4 flex gap-2">
             {([['template', 'Use a template'], ['custom', 'Custom email']] as const).map(([v, l]) => (
               <button key={v} type="button" role="radio" aria-checked={mode === v} onClick={() => setMode(v)}
-                className={clsx('rounded-lg border px-3 py-1.5 text-[13px] font-medium', mode === v ? 'border-accent bg-accent-soft text-accent' : 'border-line hover:bg-subtle')}>{l}</button>
+                className={clsx('rounded-lg border px-3 py-1.5 text-sm font-medium', mode === v ? 'border-accent bg-accent-soft text-accent' : 'border-line hover:bg-subtle')}>{l}</button>
             ))}
           </div>
           {mode === 'template' ? (
@@ -169,21 +163,21 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
               <label className="block"><span className={label}>Subject <span className="font-normal text-muted">· optional override</span></span>
                 <input className="input" value={subjectOverride} maxLength={SUBJECT_MAX} placeholder={tpl?.subject} onChange={(e) => setSubjectOverride(e.target.value)} /></label>
               <label className="block"><span className={label}>Extra variables <span className="font-normal text-muted">· one per line, e.g. trial_days=14. The server name is filled in automatically.</span></span>
-                <textarea className="input h-20 resize-y py-2 font-mono text-[12.5px]" value={extra} onChange={(e) => setExtra(e.target.value)} /></label>
+                <textarea className="input h-20 resize-y py-2 font-mono text-xs" value={extra} onChange={(e) => setExtra(e.target.value)} /></label>
             </div>
           ) : (
             <div className="space-y-4">
               <label className="block"><span className={label}>Subject</span><input className="input" value={custom.subject} maxLength={SUBJECT_MAX + 50} onChange={(e) => setCustom({ ...custom, subject: e.target.value })} /></label>
               <div className="flex flex-wrap items-center gap-2">
                 <EmailButtonPicker accent={accent} onInsert={(html, text) => setCustom((c) => ({ ...c, html: `${c.html.trimEnd()}\n${html}`, text: text ? `${c.text.trimEnd()}\n\n${text}` : c.text }))} />
-                <span className="text-[12px] text-muted">Buttons are added at the end of the body.</span>
+                <span className="text-xs text-muted">Buttons are added at the end of the body.</span>
               </div>
-              <label className="block"><span className={label}>HTML body</span><textarea className="input h-48 resize-y py-2 font-mono text-[12.5px]" value={custom.html} onChange={(e) => setCustom({ ...custom, html: e.target.value })} /></label>
+              <label className="block"><span className={label}>HTML body</span><textarea className="input h-48 resize-y py-2 font-mono text-xs" value={custom.html} onChange={(e) => setCustom({ ...custom, html: e.target.value })} /></label>
               <label className="block"><span className={label}>Plain text <button type="button" className="ml-2 text-accent hover:underline" onClick={() => setCustom({ ...custom, text: htmlToText(custom.html) })}>Generate from HTML</button></span>
-                <textarea className="input h-28 resize-y py-2 font-mono text-[12.5px]" value={custom.text} onChange={(e) => setCustom({ ...custom, text: e.target.value })} /></label>
+                <textarea className="input h-28 resize-y py-2 font-mono text-xs" value={custom.text} onChange={(e) => setCustom({ ...custom, text: e.target.value })} /></label>
               <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="checkbox" checked={custom.marketing} onChange={(e) => setCustom({ ...custom, marketing: e.target.checked })} />
                 <span>This is a reminder or marketing email. It carries the unsubscribe link and skips people who unsubscribed.</span></label>
-              {issues.length > 0 && <ul className="space-y-1">{issues.map((i, k) => <li key={k} className={clsx('text-[13px]', i.level === 'error' ? 'text-danger' : 'text-warning')}>{i.field}{i.line ? ` line ${i.line}` : ''}: {i.message}</li>)}</ul>}
+              {issues.length > 0 && <ul className="space-y-1">{issues.map((i, k) => <li key={k} className={clsx('text-sm', i.level === 'error' ? 'text-danger' : 'text-warning')}>{i.field}{i.line ? ` line ${i.line}` : ''}: {i.message}</li>)}</ul>}
             </div>
           )}
         </Section>
@@ -199,17 +193,17 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
                   <select className="input w-auto" aria-label="Time" value={sendTime} onChange={(e) => setSendTime(e.target.value)}>
                     {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
-                  <span className="text-[12px] text-muted">your local time</span>
+                  <span className="text-xs text-muted">your local time</span>
                 </span>
               )}
             </div>
-            {when === 'later' && <p className="text-[12px] text-muted">Up to 30 days ahead. A scheduled batch can be cancelled from its progress page while it is still queued.</p>}
+            {when === 'later' && <p className="text-xs text-muted">Up to 30 days ahead. A scheduled batch can be cancelled from its progress page while it is still queued.</p>}
 
             <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 text-[13px]"><span className="font-medium">Send a test to</span>
+              <label className="flex items-center gap-2 text-sm"><span className="font-medium">Send a test to</span>
                 <input className="input w-64" type="email" value={testTo} placeholder={adminEmail} onChange={(e) => setTestTo(e.target.value)} aria-label="Test recipient" /></label>
               <button type="button" className="btn" disabled={testing || !contentOk || !testTo.trim()} onClick={test}>{testing ? 'Queuing…' : 'Send test'}</button>
-              <span className="text-[12px] text-muted">{bulk ? 'A test is required before a send to more than 20 people.' : 'Strongly recommended.'}</span>
+              <span className="text-xs text-muted">{bulk ? 'A test is required before a send to more than 20 people.' : 'Strongly recommended.'}</span>
             </div>
 
             {n >= 2 && <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} /> I confirm sending this to {n} recipients.</label>}
@@ -225,24 +219,24 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
               <label className="block"><span className={label}>Authenticator code <span className="font-normal text-muted">· needed for more than 100 recipients</span></span>
                 <input className="input num w-40 text-center tracking-[0.4em]" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} autoComplete="one-time-code" /></label>
             )}
-            {error && <p role="alert" className="rounded-lg bg-danger-soft px-3.5 py-2.5 text-[13px] text-danger">{error}</p>}
+            {error && <p role="alert" className="rounded-lg bg-danger-soft px-3.5 py-2.5 text-sm text-danger">{error}</p>}
             <button type="button" className="btn btn-primary" disabled={sending || !ready || !typedOk || !confirmOk || !reasonOk} onClick={send}>
               {sending ? 'Queuing…' : when === 'later' ? `Schedule ${n || ''} email${n === 1 ? '' : 's'}` : `Send ${n || ''} email${n === 1 ? '' : 's'}`}
             </button>
-            {!check?.ok && <p className="text-[12px] text-muted">Check the recipients first so the count is known.</p>}
-            {marketing && <p className="text-[12px] text-muted">This is a marketing email: people who unsubscribed are skipped, even for manual sends.</p>}
+            {!check?.ok && <p className="text-xs text-muted">Check the recipients first so the count is known.</p>}
+            {marketing && <p className="text-xs text-muted">This is a marketing email: people who unsubscribed are skipped, even for manual sends.</p>}
           </div>
         </Section>
       </div>
 
       <div className="xl:sticky xl:top-4 xl:self-start">
         <div className="card mb-3 p-3">
-          <div className="text-[12px] text-muted">Subject and preheader</div>
+          <div className="text-xs text-muted">Subject and preheader</div>
           <div className="mt-1 truncate text-sm font-semibold">{preview?.ok ? preview.subject || '(no subject)' : '…'}</div>
-          <div className="truncate text-[13px] text-muted">{preview?.ok ? preview.preheader : ''}</div>
+          <div className="truncate text-sm text-muted">{preview?.ok ? preview.preheader : ''}</div>
         </div>
         <iframe title="Email preview" sandbox="" srcDoc={preview?.ok ? preview.document : ''} className="block h-[640px] w-full rounded-xl border border-line bg-white" />
-        <p className="mt-2 text-[12px] text-muted">Preview with sample data. Each recipient gets their own server name.</p>
+        <p className="mt-2 text-xs text-muted">Preview with sample data. Each recipient gets their own server name.</p>
       </div>
     </div>
   );

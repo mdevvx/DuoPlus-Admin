@@ -318,3 +318,18 @@ export async function revealContact(id: string): Promise<{ ok: true; email: stri
     return { ok: false, error: 'Could not reveal this address.' };
   }
 }
+
+/** Shows the full recipient of one outbox row. The reveal is audit-logged; the address itself never goes into the audit row. */
+export async function revealOutboxEmail(id: string): Promise<{ ok: true; email: string } | { ok: false; error: string }> {
+  try {
+    const { admin } = await gate('email.outbox');
+    const { data } = await pn().from(T.emailOutbox).select('to_email,guild_id').eq('id', idSchema.parse(id)).maybeSingle();
+    const row = data as Record<string, unknown> | null;
+    const email = row ? str(row.to_email) : null;
+    if (!row || !email) return { ok: false, error: 'Email not found.' };
+    await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'email.outbox.reveal', target_type: 'email_outbox', target_id: id });
+    return { ok: true, email };
+  } catch {
+    return { ok: false, error: 'Could not reveal this address.' };
+  }
+}

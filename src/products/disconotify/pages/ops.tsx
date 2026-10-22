@@ -222,7 +222,7 @@ export async function HealthPage({ role }: RouteCtx) {
             return (
               <Card key={i} className={bad ? 'border-warning' : undefined}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[15px] font-semibold">{platformLabel(str(p.platform))}</span>
+                  <span className="text-base font-semibold">{platformLabel(str(p.platform))}</span>
                   <PlatformStatus row={p} short />
                 </div>
                 <div className="mt-4 flex items-end justify-between gap-3">
@@ -257,7 +257,7 @@ export async function HealthPage({ role }: RouteCtx) {
               ['Invalid (re-add needed)', int(tiktok.invalid)],
             ]} />
             {tiktok.errorShare >= 0.5 && (
-              <p className="mt-3 text-[12.5px] text-danger">
+              <p className="mt-3 text-xs text-danger">
                 {blocked ? 'Most TikTok accounts are failing and the platform is paused. This is a block, not an account problem.' : 'Most TikTok accounts are failing but the platform is not paused. That points to timeouts or a changed page, not a block.'}
               </p>
             )}
@@ -289,7 +289,7 @@ export async function HealthPage({ role }: RouteCtx) {
                   </dl>
                   <div className="mt-4">
                     <div className="mb-1 text-xs text-muted">Last error message</div>
-                    <p className="whitespace-pre-wrap break-words rounded-lg border border-line bg-subtle px-3 py-2.5 text-[13px] leading-5">{str(p.last_error) ?? 'No error recorded.'}</p>
+                    <p className="whitespace-pre-wrap break-words rounded-lg border border-line bg-subtle px-3 py-2.5 text-sm leading-5">{str(p.last_error) ?? 'No error recorded.'}</p>
                   </div>
                 </DetailModal>
               </td>
@@ -329,7 +329,7 @@ export async function SettingsPage({ role, manifest }: { role: RouteCtx['role'];
       <div className="mb-4"><BrandingCard slug={SLUG} role={role} manifest={manifest} /></div>
       {schedule && (
         <div className="mb-4">
-          <Card title="Email" action={<Link className="text-[13px] text-accent hover:underline" href={`${base}/email/settings`}>Email settings</Link>}>
+          <Card title="Email" action={<Link className="text-sm text-accent hover:underline" href={`${base}/email/settings`}>Email settings</Link>}>
             <KV items={[
               ['Renewal reminder (days before)', schedule.effective.renewal_days_before === 0 ? 'Never' : String(schedule.effective.renewal_days_before)],
               ['Trial-ended reminders', `Every ${schedule.effective.trial_reminder_every_days} days, up to ${schedule.effective.trial_reminder_max}`],

@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { Badge, Card, Cell, DetailRow, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Pagination, Select, Table, TagSelect, Tr, When } from '@/components/ui';
-import { ClampText, CopyId, DetailModal } from '@/components/small-client';
+import { Badge, Card, Cell, DetailRow, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Pagination, Stat, Table, TagSelect, Tr, When } from '@/components/ui';
+import { ClampText, CopyBlock, CopyId, DetailModal } from '@/components/small-client';
 import { EmailEditor } from '@/components/email-editor';
 import { DateField } from '@/components/date-field';
 import { EmailSend } from '@/components/email-send';
@@ -48,7 +48,7 @@ export async function EmailTemplatesPage({ role }: RouteCtx) {
                 <td className="td"><Cell text={pick(t, 'name') ?? key} sub={<span className="inline-flex items-center gap-1.5">{categoryBadge(str(t.category))}</span>} max={230} href={`${root}/templates/${key}`} /></td>
                 <td className="td whitespace-nowrap"><div className="flex items-center gap-2"><Badge tone={t.enabled === false ? 'warning' : 'success'}>{t.enabled === false ? 'Off' : 'On'}</Badge><TemplateToggle tplKey={key} enabled={t.enabled !== false} disabled={!edit} /></div></td>
                 <td className="td"><Cell text={str(t.subject)} max={260} /></td>
-                <td className="td whitespace-nowrap"><div className="text-[13px]">Version {str(t.version) ?? '—'}{str(t.updated_by) ? ` · ${maskEmail(str(t.updated_by))}` : ''}</div><div className="text-[12px] text-muted"><When value={str(t.updated_at)} /></div></td>
+                <td className="td whitespace-nowrap"><div>Version {str(t.version) ?? '—'}{str(t.updated_by) ? ` · ${maskEmail(str(t.updated_by))}` : ''}</div><div className="text-xs text-muted"><When value={str(t.updated_at)} /></div></td>
                 <td className="td num">{int(t.sent30 as number)}</td>
               </Tr>
             );
@@ -74,7 +74,7 @@ export async function EmailTemplatePage({ params, role, admin }: RouteCtx) {
     <>
       <PageHeader title={pick(t, 'name') ?? key} description={`Template ${key} · version ${version}`}
         actions={<Link className="btn" href={`${root}/templates`}>All templates</Link>} />
-      <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg bg-subtle px-4 py-3 text-[13px]">
+      <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg bg-subtle px-4 py-3 text-sm">
         <span className="flex items-center gap-2">{categoryBadge(category)}<Badge tone={t.enabled === false ? 'warning' : 'success'}>Automatic emails {t.enabled === false ? 'off' : 'on'}</Badge></span>
         <span><b>Sent when:</b> {BUILT_IN[key]?.trigger ?? 'Only when sent manually.'}</span>
         {builtIn && <span className="text-muted">Built-in: the key and the trigger cannot be changed.</span>}
@@ -121,8 +121,8 @@ export async function EmailOutboxPage({ searchParams, role }: RouteCtx) {
       {health.stale > 0 && <p role="alert" className="mb-3 rounded-lg bg-warning-soft px-4 py-3 text-warning">{health.stale} email{health.stale === 1 ? ' has' : 's have'} been queued for over 15 minutes. The bot may not be sending: is it online, and are the EMAIL_SMTP_* settings complete?</p>}
       <FilterBar action={path}>
         <TagSelect name="status" label="Status" value={p.status} options={[['', 'All'], ...OUTBOX_STATUSES.map((s): [string, string] => [s, sentence(s)])]} />
-        <Select name="template" label="Template" value={p.template} options={[['', 'All'], ['custom', 'Custom'], ...templates.map((t): [string, string] => [String(t.key), pick(t, 'name') ?? String(t.key)])]} />
-        <Select name="kind" label="Kind" value={p.kind} options={[['', 'All'], ['auto', 'Automatic'], ['manual', 'Manual']]} />
+        <TagSelect name="template" label="Template" value={p.template} options={[['', 'All'], ['custom', 'Custom'], ...templates.map((t): [string, string] => [String(t.key), pick(t, 'name') ?? String(t.key)])]} />
+        <TagSelect name="kind" label="Kind" value={p.kind} options={[['', 'All'], ['auto', 'Automatic'], ['manual', 'Manual']]} />
         <input className="input w-40" name="guild" inputMode="numeric" placeholder="Server ID" defaultValue={p.guild} />
         <input className="input w-48" name="by" type="email" placeholder="Sent by" defaultValue={p.by} />
         <DateField name="from" defaultValue={p.from} placeholder="From date" />
@@ -147,8 +147,8 @@ export async function EmailOutboxPage({ searchParams, role }: RouteCtx) {
                   <DetailModal trigger="Details" title="Email details">
                     <div className="mb-3"><OutboxStatus status={r.status} /></div>
                     <dl className="divide-y divide-line text-sm">
-                      <DetailRow label="To">{maskEmail(str(r.to_email))}</DetailRow>
-                      <DetailRow label="Subject">{pick(r, 'subject_override', 'subject') ?? '—'}</DetailRow>
+                      <DetailRow label="To">{canAct ? <RevealAddress kind="outbox" id={String(r.id)} masked={maskEmail(str(r.to_email))} /> : maskEmail(str(r.to_email))}</DetailRow>
+                      <DetailRow label="Subject" copy={pick(r, 'subject_override', 'subject')}>{pick(r, 'subject_override', 'subject') ?? '—'}</DetailRow>
                       <DetailRow label="Server">{gid ? <span className="inline-flex items-center gap-2">{serverName} <CopyId value={gid} /></span> : '—'}</DetailRow>
                       <DetailRow label="Template">{name(str(r.template_key))}</DetailRow>
                       <DetailRow label="Kind">{r.kind === 'manual' ? 'Manual' : 'Automatic'}</DetailRow>
@@ -156,9 +156,9 @@ export async function EmailOutboxPage({ searchParams, role }: RouteCtx) {
                       <DetailRow label="Send after"><When value={str(r.send_after)} /></DetailRow>
                       <DetailRow label="Attempts">{str(r.attempts) ?? '0'}</DetailRow>
                       <DetailRow label="Sent by">{str(r.created_by) ? maskEmail(str(r.created_by)) : 'Automatic'}</DetailRow>
-                      <DetailRow label="Detail">{str(r.status_detail) ?? '—'}</DetailRow>
-                      <DetailRow label="Message-ID">{str(r.provider_id) ? <CopyId value={String(r.provider_id)} /> : '—'}</DetailRow>
-                      <DetailRow label="Variables"><pre className="whitespace-pre-wrap text-left text-[12px] [overflow-wrap:anywhere]">{JSON.stringify(r.variables ?? {}, null, 2)}</pre></DetailRow>
+                      <DetailRow label="Detail" copy={str(r.status_detail)}>{str(r.status_detail) ?? '—'}</DetailRow>
+                      <DetailRow label="Message-ID" copy={str(r.provider_id)}>{str(r.provider_id) ?? '—'}</DetailRow>
+                      <DetailRow label="Variables"><CopyBlock text={JSON.stringify(r.variables ?? {}, null, 2)} label="Copy JSON" /></DetailRow>
                     </dl>
                     <div className="mt-3 flex flex-wrap gap-4">
                       {batchOf(r) && <Link className="text-accent hover:underline" href={`${root}/send/${batchOf(r)}`}>View this manual send</Link>}
@@ -198,12 +198,12 @@ export async function EmailContactsPage({ searchParams, role }: RouteCtx) {
           {owner && <a className="btn" href={`${exportUrl}?full=1`} title="Includes full addresses. The export is audit-logged.">Export full addresses</a>}
         </div>} />
       <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card><div className="text-xs text-muted">Contacts</div><div className="num text-2xl font-semibold">{int(data.all)}</div></Card>
-        <Card><div className="text-xs text-muted">Unsubscribed from marketing</div><div className="num text-2xl font-semibold">{int(data.unsubscribed)}</div></Card>
+        <Card><Stat label="Contacts" value={int(data.all)} /></Card>
+        <Card><Stat label="Unsubscribed from marketing" value={int(data.unsubscribed)} /></Card>
       </div>
       <FilterBar action={path}>
         <input className="input w-40" name="guild" inputMode="numeric" placeholder="Server ID" defaultValue={p.guild} />
-        <Select name="marketing" label="Marketing" value={p.marketing} options={[['', 'All'], ['subscribed', 'Subscribed'], ['unsubscribed', 'Unsubscribed']]} />
+        <TagSelect name="marketing" label="Marketing" value={p.marketing} options={[['', 'All'], ['subscribed', 'Subscribed'], ['unsubscribed', 'Unsubscribed']]} />
       </FilterBar>
       {data.rows.length === 0 ? <div className="card"><EmptyState title="No contacts match" /></div> : (
         <Table label="Email contacts">
@@ -249,7 +249,7 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
             ['Failed in the last 24 hours', `${int(health.failed24)} of ${int(health.total24)}${health.total24 ? ` (${failRate}%)` : ''}`],
             ['Queued over 15 minutes', int(health.stale)],
           ]} />
-          <p className="mt-3 text-[12.5px] text-muted">The panel cannot see the mail server itself, so this is read from the outbox.</p>
+          <p className="mt-3 text-xs text-muted">The panel cannot see the mail server itself, so this is read from the outbox.</p>
         </Card>
       </div>
       <div className="grid gap-5 xl:grid-cols-2">
@@ -266,7 +266,7 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
           {owner ? <LayoutForm initial={layout.layout} /> : (
             <KV items={[['Brand name', layout.layout.brand_name], ['Accent colour', layout.layout.accent_color], ['Logo', layout.layout.logo_url || 'None']]} />
           )}
-          {!owner && <p className="mt-3 text-[12.5px] text-muted">Only the owner can change the layout and schedule.</p>}
+          {!owner && <p className="mt-3 text-xs text-muted">Only the owner can change the layout and schedule.</p>}
         </Card>
       </div>
     </>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import clsx from 'clsx';
 import { applyFilters } from './filter-bar';
+import { usePopupFit } from './popup-fit';
 import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -32,6 +33,7 @@ export function DateField({ name, defaultValue, placeholder = 'Select date', ari
   const start = parse(value) ?? { y: today.getFullYear(), m: today.getMonth(), d: 1 };
   const [view, setView] = useState({ y: start.y, m: start.m });
   const ref = useRef<HTMLDivElement>(null);
+  const pop = usePopupFit<HTMLDivElement>(open);
 
   useEffect(() => {
     if (!open) return;
@@ -59,7 +61,7 @@ export function DateField({ name, defaultValue, placeholder = 'Select date', ari
         <CalendarDays className="h-4 w-4 shrink-0 text-muted" aria-hidden />
       </button>
       {open && (
-        <div role="dialog" aria-label="Choose a date"
+        <div ref={pop} role="dialog" aria-label="Choose a date"
           className={clsx('absolute left-0 z-40 w-[288px] rounded-xl border border-line bg-raised p-3 shadow-pop', up ? 'bottom-[calc(100%+6px)]' : 'top-[calc(100%+6px)]')}>
           <div className="mb-2 flex items-center justify-between">
             <button type="button" className="flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-subtle hover:text-ink" aria-label="Previous month" onClick={() => shift(-1)}><ChevronLeft className="h-4 w-4" /></button>

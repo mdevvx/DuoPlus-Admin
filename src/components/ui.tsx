@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CopyButton } from './small-client';
 import clsx from 'clsx';
 import { AlertTriangle, CheckCircle2, Tag, Info, XCircle, Inbox, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Clock, Crown, UserCog } from 'lucide-react';
 import { Icon } from './icons';
@@ -349,11 +350,14 @@ export function RoleTag({ role, onDark }: { role: string; onDark?: boolean }) {
 }
 
 /** One label/value line inside a DetailModal's <dl>. */
-export function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+export function DetailRow({ label, children, copy }: { label: string; children: ReactNode; /** Adds a Copy button for this text. */ copy?: string | null }) {
   return (
-    <div className="grid grid-cols-[116px_minmax(0,1fr)] items-start gap-x-4 py-2.5">
-      <dt className="text-muted">{label}</dt>
-      <dd className="min-w-0 text-left [overflow-wrap:anywhere]">{children}</dd>
+    <div className="flex items-start gap-4 py-2.5">
+      <dt className="w-[116px] shrink-0 text-muted">{label}</dt>
+      <dd className="flex min-w-0 flex-1 items-start gap-1.5 text-left">
+        <span className="min-w-0 flex-1 whitespace-normal break-words [overflow-wrap:anywhere]">{children}</span>
+        {copy ? <CopyButton value={copy} label={`Copy ${label.toLowerCase()}`} /> : null}
+      </dd>
     </div>
   );
 }

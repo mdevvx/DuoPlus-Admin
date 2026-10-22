@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Copy, Check, FileText } from 'lucide-react';
+import { Copy, Check, FileText, Maximize2, Minimize2 } from 'lucide-react';
+import clsx from 'clsx';
 import { ModalHeader } from './modal-header';
 
 /** Discord IDs are strings; show them monospaced and copyable. */
@@ -19,6 +20,35 @@ export function CopyId({ value, mono = true }: { value: string; mono?: boolean }
       {done ? <Check className="h-3.5 w-3.5 shrink-0 text-success" aria-label="Copied" /> : <Copy className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />}
       <span>{value}</span>
     </button>
+  );
+}
+
+async function copyToClipboard(value: string, done: (v: boolean) => void) {
+  try { await navigator.clipboard.writeText(value); done(true); setTimeout(() => done(false), 1500); } catch { /* clipboard blocked */ }
+}
+
+/** Small icon button that copies a value. Used next to long text in detail dialogs. */
+export function CopyButton({ value, label = 'Copy' }: { value: string; label?: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button type="button" title={label} aria-label={label} onClick={() => copyToClipboard(value, setDone)}
+      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted hover:bg-subtle hover:text-ink">
+      {done ? <Check className="h-3.5 w-3.5 text-success" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+    </button>
+  );
+}
+
+/** Preformatted text (JSON, logs) that wraps, never scrolls sideways, and has a Copy button. */
+export function CopyBlock({ text, label = 'Copy' }: { text: string; label?: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <div className="relative rounded-lg border border-line bg-subtle">
+      <button type="button" onClick={() => copyToClipboard(text, setDone)}
+        className="absolute right-2 top-2 inline-flex h-7 items-center gap-1.5 rounded-md border border-line bg-surface px-2 text-xs font-medium hover:bg-raised">
+        {done ? <Check className="h-3.5 w-3.5 text-success" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />} {done ? 'Copied' : label}
+      </button>
+      <pre className="whitespace-pre-wrap break-words px-3 py-3 pr-24 text-left font-mono text-[12.5px] leading-5 [overflow-wrap:anywhere]">{text}</pre>
+    </div>
   );
 }
 
@@ -52,12 +82,15 @@ export function TableKeys() {
 /** Centered detail modal opened from a table row button. */
 export function DetailModal({ trigger, title, children }: { trigger: string; title: string; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const [wide, setWide] = useState(false);
   return (
     <>
       <button type="button" className="btn h-7 px-2.5 text-xs" onClick={() => ref.current?.showModal()}>{trigger}</button>
-      <dialog ref={ref} className="w-[520px] max-w-[92vw] overflow-hidden rounded-xl border border-line bg-raised p-0 text-left text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
+      <dialog ref={ref} className={clsx('max-w-[96vw] overflow-hidden rounded-xl border border-line bg-raised p-0 text-left text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px] transition-[width] duration-150', wide ? 'w-[1040px]' : 'w-[520px]')}
         onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
-        <ModalHeader icon={FileText} title={title} onClose={() => ref.current?.close()} />
+        <ModalHeader icon={FileText} title={title} onClose={() => ref.current?.close()}
+          actions={<button type="button" aria-label={wide ? 'Make narrower' : 'Make wider'} title={wide ? 'Make narrower' : 'Make wider'} onClick={() => setWide(!wide)}
+            className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-ink sm:flex">{wide ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</button>} />
         <div className="thin-scroll max-h-[65vh] overflow-y-auto overflow-x-hidden px-5 py-4">{children}</div>
         <footer className="flex justify-end border-t border-line bg-subtle px-5 py-3.5">
           <button type="button" className="btn btn-primary" onClick={() => ref.current?.close()}>Close</button>

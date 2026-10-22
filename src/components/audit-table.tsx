@@ -8,7 +8,7 @@ const LABEL: Record<string, string> = {
   'email.layout.save': 'Email layout saved', 'email.schedule.save': 'Email schedule saved', 'email.send': 'Manual email sent',
   'email.outbox.retry': 'Email retried', 'email.outbox.cancel': 'Email cancelled', 'email.contact.add': 'Email contact added',
   'email.contact.remove': 'Email contact removed', 'email.contact.resubscribe': 'Contact re-subscribed', 'email.contact.unsubscribe': 'Contact unsubscribed',
-  'email.contact.erase': 'Email address erased', 'email.contact.reveal': 'Email address revealed', 'export.csv': 'CSV export',
+  'email.contact.erase': 'Email address erased', 'email.contact.reveal': 'Email address revealed', 'email.outbox.reveal': 'Email recipient revealed', 'export.csv': 'CSV export',
 };
 const label = (a: string) => LABEL[a] ?? sentence(a.replace('.', ': '));
 
@@ -23,7 +23,7 @@ export function AuditTable({ rows, showProduct = true }: { rows: (AuditRow & { s
         {rows.map((r) => (
           <Tr key={`${r.source ?? 'hub'}-${r.id}`}>
             <td className="td num whitespace-nowrap">{dateTime(r.at)}</td>
-            <td className="td">{r.admin_email ?? (r.source === 'bot' ? <span className="text-muted">bot</span> : '—')}</td>
+            <td className="td whitespace-nowrap">{r.admin_email ?? (r.source === 'bot' ? <span className="text-muted">bot</span> : '—')}</td>
             {showProduct && <td className="td">{r.product_slug ?? '—'}</td>}
             <td className="td"><Badge tone={tone(r.action)}>{label(r.action)}</Badge></td>
             <td className="td font-mono text-xs">{r.target_type ? `${r.target_type}:${r.target_id ?? ''}` : '—'}</td>

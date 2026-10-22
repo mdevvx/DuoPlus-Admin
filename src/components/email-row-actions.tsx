@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { addContact, batchStatus, cancelBatch, cancelEmail, eraseAddress, removeContact, retryEmail, revealContact, setMarketing } from '@/products/disconotify/email-actions';
+import { addContact, batchStatus, cancelBatch, cancelEmail, eraseAddress, removeContact, retryEmail, revealContact, revealOutboxEmail, setMarketing } from '@/products/disconotify/email-actions';
+import { CopyButton } from './small-client';
 import { ConfirmAction } from './confirm-action';
+import { Card, Stat } from './ui';
 
 type Status = Awaited<ReturnType<typeof batchStatus>>;
 
@@ -32,18 +34,18 @@ export function BatchProgress({ batch, initial }: { batch: string; initial: Stat
     <div className="space-y-4" aria-live="polite">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {TONE.map(([k, l]) => (
-          <div key={k} className="card p-3"><div className="text-xs text-muted">{l}</div><div className="num text-2xl font-semibold">{s.counts[k as keyof typeof s.counts]}</div></div>
+          <Card key={k}><Stat label={l} value={s.counts[k as keyof typeof s.counts]} /></Card>
         ))}
       </div>
-      <p className="text-[13px] text-muted">
+      <p className="text-sm text-muted">
         {s.total} email{s.total === 1 ? '' : 's'} in this send.
         {active ? ' The bot picks queued emails up about once a minute.' : ' Nothing is waiting any more.'}
         {s.nextSend && new Date(s.nextSend).getTime() > Date.now() + 60_000 && <> Scheduled for {new Date(s.nextSend).toLocaleString()}.</>}
       </p>
       {s.reasons.length > 0 && (
         <div>
-          <div className="mb-1 text-[13px] font-medium">Why some were not sent</div>
-          <ul className="space-y-1 text-[13px]">{s.reasons.map(([r, n]) => <li key={r}><b className="num">{n}</b> · {r}</li>)}</ul>
+          <div className="mb-1 text-sm font-medium">Why some were not sent</div>
+          <ul className="space-y-1 text-sm">{s.reasons.map(([r, n]) => <li key={r}><b className="num">{n}</b> · {r}</li>)}</ul>
         </div>
       )}
       {s.counts.queued > 0 && <ConfirmAction label="Cancel queued emails" title="Cancel the queued emails" description="Only emails that have not been picked up yet are cancelled." reasonRequired={false} danger small={false} action={cancelBatch} hidden={{ id: batch }} />}
@@ -51,16 +53,17 @@ export function BatchProgress({ batch, initial }: { batch: string; initial: Stat
   );
 }
 
-export function RevealAddress({ id, masked }: { id: string; masked: string }) {
+/** Masked address with a Reveal link. Showing the full address is written to the audit log; once shown it can be copied. */
+export function RevealAddress({ id, masked, kind = 'contact' }: { id: string; masked: string; kind?: 'contact' | 'outbox' }) {
   const [shown, setShown] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [err, setErr] = useState(false);
-  if (shown) return <span className="font-mono text-[13px]">{shown}</span>;
+  if (shown) return <span className="inline-flex items-center gap-1.5"><span>{shown}</span><CopyButton value={shown} label="Copy address" /></span>;
   return (
     <span className="inline-flex items-center gap-2">
       <span>{masked}</span>
-      <button type="button" className="text-[12px] text-accent hover:underline" disabled={pending} title="Showing a full address is written to the audit log"
-        onClick={() => start(async () => { const r = await revealContact(id); if (r.ok) setShown(r.email); else setErr(true); })}>{err ? 'Failed' : pending ? '…' : 'Reveal'}</button>
+      <button type="button" className="text-xs text-accent hover:underline" disabled={pending} title="Showing a full address is written to the audit log"
+        onClick={() => start(async () => { const r = await (kind === 'outbox' ? revealOutboxEmail(id) : revealContact(id)); if (r.ok) setShown(r.email); else setErr(true); })}>{err ? 'Failed, try again' : pending ? 'Loading…' : 'Reveal'}</button>
     </span>
   );
 }

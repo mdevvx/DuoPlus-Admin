@@ -9,6 +9,7 @@ import { hasErrors, validateTemplate } from '@/products/disconotify/email/valida
 import { htmlToText } from '@/products/disconotify/email/render';
 import { PREHEADER_MAX, SAMPLES, SUBJECT_MAX, VARIABLES } from '@/products/disconotify/email/vars';
 import { EmailButtonPicker } from './email-button';
+import { fieldLabel as label } from './form';
 import { useToast } from './toast';
 
 type Field = 'subject' | 'preheader' | 'html' | 'text';
@@ -17,7 +18,6 @@ interface Props {
   initial: { name: string; description: string; subject: string; preheader: string; html: string; text: string };
 }
 
-const label = 'mb-1.5 block text-[13px] font-medium';
 const draftKey = (k: string, v: number) => `email-draft:${k}:${v}`;
 
 export function EmailEditor({ accent, adminEmail, tplKey, version, category, canEdit, initial }: Props) {
@@ -112,7 +112,7 @@ export function EmailEditor({ accent, adminEmail, tplKey, version, category, can
     <div className="grid gap-5 xl:grid-cols-2">
       <div className="space-y-4">
         {draft && (
-          <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-accent-soft px-4 py-3 text-[13px]">
+          <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-accent-soft px-4 py-3 text-sm">
             <span>You have an unsaved draft of this template from earlier.</span>
             <span className="flex gap-2">
               <button type="button" className="btn h-7 px-2.5 text-xs" onClick={() => { setV(draft); setDraft(null); }}>Restore draft</button>
@@ -131,14 +131,14 @@ export function EmailEditor({ accent, adminEmail, tplKey, version, category, can
         <label className="block">
           <span className={label}>Subject</span>
           <input ref={refs.subject} className="input" value={v.subject} disabled={!canEdit} onFocus={() => (focus.current = 'subject')} onChange={(e) => set('subject', e.target.value)} />
-          <span className={clsx('mt-1 block text-right text-[12px]', subjectLen > SUBJECT_MAX ? 'text-danger' : subjectLen > 60 ? 'text-warning' : 'text-muted')}>
+          <span className={clsx('mt-1 block text-right text-xs', subjectLen > SUBJECT_MAX ? 'text-danger' : subjectLen > 60 ? 'text-warning' : 'text-muted')}>
             {subjectLen}/{SUBJECT_MAX}{subjectLen > 60 && subjectLen <= SUBJECT_MAX ? ' · inboxes cut around 60' : ''}
           </span>
         </label>
         <label className="block">
           <span className={label}>Preheader <span className="font-normal text-muted">· the grey preview line next to the subject</span></span>
           <input ref={refs.preheader} className="input" value={v.preheader} disabled={!canEdit} onFocus={() => (focus.current = 'preheader')} onChange={(e) => set('preheader', e.target.value)} />
-          <span className="mt-1 block text-right text-[12px] text-muted">{v.preheader.length}/{PREHEADER_MAX}</span>
+          <span className="mt-1 block text-right text-xs text-muted">{v.preheader.length}/{PREHEADER_MAX}</span>
         </label>
 
         <div>
@@ -146,30 +146,30 @@ export function EmailEditor({ accent, adminEmail, tplKey, version, category, can
             <div role="tablist" aria-label="Body" className="flex gap-1">
               {(['html', 'text'] as const).map((t) => (
                 <button key={t} role="tab" type="button" aria-selected={tab === t} onClick={() => setTab(t)}
-                  className={clsx('rounded-md px-3 py-1 text-[13px] font-medium', tab === t ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-subtle')}>{t === 'html' ? 'HTML body' : 'Plain text'}</button>
+                  className={clsx('rounded-md px-3 py-1 text-sm font-medium', tab === t ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-subtle')}>{t === 'html' ? 'HTML body' : 'Plain text'}</button>
               ))}
             </div>
             {tab === 'text' && canEdit && <button type="button" className="btn h-7 px-2.5 text-xs" onClick={() => set('text', htmlToText(v.html))}>Generate from HTML</button>}
           </div>
-          <textarea ref={refs.html} hidden={tab !== 'html'} className="input h-80 resize-y py-2 font-mono text-[12.5px] leading-5" spellCheck={false} value={v.html} disabled={!canEdit}
+          <textarea ref={refs.html} hidden={tab !== 'html'} className="input h-80 resize-y py-2 font-mono text-xs leading-5" spellCheck={false} value={v.html} disabled={!canEdit}
             onFocus={() => (focus.current = 'html')} onChange={(e) => set('html', e.target.value)} aria-label="HTML body" />
-          <textarea ref={refs.text} hidden={tab !== 'text'} className="input h-80 resize-y py-2 font-mono text-[12.5px] leading-5" spellCheck={false} value={v.text} disabled={!canEdit}
+          <textarea ref={refs.text} hidden={tab !== 'text'} className="input h-80 resize-y py-2 font-mono text-xs leading-5" spellCheck={false} value={v.text} disabled={!canEdit}
             onFocus={() => (focus.current = 'text')} onChange={(e) => set('text', e.target.value)} aria-label="Plain-text body" />
-          <p className="mt-1 text-[12px] text-muted">Write the body only. The shared layout adds the header, footer and unsubscribe link. <code>{'{{name}}'}</code> is escaped; <code>{'{{{x_url}}}'}</code> is for links only.</p>
+          <p className="mt-1 text-xs text-muted">Write the body only. The shared layout adds the header, footer and unsubscribe link. <code>{'{{name}}'}</code> is escaped; <code>{'{{{x_url}}}'}</code> is for links only.</p>
         </div>
 
         {canEdit && (
           <div className="rounded-lg border border-line p-3">
-            <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-muted">Insert variable</div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Insert variable</div>
             <div className="flex flex-wrap gap-1.5">
               {VARIABLES.map((x) => (
-                <button key={x.name} type="button" title={`${x.meaning} (e.g. ${x.sample})`} className="rounded-md border border-line bg-subtle px-2 py-1 font-mono text-[12px] hover:bg-accent-soft"
+                <button key={x.name} type="button" title={`${x.meaning} (e.g. ${x.sample})`} className="rounded-md border border-line bg-subtle px-2 py-1 font-mono text-xs hover:bg-accent-soft"
                   onClick={() => insert(x.url && focus.current === 'html' ? `{{{${x.name}}}}` : `{{${x.name}}}`)}>{x.name}</button>
               ))}
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <EmailButtonPicker accent={accent} onInsert={addButton} />
-              <span className="text-[12px] text-muted">Adds a clickable button that opens one of your links or any https:// address.</span>
+              <span className="text-xs text-muted">Adds a clickable button that opens one of your links or any https:// address.</span>
             </div>
           </div>
         )}
@@ -177,7 +177,7 @@ export function EmailEditor({ accent, adminEmail, tplKey, version, category, can
         {issues.length > 0 && (
           <ul aria-label="Problems" className="space-y-1.5">
             {issues.map((i, n) => (
-              <li key={n} className={clsx('flex items-start gap-2 rounded-lg px-3 py-2 text-[13px]', i.level === 'error' ? 'bg-danger-soft text-danger' : 'bg-warning-soft text-warning')}>
+              <li key={n} className={clsx('flex items-start gap-2 rounded-lg px-3 py-2 text-sm', i.level === 'error' ? 'bg-danger-soft text-danger' : 'bg-warning-soft text-warning')}>
                 {i.level === 'error' ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> : <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />}
                 <span><b className="capitalize">{i.field}</b>{i.line ? ` line ${i.line}` : ''}: {i.message}</span>
               </li>
@@ -185,11 +185,11 @@ export function EmailEditor({ accent, adminEmail, tplKey, version, category, can
           </ul>
         )}
 
-        {error && <p role="alert" className="rounded-lg bg-danger-soft px-3.5 py-2.5 text-[13px] text-danger">{error}</p>}
+        {error && <p role="alert" className="rounded-lg bg-danger-soft px-3.5 py-2.5 text-sm text-danger">{error}</p>}
         {canEdit ? (
           <div className="flex items-center gap-3">
             <button type="button" className="btn btn-primary" disabled={pending || !dirty || hasErrors(issues)} onClick={save}>{pending ? 'Saving…' : 'Save template'}</button>
-            {dirty && <span className="text-[13px] text-muted">Unsaved changes</span>}
+            {dirty && <span className="text-sm text-muted">Unsaved changes</span>}
             {dirty && <button type="button" className="btn" onClick={() => setV(initial)}>Discard changes</button>}
           </div>
         ) : <p className="text-muted">Only admins can edit templates.</p>}
@@ -199,10 +199,10 @@ export function EmailEditor({ accent, adminEmail, tplKey, version, category, can
             <span className="flex flex-wrap items-center gap-2">
               <input className="input max-w-xs" type="email" value={testTo} placeholder={adminEmail} onChange={(e) => setTestTo(e.target.value)} aria-label="Test recipient" />
               <button type="button" className="btn" disabled={testing || hasErrors(issues) || !testTo.trim()} onClick={test}>{testing ? 'Queuing…' : 'Send test'}</button>
-              {testTo.trim().toLowerCase() !== adminEmail.toLowerCase() && <button type="button" className="text-[13px] text-accent hover:underline" onClick={() => setTestTo(adminEmail)}>Use my address</button>}
+              {testTo.trim().toLowerCase() !== adminEmail.toLowerCase() && <button type="button" className="text-sm text-accent hover:underline" onClick={() => setTestTo(adminEmail)}>Use my address</button>}
             </span>
           </label>
-          <p className="mt-2 text-[12px] text-muted">Sends the content above, even unsaved, with the chosen sample data and a [TEST] subject. Limit: 5 per 10 minutes.</p>
+          <p className="mt-2 text-xs text-muted">Sends the content above, even unsaved, with the chosen sample data and a [TEST] subject. Limit: 5 per 10 minutes.</p>
         </div>
       </div>
 
@@ -219,19 +219,19 @@ export function EmailEditor({ accent, adminEmail, tplKey, version, category, can
         </div>
 
         <div className="card p-3">
-          <div className="text-[12px] text-muted">As seen in an inbox</div>
+          <div className="text-xs text-muted">As seen in an inbox</div>
           <div className="mt-1 truncate text-sm font-semibold">{preview?.ok ? preview.subject || '(no subject)' : '…'}</div>
-          <div className="truncate text-[13px] text-muted">{preview?.ok ? preview.preheader || '(no preheader)' : ''}</div>
+          <div className="truncate text-sm text-muted">{preview?.ok ? preview.preheader || '(no preheader)' : ''}</div>
         </div>
 
         {preview && !preview.ok && <p role="alert" className="text-danger">{preview.error}</p>}
-        {preview?.ok && preview.adjusted && <p className="rounded-lg bg-warning-soft px-3 py-2 text-[13px] text-warning" role="status">The sanitizer would change some of your HTML on save (for example scripts, event handlers or unsafe links). The preview shows the cleaned version.</p>}
+        {preview?.ok && preview.adjusted && <p className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning" role="status">The sanitizer would change some of your HTML on save (for example scripts, event handlers or unsafe links). The preview shows the cleaned version.</p>}
         {tab === 'html' ? (
           <iframe title="Email preview" sandbox="" srcDoc={preview?.ok ? preview.document : ''} className="mx-auto block h-[640px] w-full rounded-xl border border-line bg-white transition-[max-width]" style={{ maxWidth: device === 'mobile' ? 375 : '100%' }} />
         ) : (
-          <pre className="card h-[640px] overflow-auto whitespace-pre-wrap p-4 font-mono text-[12.5px]" aria-label="Plain-text preview">{preview?.ok ? preview.text : ''}</pre>
+          <pre className="card h-[640px] overflow-auto whitespace-pre-wrap p-4 font-mono text-xs" aria-label="Plain-text preview">{preview?.ok ? preview.text : ''}</pre>
         )}
-        <p className="text-[12px] text-muted">The preview renders on the server with the same escaping, layout and sanitizer as a real send, inside a sandboxed frame. Sample data only; “use a real server” comes later.</p>
+        <p className="text-xs text-muted">The preview renders on the server with the same escaping, layout and sanitizer as a real send, inside a sandboxed frame. Sample data only; “use a real server” comes later.</p>
       </div>
     </div>
   );

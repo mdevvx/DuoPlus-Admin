@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { MousePointerClick } from 'lucide-react';
 import { buttonHtml, type ButtonStyle } from '@/products/disconotify/email/button';
 import { contrastOnWhite } from '@/products/disconotify/email/render';
+import { fieldLabel as label } from './form';
 import { ModalHeader } from './modal-header';
 
 const LINKS: [string, string][] = [
@@ -12,7 +13,6 @@ const LINKS: [string, string][] = [
   ['activate_url', 'Trial activation page'],
   ['manage_url', 'Manage or cancel page'],
 ];
-const label = 'mb-1.5 block text-[13px] font-medium';
 
 /**
  * "Add button" dialog for email bodies: text, where it links, look and alignment, with a live preview.
@@ -61,7 +61,7 @@ export function EmailButtonPicker({ accent, onInsert }: { accent: string; onInse
           {isCustom && (
             <label className="block"><span className={label}>Address <span className="font-normal text-muted">· must start with https:// or mailto:</span></span>
               <input className={clsx('input', custom && !hrefOk && 'border-danger')} value={custom} placeholder="https://example.com/page" onChange={(e) => setCustom(e.target.value)} aria-invalid={!!custom && !hrefOk} />
-              {custom && !hrefOk && <span role="alert" className="mt-1 block text-[12.5px] text-danger">Use a full https:// or mailto: address with no spaces.</span>}</label>
+              {custom && !hrefOk && <span role="alert" className="mt-1 block text-xs text-danger">Use a full https:// or mailto: address with no spaces.</span>}</label>
           )}
 
           <div className="grid gap-4 sm:grid-cols-3">
@@ -79,7 +79,7 @@ export function EmailButtonPicker({ accent, onInsert }: { accent: string; onInse
           <div>
             <span className={label}>Preview</span>
             <div className={clsx('rounded-lg border border-line bg-white px-4 py-6', align === 'center' ? 'text-center' : 'text-left')}>
-              <span className="inline-block rounded-lg px-[26px] py-3 text-[15px] font-semibold"
+              <span className="inline-block rounded-lg px-[26px] py-3 text-base font-semibold"
                 style={style === 'filled' ? { background: colorOk ? color : accent, color: on, border: `2px solid ${colorOk ? color : accent}` } : { color: colorOk ? color : accent, border: `2px solid ${colorOk ? color : accent}` }}>
                 {text.trim() || 'Button'}
               </span>
