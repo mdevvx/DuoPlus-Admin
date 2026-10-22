@@ -7,7 +7,9 @@ import { BrandingCard } from '@/components/branding-card';
 import { dateTime, int, platformLabel, relative, sentence, statusTone } from '@/lib/format';
 import { PAGE_SIZE } from '@/lib/validation';
 import { getBotSettings, getMergedAudit, getPlatformHealth, getTikTokBlockRate, getAbandonedCheckouts, getFailedDms, getReminders, getSubscriptionHealth } from '../queries/ops';
-import { resetReminders, setMaintenance } from '../actions';
+import Link from 'next/link';
+import { setMaintenance } from '../actions';
+import { emailCountsByType, emailStatsByGuild, getSchedule, outboxHealth } from '../queries/email';
 import type { RouteCtx } from '@/products/types';
 import { ServerLink, base } from './shared';
 import { guildInfoMap } from '@/lib/discord';
@@ -52,20 +54,23 @@ export async function RemindersPage({ role, admin }: RouteCtx) {
   let failed: Awaited<ReturnType<typeof getFailedDms>> = { rows: [], available: false };
   try { [d, abandoned, failed] = await Promise.all([getReminders(), getAbandonedCheckouts(), getFailedDms()]); } catch { return <ErrorPanel message="Could not load reminders." retryHref={`${base}/reminders`} />; }
   const infos = await guildInfoMap([...d.upcoming, ...d.recent, ...abandoned, ...failed.rows].map((r) => String(r.guild_id)));
+  const [stats, byType] = await Promise.all([
+    emailStatsByGuild([...new Set([...d.upcoming, ...d.recent].map((r) => String(r.guild_id)))]).catch(() => new Map<string, { sent: number; last: string | null }>()),
+    emailCountsByType().catch(() => null),
+  ]);
   if (abandoned.some((a) => a.email)) await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'view.abandoned_checkouts', target_type: 'reminders', target_id: 'abandoned_checkouts' });
-  const act = (gid: string, label: string) => can(role, 'reminder.send') && <ConfirmAction label="Reset reminders" title={`Reset reminders for ${label}`} action={resetReminders} hidden={{ guildId: gid }}
-    description="Resets the reminder counters. The bot sends the next reminder on its own schedule. Limited to once per hour per server." />;
+  const act = (gid: string) => can(role, 'email.send') && <Link className="btn h-7 px-2.5 text-xs" href={`${base}/email/send?guild=${gid}`}>Send email</Link>;
   const table = (rows: typeof d.upcoming, title: string) => rows.length === 0 ? <EmptyState title={`No ${title.toLowerCase()}`} /> : (
     <Table label={title}>
-      <thead><tr><th className="th">Server</th><th className="th">Expires</th><th className="th">DMs sent</th><th className="th">Last DM</th><th className="th" /></tr></thead>
+      <thead><tr><th className="th">Server</th><th className="th">Expires</th><th className="th">Emails sent</th><th className="th">Last email</th><th className="th" /></tr></thead>
       <tbody>{rows.map((r) => {
         const gid = String(r.guild_id);
         return (
           <Tr key={gid}>
             <td className="td"><ServerLink id={gid} info={infos[gid]} /></td>
-            <td className="td num">{dateTime(str(r.paid_until ?? r.trial_ends_at))}</td><td className="td num">{str(r.reminders_sent) ?? '0'}</td>
-            <td className="td num">{dateTime(str(r.last_reminder_at))}</td>
-            <td className="td text-right">{act(gid, infos[gid]?.name ?? gid)}</td>
+            <td className="td num">{dateTime(str(r.paid_until ?? r.trial_ends_at))}</td><td className="td num">{stats.get(gid)?.sent ?? 0}</td>
+            <td className="td num">{stats.get(gid)?.last ? dateTime(stats.get(gid)!.last) : '—'}</td>
+            <td className="td text-right">{act(gid)}</td>
           </Tr>
         );
       })}</tbody>
@@ -73,9 +78,23 @@ export async function RemindersPage({ role, admin }: RouteCtx) {
   );
   return (
     <>
-      <PageHeader title="Reminders &amp; email" description="Upcoming expiries and recent Discord DM reminders." updatedAt={new Date()} />
+      <PageHeader title="Reminders &amp; email" description="Upcoming expiries and the emails sent about them." updatedAt={new Date()} />
       <div className="grid gap-4">
         <Card title="Upcoming (next 7 days)">{table(d.upcoming, 'Upcoming reminders')}</Card>
+        <Card title="Emails by type" action={<span className="text-xs text-muted">Last 30 days</span>}>
+          {byType === null ? <EmptyState compact title="Email log not available yet" hint="Apply the bot's email migration" /> : byType.length === 0 ? <EmptyState compact title="No emails in the last 30 days" /> : (
+            <Table label="Emails by type" bare>
+              <thead><tr><th className="th">Template</th><th className="th text-right">Sent</th><th className="th text-right">Failed</th><th className="th text-right">Skipped</th><th className="th text-right">Waiting</th></tr></thead>
+              <tbody>{byType.map((t) => (
+                <Tr key={t.key}>
+                  <td className="td"><Link className="text-accent hover:underline" href={t.key === 'custom' ? `${base}/email/outbox?template=custom` : `${base}/email/templates/${t.key}`}>{t.key === 'custom' ? 'Custom emails' : sentence(t.key)}</Link></td>
+                  <td className="td num text-right">{int(t.sent)}</td><td className="td num text-right">{t.failed ? <span className="text-danger">{int(t.failed)}</span> : '0'}</td>
+                  <td className="td num text-right">{int(t.skipped)}</td><td className="td num text-right">{int(t.queued)}</td>
+                </Tr>
+              ))}</tbody>
+            </Table>
+          )}
+        </Card>
         <Card title={`Unfinished checkouts (${abandoned.length})`} action={<span className="text-xs text-muted">Last 30 days · emails shown in full, this view is audit-logged</span>}>
           {abandoned.length === 0 ? <EmptyState compact title="No unfinished checkouts" hint="People who start a purchase and don't pay appear here" /> : (
             <Table label="Unfinished checkouts" bare>
@@ -96,9 +115,9 @@ export async function RemindersPage({ role, admin }: RouteCtx) {
             </Table>
           )}
         </Card>
-        <Card title={`Failed DMs (${failed.rows.length})`} action={<span className="text-xs text-muted">Last 30 days</span>}>
+        <Card title={`Failed activation DMs (${failed.rows.length})`} action={<span className="text-xs text-muted">Last 30 days</span>}>
           {!failed.available ? <EmptyState compact title="DM log not available yet" hint="Apply the bot's dm_log migration to track delivery" />
-            : failed.rows.length === 0 ? <EmptyState compact title="No failed DMs" hint="Every DM in the last 30 days was delivered" />
+            : failed.rows.length === 0 ? <EmptyState compact title="No failed activation DMs" hint="Every activation DM in the last 30 days was delivered" />
             : (
               <Table label="Failed DMs" bare>
                 <thead><tr><th className="th">Server</th><th className="th">Discord user ID</th><th className="th">Message</th><th className="th">Status</th><th className="th">Detail</th><th className="th">When</th></tr></thead>
@@ -118,7 +137,7 @@ export async function RemindersPage({ role, admin }: RouteCtx) {
               </Table>
             )}
         </Card>
-        <Card title="Recently reminded">{table(d.recent, 'Recent reminders')}</Card>
+        <Card title="Recently emailed">{table(d.recent, 'Recent reminders')}</Card>
       </div>
     </>
   );
@@ -303,10 +322,23 @@ export async function AuditPage({ searchParams }: RouteCtx) {
 
 export async function SettingsPage({ role, manifest }: { role: RouteCtx['role']; manifest: { name: string; icon: string; logo?: string } }) {
   const rows = await getBotSettings();
+  const [schedule, health] = await Promise.all([getSchedule().catch(() => null), outboxHealth().catch(() => null)]);
   return (
     <>
       <PageHeader title="Settings" description="Product branding, plus how the bot currently runs (read only, change on the bot's host)." updatedAt={new Date()} />
       <div className="mb-4"><BrandingCard slug={SLUG} role={role} manifest={manifest} /></div>
+      {schedule && (
+        <div className="mb-4">
+          <Card title="Email" action={<Link className="text-[13px] text-accent hover:underline" href={`${base}/email/settings`}>Email settings</Link>}>
+            <KV items={[
+              ['Renewal reminder (days before)', schedule.effective.renewal_days_before === 0 ? 'Never' : String(schedule.effective.renewal_days_before)],
+              ['Trial-ended reminders', `Every ${schedule.effective.trial_reminder_every_days} days, up to ${schedule.effective.trial_reminder_max}`],
+              ['Last successful send', health?.lastSuccess ? relative(health.lastSuccess) : 'Never'],
+              ['Failed in the last 24 hours', health ? `${int(health.failed24)} of ${int(health.total24)}` : '—'],
+            ]} />
+          </Card>
+        </div>
+      )}
       <Card>
         {rows.length === 0 ? <EmptyState title="Configured on the bot's host" hint="Price, trial days, grace days and the reminder schedule are environment variables of the bot, not stored in the database." /> : (
           <KV items={rows.map((r) => [String(r.key).replace(/_/g, ' '), typeof r.value === 'object' ? JSON.stringify(r.value) : String(r.value)])} />

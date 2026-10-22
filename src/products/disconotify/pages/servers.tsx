@@ -4,12 +4,15 @@ import { Badge, Card, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Paginat
 import { ConfirmAction } from '@/components/confirm-action';
 import { CopyId } from '@/components/small-client';
 import { can } from '@/lib/roles';
-import { dateTime, dateOnly, money, relative, sentence } from '@/lib/format';
+import { dateTime, dateOnly, maskEmail, money, relative, sentence } from '@/lib/format';
 import { writeAudit } from '@/lib/audit';
 import { PAGE_SIZE, snowflake } from '@/lib/validation';
 import { getServer, listServers, serverParams } from '../queries/servers';
+import { emailBadges } from '../queries/email';
+import { AddContact } from '@/components/email-row-actions';
 import { adjustPaidDays, extendTrial, markBotRemoved, removeWhitelist, resetReminders, whitelistServer } from '../actions';
 import type { RouteCtx } from '@/products/types';
+import { OutboxStatus } from './email';
 import { ChannelsMini, DmStatus, GenericRows, dmKindLabel, PaymentsMini, ServerLink, StateBadge, base } from './shared';
 import { ServerAvatar } from '@/components/server-avatar';
 import { DiscordNotice } from '@/components/discord-notice';
@@ -21,7 +24,7 @@ export async function ServersPage({ searchParams }: RouteCtx) {
   const p = serverParams.parse(searchParams);
   let data;
   try { data = await listServers(p); } catch { return <ErrorPanel message="Could not load servers." retryHref={`${base}/servers`} />; }
-  const infos = await guildInfoMap(data.rows.map((r) => r.guild_id));
+  const [infos, mail] = await Promise.all([guildInfoMap(data.rows.map((r) => r.guild_id)), emailBadges(data.rows.map((r) => r.guild_id)).catch(() => null)]);
   const keep = { q: p.q, state: p.state, sort: p.sort, dir: p.dir };
   const path = `${base}/servers`;
   return (
@@ -30,7 +33,7 @@ export async function ServersPage({ searchParams }: RouteCtx) {
       <DiscordNotice />
       <FilterBar action={path}>
         <input className="input w-64" name="q" placeholder="Server ID" defaultValue={p.q} />
-        <TagSelect name="state" label="State" value={p.state} options={[['', 'All'], ['trial', 'Trial'], ['active', 'Active'], ['lapsed', 'Lapsed'], ['whitelisted', 'Whitelisted'], ['card_past_due', 'Card past due'], ['bot_removed', 'Bot removed'], ['new', 'New (no billing yet)']]} />
+        <TagSelect name="state" label="State" value={p.state} options={[['', 'All'], ['trial', 'Trial'], ['active', 'Active'], ['lapsed', 'Lapsed'], ['whitelisted', 'Whitelisted'], ['card_past_due', 'Card past due'], ['bot_removed', 'Bot removed'], ['new', 'New (no billing yet)'], ['not_activated', 'Not activated']]} />
       </FilterBar>
       {data.rows.length === 0 ? <div className="card"><EmptyState title="No servers match" hint="Change the search or filters." /></div> : (
         <Table label="Servers">
@@ -40,6 +43,7 @@ export async function ServersPage({ searchParams }: RouteCtx) {
             <th className="th">State</th>
             <SortHeader label="Trial ends" field="trial_ends_at" base={path} params={keep} sort={p.sort} dir={p.dir} />
             <SortHeader label="Paid until" field="paid_until" base={path} params={keep} sort={p.sort} dir={p.dir} />
+            <th className="th">Email</th>
           </tr></thead>
           <tbody>{data.rows.map((r) => (
             <Tr key={r.guild_id}>
@@ -48,6 +52,11 @@ export async function ServersPage({ searchParams }: RouteCtx) {
               <td className="td"><StateBadge billing={r.billing} botPresent={r.bot_present} /></td>
               <td className="td"><When value={str(r.billing.trial_ends_at)} /></td>
               <td className="td"><When value={str(r.billing.paid_until)} /></td>
+              <td className="td">{!mail ? '—' : (
+                <span className="inline-flex flex-wrap items-center gap-1">
+                  {mail.hasEmail.has(r.guild_id) ? <Badge tone="success">Has email</Badge> : <span className="text-muted">None</span>}
+                  {(mail.failed.get(r.guild_id) ?? 0) > 0 && <Badge tone="danger">{mail.failed.get(r.guild_id)} failed</Badge>}
+                </span>)}</td>
             </Tr>
           ))}</tbody>
         </Table>
@@ -69,15 +78,22 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
   await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'view.server', target_type: 'server', target_id: id.data });
   const botPresent = (d.guild.bot_present as boolean | null) ?? null;
   const hidden = { guildId: id.data };
-  const subState = subscriptionState({ no_billing: !b, trial_ends_at: str(b?.trial_ends_at), paid_until: str(b?.paid_until), whitelisted: b?.whitelisted as boolean, card_subscription_id: str(b?.card_subscription_id), card_status: str(b?.card_status) }, botPresent);
+  const subState = subscriptionState({ no_billing: !b, activation_required: b?.activation_required as boolean | null | undefined, trial_ends_at: str(b?.trial_ends_at), paid_until: str(b?.paid_until), whitelisted: b?.whitelisted as boolean, card_subscription_id: str(b?.card_subscription_id), card_status: str(b?.card_status) }, botPresent);
   const isPaid = !!b?.paid_until && new Date(String(b.paid_until)).getTime() > Date.now();
   const expiry = str(isPaid ? b?.paid_until : b?.trial_ends_at);
   const paidRows = d.payments.filter((p) => p.status === 'paid');
   const paidCount = paidRows.length;
   const lifetime = paidRows.reduce((a, p) => a + num(p.amount_usd), 0);
+  const act2 = { ...d.guild, ...(b ?? {}) } as Record<string, unknown>;
+  const notStarted = !b?.trial_ends_at;
+  const lastEmail = d.emailTimeline?.[0];
   const acts = (
     <div className="flex flex-wrap gap-2">
-      {can(role, 'server.trial') && <ConfirmAction label="Extend trial" title="Extend trial" action={extendTrial} hidden={hidden} fields={[{ name: 'days', label: 'Days to add (1-90)', type: 'number', min: 1, max: 90 }]} />}
+      {can(role, 'server.trial') && (notStarted
+        ? <span className="inline-flex h-9 items-center text-muted" title="Alerts are paused until the admin activates the trial on the website">Not activated yet</span>
+        : <ConfirmAction label="Extend trial" title="Extend trial" action={extendTrial} hidden={hidden} fields={[{ name: 'days', label: 'Days to add (1-90)', type: 'number', min: 1, max: 90 }]} />)}
+      {can(role, 'email.send') && <Link className="btn" href={`${base}/email/send?guild=${id.data}`}>Send email to this server</Link>}
+      {can(role, 'email.send') && lastEmail && <Link className="btn" href={`${base}/email/send?again=${encodeURIComponent(String(lastEmail.id))}`}>Resend last email</Link>}
       {can(role, 'server.adjust_paid') && <ConfirmAction label="Add / remove paid days" title="Adjust paid days" danger action={adjustPaidDays} hidden={hidden} typeToConfirm={name}
         description="Use a negative number to subtract days." fields={[{ name: 'days', label: 'Days (-365 to 365)', type: 'number', min: -365, max: 365 }]} />}
       {can(role, 'server.whitelist') && (b?.whitelisted
@@ -117,6 +133,46 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
         </Card>
       </div>
       <div className="grid gap-4">
+        <Card title="Activation">
+          <KV items={[
+            ['Activation required', act2.activation_required === true ? <Badge key="a" tone="warning">Yes</Badge> : act2.activation_required === false ? 'No' : '—'],
+            ['Trial activated', act2.trial_activated_at ? dateTime(str(act2.trial_activated_at)) : 'Not yet'],
+            ['Activated by', act2.activated_by ? <CopyId key="ab" value={String(act2.activated_by)} /> : '—'],
+            ['Invited by', act2.invited_by ? <CopyId key="ib" value={String(act2.invited_by)} /> : '—'],
+          ]} />
+          {notStarted && act2.activation_required === true && <p className="mt-3 rounded-lg bg-warning-soft px-3.5 py-2.5 text-[13px] text-warning">The trial has not started. Alerts are paused until the admin activates it on the website.</p>}
+        </Card>
+        <Card title={`Email contacts${d.emailContacts ? ` (${d.emailContacts.length})` : ''}`} action={can(role, 'email.contact') ? <AddContact guildId={id.data} /> : undefined}>
+          {d.emailContacts === null ? <EmptyState compact title="Email contacts not available yet" hint="Apply the bot's email migration" /> : d.emailContacts.length === 0 ? <EmptyState compact title="No email contacts" hint="Addresses appear here when someone activates a trial or checks out" /> : (
+            <Table label="Email contacts" bare>
+              <thead><tr><th className="th">Address</th><th className="th">Source</th><th className="th">Marketing</th><th className="th">Added</th></tr></thead>
+              <tbody>{d.emailContacts.map((c, i) => (
+                <Tr key={i}>
+                  <td className="td">{maskEmail(str(c.email) ?? str(c.address))}</td>
+                  <td className="td">{sentence(str(c.source))}</td>
+                  <td className="td">{c.marketing_unsubscribed_at ? <Badge tone="warning">Unsubscribed</Badge> : <Badge tone="success">Subscribed</Badge>}</td>
+                  <td className="td"><When value={str(c.created_at)} /></td>
+                </Tr>
+              ))}</tbody>
+            </Table>
+          )}
+        </Card>
+        <Card title="Email timeline" action={<Link className="text-[13px] text-accent hover:underline" href={`${base}/email/outbox?guild=${id.data}`}>Open in outbox</Link>}>
+          {d.emailTimeline === null ? <EmptyState compact title="Email log not available yet" hint="Apply the bot's email migration" /> : d.emailTimeline.length === 0 ? <EmptyState compact title="No emails for this server yet" /> : (
+            <Table label="Email timeline" bare>
+              <thead><tr><th className="th">When</th><th className="th">Template</th><th className="th">Kind</th><th className="th">Status</th><th className="th">Subject</th></tr></thead>
+              <tbody>{d.emailTimeline.map((e, i) => (
+                <Tr key={i}>
+                  <td className="td num whitespace-nowrap">{dateTime(str(e.created_at))}</td>
+                  <td className="td">{str(e.template_key) ? sentence(str(e.template_key)) : 'Custom'}</td>
+                  <td className="td">{e.kind === 'manual' ? 'Manual' : 'Automatic'}</td>
+                  <td className="td"><OutboxStatus status={e.status} /></td>
+                  <td className="td">{str(e.subject_override) ?? '—'}</td>
+                </Tr>
+              ))}</tbody>
+            </Table>
+          )}
+        </Card>
         <Card title={`Member emails (${d.memberEmails.length})`}>
           <p className="mb-4 text-muted">Emails are shown in full, so this page view is audit-logged. Reminder counters: {num(b?.reminders_sent)} sent{b?.last_reminder_at ? `, last ${dateTime(str(b.last_reminder_at))}` : ''}.</p>
           {d.memberEmails.length === 0 ? <EmptyState compact title="No member emails" hint="Emails members share with the bot in this server appear here" /> : (
@@ -138,9 +194,9 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
             </Table>
           )}
         </Card>
-        <Card title="Message history">
+        <Card title="Activation DMs">
           {d.dmLog === null ? <EmptyState compact title="DM log not available yet" hint="Apply the bot's dm_log migration to see every DM here" />
-            : d.dmLog.length === 0 ? <EmptyState compact title="No DMs sent for this server yet" />
+            : d.dmLog.length === 0 ? <EmptyState compact title="No activation DMs sent for this server yet" />
             : (
               <Table label="Message history" bare>
                 <thead><tr><th className="th">When</th><th className="th">Member</th><th className="th">Message</th><th className="th">Status</th><th className="th">Detail</th></tr></thead>

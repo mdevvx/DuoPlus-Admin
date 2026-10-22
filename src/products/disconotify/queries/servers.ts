@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { PAGE_SIZE, csvEnum, snowflake, splitCsv } from '@/lib/validation';
 import { pn, T, daysFrom, iso, must, pick, type Row } from '../db';
 
-export const SERVER_STATES = ['trial', 'active', 'lapsed', 'whitelisted', 'card_past_due', 'bot_removed', 'new'] as const;
+export const SERVER_STATES = ['trial', 'active', 'lapsed', 'whitelisted', 'card_past_due', 'bot_removed', 'new', 'not_activated'] as const;
 export const SORTS = ['guild_id', 'paid_until', 'trial_ends_at'] as const;
 
 export const serverParams = z.object({
@@ -64,7 +64,8 @@ export async function listServers(p: ServerParams): Promise<{ rows: ServerRow[];
   const clause: Record<string, string> = {
     trial: `and(whitelisted.eq.false,${unpaid},trial_ends_at.gt.${now})`,
     active: `and(whitelisted.eq.false,paid_until.gt.${now})`,
-    lapsed: `and(whitelisted.eq.false,${unpaid},or(trial_ends_at.is.null,trial_ends_at.lte.${now}))`,
+    lapsed: `and(whitelisted.eq.false,${unpaid},or(trial_ends_at.lte.${now},and(trial_ends_at.is.null,activation_required.eq.false)))`,
+    not_activated: `and(activation_required.eq.true,trial_ends_at.is.null)`,
     whitelisted: 'whitelisted.eq.true',
     card_past_due: 'card_status.eq.past_due',
   };
@@ -103,7 +104,7 @@ export async function listServers(p: ServerParams): Promise<{ rows: ServerRow[];
 
 export async function getServer(id: string) {
   const db = pn();
-  const [guild, billing, payments, accounts, channels, events, audit, memberEmails, dmLog] = await Promise.all([
+  const [guild, billing, payments, accounts, channels, events, audit, memberEmails, dmLog, emailContacts, emailTimeline] = await Promise.all([
     db.from(T.guilds).select('*').eq('guild_id', id).maybeSingle(),
     db.from(T.billing).select('*').eq('guild_id', id).maybeSingle(),
     db.from(T.payments).select('*').eq('guild_id', id).order('created_at', { ascending: false }).limit(50),
@@ -113,6 +114,8 @@ export async function getServer(id: string) {
     db.from(T.botAudit).select('*').eq('guild_id', id).order('created_at', { ascending: false }).limit(20),
     db.from(T.contactEmails).select('email,discord_user_id,created_at,updated_at').eq('guild_id', id).order('created_at', { ascending: false }).limit(500),
     db.from(T.dmLog).select('id,discord_user_id,kind,status,error,created_at').eq('guild_id', id).order('created_at', { ascending: false }).limit(100),
+    db.from(T.emailContacts).select('*').eq('guild_id', id).order('created_at', { ascending: false }).limit(100),
+    db.from(T.emailOutbox).select('*').eq('guild_id', id).order('created_at', { ascending: false }).limit(20),
   ]);
   if (!guild.data && !billing.data) return null;
   const g = (guild.data ?? {}) as Row;
@@ -126,6 +129,9 @@ export async function getServer(id: string) {
     events: (events.data ?? []) as Row[], audit: (audit.data ?? []) as Row[], memberEmails: (memberEmails.data ?? []) as Row[],
     // null = the bot's dm_log table is not available yet (migration not applied)
     dmLog: dmLog.error ? null : ((dmLog.data ?? []) as Row[]),
+    // null = the email tables are not available yet
+    emailContacts: emailContacts.error ? null : ((emailContacts.data ?? []) as Row[]),
+    emailTimeline: emailTimeline.error ? null : ((emailTimeline.data ?? []) as Row[]),
   };
 }
 

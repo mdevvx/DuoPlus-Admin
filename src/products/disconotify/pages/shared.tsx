@@ -15,7 +15,7 @@ export function StateBadge({ billing, botPresent }: { billing: Row; botPresent: 
   const s = subscriptionState({
     no_billing: billing.no_billing === true,
     trial_ends_at: str(billing.trial_ends_at), paid_until: str(billing.paid_until), whitelisted: billing.whitelisted as boolean,
-    card_subscription_id: str(billing.card_subscription_id), card_status: str(billing.card_status),
+    card_subscription_id: str(billing.card_subscription_id), card_status: str(billing.card_status), activation_required: billing.activation_required as boolean | null,
   }, botPresent);
   return <Badge tone={STATE_LABEL[s].tone}>{STATE_LABEL[s].label}</Badge>;
 }
@@ -49,6 +49,7 @@ export async function PaymentsMini({ rows }: { rows: Row[] }) {
 const DM_KIND: Record<string, string> = {
   checkout_abandoned: 'Unfinished checkout', payment_success: 'Payment received', payment_failed: 'Payment failed',
   card_cancelling: 'Card cancelling', card_ended: 'Card subscription ended', expiry_reminder: 'Upgrade reminder',
+  activation: 'Trial activation', activation_reminder: 'Activation reminder',
 };
 export const dmKindLabel = (k: unknown) => DM_KIND[String(k)] ?? sentence(String(k ?? ''));
 

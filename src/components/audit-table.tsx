@@ -3,7 +3,16 @@ import { DetailModal } from './small-client';
 import type { AuditRow } from '@/lib/audit-query';
 import { dateTime, sentence } from '@/lib/format';
 
-const tone = (a: string) => (a.startsWith('auth.failure') || a.includes('delete') ? 'danger' : a.startsWith('auth') ? 'info' : a.includes('whitelist') || a.includes('adjust') || a.includes('maintenance') ? 'warning' : 'neutral') as 'danger' | 'info' | 'warning' | 'neutral';
+const LABEL: Record<string, string> = {
+  'email.template.save': 'Email template saved', 'email.template.toggle': 'Email template switched on or off', 'email.template.restore': 'Email template restored',
+  'email.layout.save': 'Email layout saved', 'email.schedule.save': 'Email schedule saved', 'email.send': 'Manual email sent',
+  'email.outbox.retry': 'Email retried', 'email.outbox.cancel': 'Email cancelled', 'email.contact.add': 'Email contact added',
+  'email.contact.remove': 'Email contact removed', 'email.contact.resubscribe': 'Contact re-subscribed', 'email.contact.unsubscribe': 'Contact unsubscribed',
+  'email.contact.erase': 'Email address erased', 'email.contact.reveal': 'Email address revealed', 'export.csv': 'CSV export',
+};
+const label = (a: string) => LABEL[a] ?? sentence(a.replace('.', ': '));
+
+const tone = (a: string) => (a.startsWith('auth.failure') || a.includes('delete') ? 'danger' : a.startsWith('auth') ? 'info' : a.includes('whitelist') || a.includes('adjust') || a.includes('maintenance') || a === 'email.send' || a.endsWith('.erase') || a.endsWith('.reveal') ? 'warning' : 'neutral') as 'danger' | 'info' | 'warning' | 'neutral';
 
 export function AuditTable({ rows, showProduct = true }: { rows: (AuditRow & { source?: string })[]; showProduct?: boolean }) {
   if (rows.length === 0) return <div className="card"><EmptyState title="No audit entries" hint="Try widening the filters." /></div>;
@@ -16,12 +25,12 @@ export function AuditTable({ rows, showProduct = true }: { rows: (AuditRow & { s
             <td className="td num whitespace-nowrap">{dateTime(r.at)}</td>
             <td className="td">{r.admin_email ?? (r.source === 'bot' ? <span className="text-muted">bot</span> : '—')}</td>
             {showProduct && <td className="td">{r.product_slug ?? '—'}</td>}
-            <td className="td"><Badge tone={tone(r.action)}>{sentence(r.action.replace('.', ': '))}</Badge></td>
+            <td className="td"><Badge tone={tone(r.action)}>{label(r.action)}</Badge></td>
             <td className="td font-mono text-xs">{r.target_type ? `${r.target_type}:${r.target_id ?? ''}` : '—'}</td>
             <td className="td text-right">
               <DetailModal trigger="Details" title="Audit entry">
                 <div className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-subtle px-4 py-3">
-                  <Badge tone={tone(r.action)}>{sentence(r.action.replace('.', ': '))}</Badge>
+                  <Badge tone={tone(r.action)}>{label(r.action)}</Badge>
                   <span className="num text-xs text-muted">{dateTime(r.at)}</span>
                 </div>
                 <dl className="divide-y divide-line text-sm">

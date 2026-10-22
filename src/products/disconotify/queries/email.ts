@@ -244,3 +244,47 @@ export async function exportEmailContacts(sp: Record<string, string | undefined>
     };
   });
 }
+
+// ---- helpers for the existing pages ----
+
+/** Which of these servers have an email contact, and which had a failed email in the last 7 days. */
+export async function emailBadges(guildIds: string[]): Promise<{ hasEmail: Set<string>; failed: Map<string, number> }> {
+  const hasEmail = new Set<string>();
+  const failed = new Map<string, number>();
+  if (guildIds.length === 0) return { hasEmail, failed };
+  const [c, f] = await Promise.all([
+    pn().from(T.emailContacts).select('guild_id').in('guild_id', guildIds).limit(20000),
+    pn().from(T.emailOutbox).select('guild_id').eq('status', 'failed').in('guild_id', guildIds).gte('created_at', iso(daysFrom(-7))).limit(20000),
+  ]);
+  for (const r of (c.data ?? []) as Row[]) hasEmail.add(String(r.guild_id));
+  for (const r of (f.data ?? []) as Row[]) failed.set(String(r.guild_id), (failed.get(String(r.guild_id)) ?? 0) + 1);
+  return { hasEmail, failed };
+}
+
+/** Emails sent per server and when the last one went out, for the Reminders page. */
+export async function emailStatsByGuild(guildIds: string[]): Promise<Map<string, { sent: number; last: string | null }>> {
+  const out = new Map<string, { sent: number; last: string | null }>();
+  if (guildIds.length === 0) return out;
+  const res = await pn().from(T.emailOutbox).select('guild_id,created_at,sent_at').eq('status', 'sent').in('guild_id', guildIds).limit(20000);
+  for (const r of (res.data ?? []) as Row[]) {
+    const k = String(r.guild_id);
+    const at = str(r.sent_at) ?? str(r.created_at);
+    const cur = out.get(k) ?? { sent: 0, last: null };
+    out.set(k, { sent: cur.sent + 1, last: at && (!cur.last || at > cur.last) ? at : cur.last });
+  }
+  return out;
+}
+
+/** Counts per template over the last 30 days. */
+export async function emailCountsByType() {
+  const res = await pn().from(T.emailOutbox).select('template_key,status').gte('created_at', iso(daysFrom(-30))).limit(50000);
+  const map = new Map<string, { sent: number; failed: number; queued: number; skipped: number }>();
+  for (const r of (res.data ?? []) as Row[]) {
+    const k = str(r.template_key) ?? 'custom';
+    const cur = map.get(k) ?? { sent: 0, failed: 0, queued: 0, skipped: 0 };
+    const s = String(r.status);
+    if (s === 'sent') cur.sent++; else if (s === 'failed') cur.failed++; else if (s === 'skipped') cur.skipped++; else cur.queued++;
+    map.set(k, cur);
+  }
+  return [...map].map(([key, v]) => ({ key, ...v })).sort((a, b) => b.sent + b.failed - (a.sent + a.failed));
+}

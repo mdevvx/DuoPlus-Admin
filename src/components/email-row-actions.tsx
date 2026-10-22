@@ -78,10 +78,10 @@ export function ContactActions({ id, unsubscribed, owner, canAct }: { id: string
   );
 }
 
-export function AddContact() {
+export function AddContact({ guildId }: { guildId?: string }) {
   return (
-    <ConfirmAction label="Add contact" title="Add a contact" description="Adds an address to a server, with source “manual”." small={false} reasonRequired={false} action={addContact} hidden={{}}
-      fields={[{ name: 'guildId', label: 'Server ID', placeholder: '1234567890123456789' }, { name: 'email', label: 'Email address', placeholder: 'name@example.com' }]} />
+    <ConfirmAction label="Add contact" title="Add a contact" description="Adds an address to a server, with source “manual”." small={false} reasonRequired={false} action={addContact} hidden={guildId ? { guildId } : {}}
+      fields={[...(guildId ? [] : [{ name: 'guildId', label: 'Server ID', placeholder: '1234567890123456789' }]), { name: 'email', label: 'Email address', placeholder: 'name@example.com' }]} />
   );
 }
 

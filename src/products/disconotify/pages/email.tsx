@@ -21,7 +21,7 @@ const exportUrl = `/api/export/${SLUG}/email-contacts`;
 const batchOf = (r: Row) => str((r.variables as Record<string, unknown> | null)?.batch);
 const categoryBadge = (c: string | null) => <Badge tone={c === 'marketing' ? 'info' : 'neutral'}>{CATEGORY_LABEL[c ?? ''] ?? sentence(c)}</Badge>;
 
-function OutboxStatus({ status }: { status: unknown }) {
+export function OutboxStatus({ status }: { status: unknown }) {
   const s = String(status ?? '');
   const tone = s === 'sent' ? 'success' : s === 'failed' ? 'danger' : s === 'queued' || s === 'sending' ? 'info' : 'neutral';
   const mark = s === 'sent' ? '✓ ' : s === 'failed' ? '✕ ' : s === 'skipped' ? '– ' : '… ';
@@ -286,7 +286,7 @@ export async function EmailSendPage({ searchParams }: RouteCtx) {
       <PageHeader title="Send email" description="For anything the automatic emails do not cover. Emails are queued and the bot sends them within about a minute." updatedAt={new Date()} />
       <EmailSend base={base}
         templates={templates.map((t) => ({ key: String(t.key), name: pick(t, 'name') ?? String(t.key), category: pick(t, 'category') ?? 'transactional', subject: pick(t, 'subject') ?? '', preheader: pick(t, 'preheader') ?? '', html: pick(t, 'body_html') ?? '', text: pick(t, 'body_text') ?? '' }))}
-        prefill={again ? { guildId: str(again.guild_id) ?? undefined, templateKey: str(again.template_key) ?? undefined, subject: str(again.subject_override) ?? undefined, html: str(again.body_html) ?? undefined, text: str(again.body_text) ?? undefined, marketing: vars.marketing === true } : undefined} />
+        prefill={again || /^\d{5,25}$/.test(searchParams.guild ?? '') ? { guildId: str(again?.guild_id) ?? searchParams.guild, templateKey: str(again?.template_key) ?? undefined, subject: str(again?.subject_override) ?? undefined, html: str(again?.body_html) ?? undefined, text: str(again?.body_text) ?? undefined, marketing: vars.marketing === true } : undefined} />
     </>
   );
 }

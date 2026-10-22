@@ -12,7 +12,7 @@ import { deleteContact, disableReminders, enableReminders } from '../actions';
 import type { RouteCtx } from '@/products/types';
 import { DmStatus, PaymentsMini, ServerLink, base } from './shared';
 import { guildInfoMap, userInfoMap } from '@/lib/discord';
-import { SLUG, str } from '../db';
+import { SLUG, T, pn, str, type Row } from '../db';
 
 export async function CustomersPage({ searchParams }: RouteCtx) {
   const p = customerParams.parse(searchParams);
@@ -71,6 +71,9 @@ export async function CustomerDetailPage({ params, role, admin }: RouteCtx) {
   const c = d.contact;
   const username = c ? str(c.discord_username) : (await userInfoMap([id.data]))[id.data]?.name ?? null;
   const hidden = { userId: id.data };
+  const mailRes = await pn().from(T.emailContacts).select('*').eq('discord_user_id', id.data).limit(50);
+  const mail = mailRes.error ? null : ((mailRes.data ?? []) as Row[]);
+  const mailInfos = await guildInfoMap((mail ?? []).map((m) => String(m.guild_id)));
   return (
     <>
       <PageHeader title={username ?? `User ${id.data}`} description="Customer detail. Viewing this page is audit-logged." updatedAt={new Date()} />
@@ -93,6 +96,16 @@ export async function CustomerDetailPage({ params, role, admin }: RouteCtx) {
             ['Email', d.sharedEmail ?? 'None shared'], ['Email shared in', d.sharedServers ? `${d.sharedServers} server${d.sharedServers === 1 ? '' : 's'}` : '—'],
             ['Consent', 'Not tracked (no contacts table)'],
           ]} />}
+        </Card>
+        <Card title="Email contacts">
+          {mail === null ? <EmptyState compact title="Not available yet" hint="Apply the bot's email migration" /> : mail.length === 0 ? <EmptyState compact title="No email contacts" /> : (
+            <ul className="space-y-2">{mail.map((m, i) => (
+              <li key={i} className="flex items-center justify-between gap-3">
+                <span className="min-w-0"><span className="block">{maskEmail(str(m.email) ?? str(m.address))}</span><ServerLink id={String(m.guild_id)} info={mailInfos[String(m.guild_id)]} showId={false} /></span>
+                {m.marketing_unsubscribed_at ? <Badge tone="warning">Unsubscribed</Badge> : <Badge tone="success">Subscribed</Badge>}
+              </li>
+            ))}</ul>
+          )}
         </Card>
         <Card title="Summary">
           <KV items={[['Lifetime paid', money(d.lifetime)], ['Payments', String(d.payments.length)], ['Servers paid for', String(d.paidServers.length)]]} />
