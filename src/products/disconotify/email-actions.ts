@@ -1,11 +1,12 @@
 'use server';
 
 import { z } from 'zod';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { ensureStepUp, requireAdmin } from '@/lib/auth';
 import { writeAudit } from '@/lib/audit';
 import { callRpc, runAction, UserError, type ActionResult } from '@/lib/action';
 import { guildInfoMap } from '@/lib/discord';
+import { env } from '@/lib/env';
 import { hubDb } from '@/lib/supabase-server';
 import { requestMeta } from '@/lib/request';
 import type { Permission } from '@/lib/roles';
@@ -109,12 +110,25 @@ function footerVars(html: string, text: string) {
   }
 }
 
+const layoutInput = z.strictObject({
+  brand_name: layoutSchema.shape.brand_name, accent_color: layoutSchema.shape.accent_color,
+  footer_html: layoutSchema.shape.footer_html, footer_text: layoutSchema.shape.footer_text, show_logo: z.boolean(),
+});
+
+/** Public address of the product logo. The version changes when the logo does, so mail clients refetch it. */
+async function productLogoUrl(): Promise<string> {
+  const { data } = await hubDb().from('hub_products').select('logo').eq('slug', SLUG).maybeSingle();
+  const custom = String((data as { logo?: string | null } | null)?.logo ?? '');
+  const v = custom ? createHash('sha1').update(custom).digest('hex').slice(0, 8) : 'default';
+  return `${env().HUB_URL.replace(/\/$/, '')}/api/brand/${SLUG}/logo?v=${v}`;
+}
+
 export async function saveLayout(input: unknown): Promise<ActionResult> {
   return runAction(async () => {
     const { admin, ip, ua } = await gate('email.settings');
-    const v = layoutSchema.parse(input);
+    const { show_logo, ...v } = layoutInput.parse(input);
     footerVars(v.footer_html, v.footer_text);
-    const value = { ...v, footer_html: sanitizeEmailHtml(v.footer_html) };
+    const value = { ...v, logo_url: show_logo ? await productLogoUrl() : '', footer_html: sanitizeEmailHtml(v.footer_html) };
     await callRpc(hubDb(), 'dn_email_setting_save', { p_key: 'email_layout', p_value: value, p_admin: admin.id, p_admin_email: admin.email, p_ip: ip, p_ua: ua });
     return 'Layout saved. It applies to every email, including ones still queued.';
   });

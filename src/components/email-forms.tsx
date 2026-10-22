@@ -1,12 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { restoreVersion, saveLayout, saveSchedule, toggleTemplate } from '@/products/disconotify/email-actions';
 import { contrastOnWhite } from '@/products/disconotify/email/render';
 import type { EmailLayout, EmailSchedule } from '@/products/disconotify/email/vars';
 import { ConfirmAction } from './confirm-action';
-import { fieldLabel as label } from './form';
+import { fieldHint, fieldLabel as label, Notice } from './form';
 import { useToast } from './toast';
 
 
@@ -45,29 +46,45 @@ function useSave<T>(fn: (v: T) => ReturnType<typeof saveLayout>) {
   return { pending, error, run: (v: T) => { setError(null); start(async () => { const r = await fn(v); if (r.ok) { toast(true, r.message); router.refresh(); } else setError(r.error); }); } };
 }
 
-export function LayoutForm({ initial }: { initial: EmailLayout }) {
+export function LayoutForm({ initial, logoSrc, brandingHref, publicUrlOk }: { initial: EmailLayout; logoSrc: string; brandingHref: string; publicUrlOk: boolean }) {
   const [v, setV] = useState(initial);
-  const s = useSave<EmailLayout>(saveLayout);
+  const [showLogo, setShowLogo] = useState(!!initial.logo_url);
+  const s = useSave<EmailLayout & { show_logo: boolean }>((x) => saveLayout((({ logo_url: _logo, ...rest }) => rest)(x)));
   const ratio = contrastOnWhite(v.accent_color);
   return (
-    <form className="max-w-xl space-y-5" onSubmit={(e) => { e.preventDefault(); s.run(v); }}>
+    <form className="max-w-xl space-y-5" onSubmit={(e) => { e.preventDefault(); s.run({ ...v, show_logo: showLogo }); }}>
       <label className="block"><span className={label}>Brand name</span><input className="input" value={v.brand_name} maxLength={60} onChange={(e) => setV({ ...v, brand_name: e.target.value })} /></label>
-      <label className="block"><span className={label}>Logo address <span className="font-normal text-muted">· https, shown up to 48 px tall; the brand name is its alt text</span></span>
-        <input className="input" type="url" value={v.logo_url} placeholder="https://…/logo.png" onChange={(e) => setV({ ...v, logo_url: e.target.value })} /></label>
+
+      <div>
+        <span className={label}>Logo</span>
+        <div className="flex items-center gap-4 rounded-lg border border-line p-3">
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {showLogo ? <img src={logoSrc} alt={`${v.brand_name} logo`} className="max-h-full max-w-full object-contain" /> : <span className="px-1 text-center text-xs font-semibold" style={{ color: v.accent_color }}>{v.brand_name}</span>}
+          </span>
+          <div className="space-y-2 text-sm">
+            <label className="flex items-center gap-2"><input type="radio" name="logo" checked={showLogo} onChange={() => setShowLogo(true)} /> Show the product logo</label>
+            <label className="flex items-center gap-2"><input type="radio" name="logo" checked={!showLogo} onChange={() => setShowLogo(false)} /> Show the brand name only</label>
+          </div>
+        </div>
+        <span className={fieldHint}>The logo comes from the product branding, shown up to 48 px tall, with the brand name as its alt text. <Link className="text-accent hover:underline" href={brandingHref}>Change it in Settings</Link>, then save the layout again.</span>
+        {showLogo && !publicUrlOk && <span className="mt-1.5 block"><Notice tone="warning">The panel address is a local one, so mail clients cannot load the logo yet. It works once the panel is deployed at its public address.</Notice></span>}
+      </div>
+
       <div>
         <span className={label}>Accent colour</span>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <input aria-label="Pick colour" type="color" className="h-9 w-12 rounded border border-line bg-surface" value={/^#[0-9a-f]{6}$/i.test(v.accent_color) ? v.accent_color : '#5B6CF0'} onChange={(e) => setV({ ...v, accent_color: e.target.value })} />
           <input className="input w-32 font-mono" value={v.accent_color} maxLength={7} onChange={(e) => setV({ ...v, accent_color: e.target.value })} aria-label="Accent colour hex" />
-          <span className={ratio >= 4.5 ? 'text-sm text-success' : 'text-sm text-warning'}>Contrast on white: {ratio.toFixed(1)}:1{ratio >= 4.5 ? '' : ' (below 4.5:1, link text may be hard to read)'}</span>
+          <span className={ratio >= 4.5 ? 'text-xs text-success' : 'text-xs text-warning'}>Contrast on white: {ratio.toFixed(1)}:1{ratio >= 4.5 ? '' : ' (below 4.5:1, link text may be hard to read)'}</span>
         </div>
       </div>
       <label className="block"><span className={label}>Footer (HTML)</span>
-        <textarea className="input h-28 resize-y py-2 font-mono text-xs" value={v.footer_html} onChange={(e) => setV({ ...v, footer_html: e.target.value })} />
-        <span className="mt-1 block text-xs text-muted">Put the company&apos;s postal address here (required in several countries). Variables allowed: support_email, brand_name. The unsubscribe link is added automatically to marketing emails.</span></label>
+        <textarea className="input h-28 resize-y py-2 font-mono" value={v.footer_html} onChange={(e) => setV({ ...v, footer_html: e.target.value })} />
+        <span className={fieldHint}>Put the company&apos;s postal address here (required in several countries). Variables allowed: support_email, brand_name. The unsubscribe link is added automatically to marketing emails.</span></label>
       <label className="block"><span className={label}>Footer (plain text)</span>
-        <textarea className="input h-24 resize-y py-2 font-mono text-xs" value={v.footer_text} onChange={(e) => setV({ ...v, footer_text: e.target.value })} /></label>
-      {s.error && <p role="alert" className="text-danger">{s.error}</p>}
+        <textarea className="input h-24 resize-y py-2 font-mono" value={v.footer_text} onChange={(e) => setV({ ...v, footer_text: e.target.value })} /></label>
+      {s.error && <Notice tone="danger">{s.error}</Notice>}
       <button className="btn btn-primary" disabled={s.pending}>{s.pending ? 'Saving…' : 'Save layout'}</button>
     </form>
   );

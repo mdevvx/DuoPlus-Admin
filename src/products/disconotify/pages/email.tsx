@@ -9,6 +9,7 @@ import { LayoutForm, RestoreButton, ScheduleForm, TemplateToggle } from '@/compo
 import { guildInfoMap } from '@/lib/discord';
 import { int, maskEmail, relative, sentence } from '@/lib/format';
 import { can } from '@/lib/roles';
+import { env } from '@/lib/env';
 import { PAGE_SIZE } from '@/lib/validation';
 import type { RouteCtx } from '@/products/types';
 import { SLUG, pick, str, type Row } from '../db';
@@ -263,7 +264,7 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
           )}
         </Card>
         <Card title="Layout and branding">
-          {owner ? <LayoutForm initial={layout.layout} /> : (
+          {owner ? <LayoutForm initial={layout.layout} logoSrc={`/api/brand/${SLUG}/logo`} brandingHref={`${base}/settings`} publicUrlOk={!/^(localhost|127\.|0\.0\.0\.0)/.test(new URL(env().HUB_URL).hostname)} /> : (
             <KV items={[['Brand name', layout.layout.brand_name], ['Accent colour', layout.layout.accent_color], ['Logo', layout.layout.logo_url || 'None']]} />
           )}
           {!owner && <p className="mt-3 text-xs text-muted">Only the owner can change the layout and schedule.</p>}
