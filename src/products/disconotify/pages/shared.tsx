@@ -13,6 +13,7 @@ export const base = `/p/${SLUG}`;
 
 export function StateBadge({ billing, botPresent }: { billing: Row; botPresent: boolean | null | undefined }) {
   const s = subscriptionState({
+    no_billing: billing.no_billing === true,
     trial_ends_at: str(billing.trial_ends_at), paid_until: str(billing.paid_until), whitelisted: billing.whitelisted as boolean,
     card_subscription_id: str(billing.card_subscription_id), card_status: str(billing.card_status),
   }, botPresent);

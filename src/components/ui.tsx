@@ -66,9 +66,9 @@ export function Card({ title, children, className, action }: { title?: string; c
 export function Stat({ label, value, hint, icon }: { label: string; value: ReactNode; hint?: ReactNode; icon?: string }) {
   return (
     <div>
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-[13px] font-medium text-muted">{label}</div>
-        {icon && <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent"><Icon name={icon} /></span>}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 text-[13px] font-medium leading-5 text-muted">{label}</div>
+        {icon && <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"><Icon name={icon} /></span>}
       </div>
       <div className="num mt-2 text-[28px] font-semibold leading-9 tracking-normal">{value}</div>
       {hint && <div className="mt-1 text-xs text-muted">{hint}</div>}

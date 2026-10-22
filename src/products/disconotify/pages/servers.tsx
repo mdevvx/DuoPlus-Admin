@@ -30,7 +30,7 @@ export async function ServersPage({ searchParams }: RouteCtx) {
       <DiscordNotice />
       <FilterBar action={path}>
         <input className="input w-64" name="q" placeholder="Server ID" defaultValue={p.q} />
-        <TagSelect name="state" label="State" value={p.state} options={[['', 'All'], ['trial', 'Trial'], ['active', 'Active'], ['lapsed', 'Lapsed'], ['whitelisted', 'Whitelisted'], ['card_past_due', 'Card past due'], ['bot_removed', 'Bot removed']]} />
+        <TagSelect name="state" label="State" value={p.state} options={[['', 'All'], ['trial', 'Trial'], ['active', 'Active'], ['lapsed', 'Lapsed'], ['whitelisted', 'Whitelisted'], ['card_past_due', 'Card past due'], ['bot_removed', 'Bot removed'], ['new', 'New (no billing yet)']]} />
       </FilterBar>
       {data.rows.length === 0 ? <div className="card"><EmptyState title="No servers match" hint="Change the search or filters." /></div> : (
         <Table label="Servers">
@@ -69,7 +69,7 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
   await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'view.server', target_type: 'server', target_id: id.data });
   const botPresent = (d.guild.bot_present as boolean | null) ?? null;
   const hidden = { guildId: id.data };
-  const subState = subscriptionState({ trial_ends_at: str(b?.trial_ends_at), paid_until: str(b?.paid_until), whitelisted: b?.whitelisted as boolean, card_subscription_id: str(b?.card_subscription_id), card_status: str(b?.card_status) }, botPresent);
+  const subState = subscriptionState({ no_billing: !b, trial_ends_at: str(b?.trial_ends_at), paid_until: str(b?.paid_until), whitelisted: b?.whitelisted as boolean, card_subscription_id: str(b?.card_subscription_id), card_status: str(b?.card_status) }, botPresent);
   const isPaid = !!b?.paid_until && new Date(String(b.paid_until)).getTime() > Date.now();
   const expiry = str(isPaid ? b?.paid_until : b?.trial_ends_at);
   const paidRows = d.payments.filter((p) => p.status === 'paid');

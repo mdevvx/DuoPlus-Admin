@@ -23,7 +23,7 @@ export async function BotStatusPage({ searchParams }: RouteCtx) {
   return (
     <>
       <PageHeader title="Bot status" description="Where the bot is installed and which integrations each server has set up." updatedAt={new Date()} />
-      <div className="mb-6 grid grid-cols-6 gap-4">
+      <div className="mb-6 grid grid-cols-3 gap-4">
         <Card><Stat icon="servers" label="Servers with bot" value={int(dash.present)} hint={`${int(dash.removed)} removed`} /></Card>
         <Card><Stat icon="customers" label="Monitored accounts" value={int(dash.accounts)} /></Card>
         <Card><Stat icon="reminders" label="Notification channels" value={int(dash.channels)} /></Card>

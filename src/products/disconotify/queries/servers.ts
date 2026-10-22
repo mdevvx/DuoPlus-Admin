@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { PAGE_SIZE, csvEnum, snowflake, splitCsv } from '@/lib/validation';
 import { pn, T, daysFrom, iso, must, pick, type Row } from '../db';
 
-export const SERVER_STATES = ['trial', 'active', 'lapsed', 'whitelisted', 'card_past_due', 'bot_removed'] as const;
+export const SERVER_STATES = ['trial', 'active', 'lapsed', 'whitelisted', 'card_past_due', 'bot_removed', 'new'] as const;
 export const SORTS = ['guild_id', 'paid_until', 'trial_ends_at'] as const;
 
 export const serverParams = z.object({
@@ -39,8 +39,26 @@ export async function listServers(p: ServerParams): Promise<{ rows: ServerRow[];
   }
   if (ids && ids.length === 0) return { rows: [], total: 0 };
 
-  let q = db.from(T.billing).select('*', { count: 'exact' });
-  if (ids) q = q.in('guild_id', ids);
+  // Servers the bot knows but that have no billing row yet (e.g. added today) are listed after the billed ones.
+  const [allGuilds, billed] = await Promise.all([
+    db.from(T.guilds).select('guild_id').limit(20000),
+    db.from(T.billing).select('guild_id').limit(20000),
+  ]);
+  const billedIds = new Set(((billed.data ?? []) as Row[]).map((r) => String(r.guild_id)));
+  const missingAll = ((allGuilds.data ?? []) as Row[]).map((r) => String(r.guild_id)).filter((g) => !billedIds.has(g) && (!ids || ids.includes(g)));
+  const missing = states.length === 0 ? missingAll
+    : missingAll.filter((g) => states.includes('new') || (states.includes('bot_removed') && removed.includes(g)));
+  // With only "new" selected there is nothing to read from the billing table.
+  const billingStates = states.filter((s) => s !== 'new');
+  const skipBilling = states.length > 0 && billingStates.length === 0;
+
+  const from = (p.page - 1) * PAGE_SIZE;
+  const buildBilling = (head: boolean) => {
+    let q = head ? db.from(T.billing).select('guild_id', { count: 'exact', head: true }) : db.from(T.billing).select('*');
+    if (ids) q = q.in('guild_id', ids);
+    return filterByState(q);
+  };
+
   // Several states match any of them: each state is one clause of a single OR.
   const unpaid = `or(paid_until.is.null,paid_until.lte.${now})`;
   const clause: Record<string, string> = {
@@ -50,22 +68,36 @@ export async function listServers(p: ServerParams): Promise<{ rows: ServerRow[];
     whitelisted: 'whitelisted.eq.true',
     card_past_due: 'card_status.eq.past_due',
   };
-  if (!removedOnly && states.length) {
-    const parts = states.filter((s) => clause[s]).map((s) => clause[s]!);
+  // Supabase's builder types are too deep to thread through a generic helper.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function filterByState(q: any): any {
+    if (removedOnly || billingStates.length === 0) return q;
+    const parts = billingStates.filter((s) => clause[s]).map((s) => clause[s]!);
     if (removed.length) parts.push(`guild_id.in.(${removed.join(',')})`);
-    if (parts.length) q = q.or(parts.join(','));
+    return parts.length ? q.or(parts.join(',')) : q;
   }
-  const res = await q.order(p.sort, { ascending: p.dir === 'asc', nullsFirst: false }).range((p.page - 1) * PAGE_SIZE, p.page * PAGE_SIZE - 1);
-  const billing = must(res, 'servers') as Row[];
-  const gids = billing.map((b) => String(b.guild_id));
+
+  let billingTotal = 0;
+  let billing: Row[] = [];
+  if (!skipBilling) {
+    const head = await buildBilling(true);
+    billingTotal = head.error ? 0 : (head.count ?? 0);
+    if (from < billingTotal) {
+      const res = await buildBilling(false).order(p.sort, { ascending: p.dir === 'asc', nullsFirst: false }).range(from, from + PAGE_SIZE - 1);
+      billing = must(res, 'servers') as Row[];
+    }
+  }
+  const missingSlice = missing.slice(Math.max(0, from - billingTotal), Math.max(0, from + PAGE_SIZE - billingTotal));
+  const gids = [...billing.map((b) => String(b.guild_id)), ...missingSlice];
   const guilds = gids.length ? (must(await db.from(T.guilds).select('guild_id,bot_present').in('guild_id', gids), 'guild names') as Row[]) : [];
   const byId = new Map(guilds.map((g) => [String(g.guild_id), g]));
+  const row = (id: string, b: Row): ServerRow => {
+    const g = byId.get(id);
+    return { guild_id: id, name: pick(g, 'name'), bot_present: (g?.bot_present as boolean | null) ?? null, billing: b };
+  };
   return {
-    total: res.count ?? billing.length,
-    rows: billing.map((b) => {
-      const g = byId.get(String(b.guild_id));
-      return { guild_id: String(b.guild_id), name: pick(g, 'name'), bot_present: (g?.bot_present as boolean | null) ?? null, billing: b };
-    }),
+    total: billingTotal + missing.length,
+    rows: [...billing.map((b) => row(String(b.guild_id), b)), ...missingSlice.map((id) => row(id, { guild_id: id, no_billing: true }))],
   };
 }
 

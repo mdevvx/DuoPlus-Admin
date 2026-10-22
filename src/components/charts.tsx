@@ -186,7 +186,7 @@ export function RankedBars({ items, format = int }: { items: Segment[]; format?:
   return (
     <ul className="space-y-4">
       {items.map((it, i) => (
-        <li key={it.label}>
+        <li key={`${i}-${it.label}`}>
           <div className="mb-1.5 flex items-center gap-3">
             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-subtle text-[11px] font-semibold text-muted">{i + 1}</span>
             <span className="flex-1 truncate text-[13.5px] font-medium">{it.label}</span>

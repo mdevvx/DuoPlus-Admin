@@ -1,6 +1,8 @@
-export type SubState = 'whitelisted' | 'card_past_due' | 'active_card' | 'active_crypto' | 'trial' | 'lapsed' | 'bot_removed';
+export type SubState = 'whitelisted' | 'card_past_due' | 'active_card' | 'active_crypto' | 'trial' | 'lapsed' | 'bot_removed' | 'new';
 
 export interface BillingLike {
+  /** Set for servers that exist in the guilds table but have no billing row yet (the bot creates it on first use). */
+  no_billing?: boolean;
   trial_ends_at?: string | null;
   paid_until?: string | null;
   whitelisted?: boolean | null;
@@ -11,6 +13,7 @@ export interface BillingLike {
 /** Single place that decides what "state" a server is in. Filters in queries/servers.ts mirror this. */
 export function subscriptionState(b: BillingLike, botPresent: boolean | null | undefined, now = Date.now()): SubState {
   if (botPresent === false) return 'bot_removed';
+  if (b.no_billing) return 'new';
   if (b.whitelisted) return 'whitelisted';
   if (b.card_status === 'past_due') return 'card_past_due';
   const paid = b.paid_until ? new Date(b.paid_until).getTime() > now : false;
@@ -27,6 +30,7 @@ export const STATE_LABEL: Record<SubState, { label: string; tone: 'success' | 'w
   trial: { label: 'Trial', tone: 'warning' },
   lapsed: { label: 'Lapsed', tone: 'neutral' },
   bot_removed: { label: 'Bot removed', tone: 'neutral' },
+  new: { label: 'New · no billing yet', tone: 'info' },
 };
 
 /** Maintenance flag as stored in notify_bot_state: true | "true" | {enabled: true}. */

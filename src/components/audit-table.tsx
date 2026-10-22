@@ -1,5 +1,5 @@
 import { Badge, DetailRow, EmptyState, Table, Tr } from './ui';
-import { ClampText, DetailModal } from './small-client';
+import { DetailModal } from './small-client';
 import type { AuditRow } from '@/lib/audit-query';
 import { dateTime, sentence } from '@/lib/format';
 
@@ -9,7 +9,7 @@ export function AuditTable({ rows, showProduct = true }: { rows: (AuditRow & { s
   if (rows.length === 0) return <div className="card"><EmptyState title="No audit entries" hint="Try widening the filters." /></div>;
   return (
     <Table label="Audit log">
-      <thead><tr><th className="th">Time</th><th className="th">Admin</th>{showProduct && <th className="th">Product</th>}<th className="th">Action</th><th className="th">Target</th><th className="th">Reason</th><th className="th" /></tr></thead>
+      <thead><tr><th className="th">Time</th><th className="th">Admin</th>{showProduct && <th className="th">Product</th>}<th className="th">Action</th><th className="th">Target</th><th className="th" /></tr></thead>
       <tbody>
         {rows.map((r) => (
           <Tr key={`${r.source ?? 'hub'}-${r.id}`}>
@@ -18,7 +18,6 @@ export function AuditTable({ rows, showProduct = true }: { rows: (AuditRow & { s
             {showProduct && <td className="td">{r.product_slug ?? '—'}</td>}
             <td className="td"><Badge tone={tone(r.action)}>{sentence(r.action.replace('.', ': '))}</Badge></td>
             <td className="td font-mono text-xs">{r.target_type ? `${r.target_type}:${r.target_id ?? ''}` : '—'}</td>
-            <td className="td">{r.reason ? <ClampText text={r.reason} title="Reason" max={48} /> : '—'}</td>
             <td className="td text-right">
               <DetailModal trigger="Details" title="Audit entry">
                 <div className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-subtle px-4 py-3">

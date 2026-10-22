@@ -151,6 +151,7 @@ dialog[open]::backdrop { animation: fade-in 0.18s ease-out; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .rise { animation: rise 0.35s ease-out both; }
-@media (prefers-reduced-motion: reduce) { .rise, .skeleton, .dialog-in, dialog[open], dialog[open]::backdrop, .sheet-in[open] { animation: none; } }
+.toast-in { animation: sheet-in 0.22s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .rise, .toast-in, .skeleton, .dialog-in, dialog[open], dialog[open]::backdrop, .sheet-in[open] { animation: none; } }
 @keyframes pulse-soft { 50% { opacity: 0.5; } }
 .skeleton { background: var(--raised); border-radius: 4px; animation: pulse-soft 1.6s ease-in-out infinite; }
