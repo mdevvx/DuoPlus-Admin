@@ -182,11 +182,26 @@ export async function resolveRecipients(r: RecipientInput, marketing: boolean): 
   }
 
   const rows: Row[] = [];
+  const legacy: Row[] = [];
   for (let i = 0; i < guildIds.length; i += 200) {
-    const res = await pn().from(T.emailContacts).select('guild_id,email,marketing_unsubscribed_at').in('guild_id', guildIds.slice(i, i + 200)).limit(20000);
-    if (res.error) throw new Error('contacts query failed');
+    const chunk = guildIds.slice(i, i + 200);
+    const [res, old] = await Promise.all([
+      pn().from(T.emailContacts).select('guild_id,email,marketing_unsubscribed_at').in('guild_id', chunk).limit(20000),
+      // Addresses members shared with the bot (shown as "Member emails" on the server page) are contacts too.
+      pn().from(T.contactEmails).select('guild_id,email,discord_user_id').in('guild_id', chunk).limit(20000),
+    ]);
+    if (res.error && !old.data) throw new Error('contacts query failed');
     rows.push(...((res.data ?? []) as Row[]));
+    legacy.push(...((old.data ?? []) as Row[]));
   }
+  // Marketing opt-outs for those members live on the customer record, not on the address.
+  const optedOut = new Set<string>();
+  const memberIds = [...new Set(legacy.map((l) => String(l.discord_user_id)).filter((x) => /^\d+$/.test(x)))];
+  for (let i = 0; marketing && i < memberIds.length; i += 200) {
+    const res = await pn().from(T.contacts).select('discord_user_id').eq('reminders_opt_out', true).in('discord_user_id', memberIds.slice(i, i + 200));
+    for (const r of (res.data ?? []) as Row[]) optedOut.add(String(r.discord_user_id));
+  }
+  for (const l of legacy) rows.push({ ...l, marketing_unsubscribed_at: optedOut.has(String(l.discord_user_id)) ? 'opted_out' : null });
   const withContacts = new Set(rows.map((c) => String(c.guild_id)));
   skipped.noContacts = guildIds.filter((g) => !withContacts.has(g)).length;
   const seen = new Set<string>();
