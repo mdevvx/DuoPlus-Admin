@@ -12,18 +12,17 @@ class Transient extends Error {}
 
 // After Discord rejects the token we stop calling it for a minute instead of failing 50 times per page.
 let rejectedUntil = 0;
-// Servers the bot is not in (404/403) are remembered only for a few seconds in memory, never in the persistent cache,
-// so a re-added bot gets its name back on the next refresh.
-const MISS_TTL = 20_000;
-const misses = new Map<string, number>();
+// Servers the bot is not in (404/403) resolve to null instead of throwing, so Next does not log an error on every
+// background revalidation. The result is cached with the rest, so a re-added bot gets its name back within six hours;
+// the saved snapshot covers the name until then.
 
 const authHeader = () => ({ Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` });
 
-/** One Discord REST call. Only successful lookups are cached; 401, 429 and 5xx throw so they never stick. */
-async function fetchGuild(id: string): Promise<GuildInfo> {
+/** One Discord REST call. Success and "not in server" (null) are cached; 401, 429 and 5xx throw so they never stick. */
+async function fetchGuild(id: string): Promise<GuildInfo | null> {
   const res = await fetch(`${API}/guilds/${id}`, { headers: authHeader(), cache: 'no-store', signal: AbortSignal.timeout(6000) });
   if (res.status === 401) { rejectedUntil = Date.now() + 60_000; throw new Transient('token rejected'); }
-  if (res.status === 404 || res.status === 403) { misses.set(id, Date.now() + MISS_TTL); throw new Transient('not in server'); }
+  if (res.status === 404 || res.status === 403) return null;
   if (!res.ok) throw new Transient(`discord ${res.status}`);
   const g = (await res.json()) as { name?: string; icon?: string | null };
   if (!g.name) throw new Transient('no name');
@@ -60,7 +59,7 @@ export async function getGuildInfo(id: string): Promise<GuildInfo | null> {
 }
 
 async function liveGuild(id: string): Promise<GuildInfo | null> {
-  if (!process.env.DISCORD_BOT_TOKEN || Date.now() < rejectedUntil || (misses.get(id) ?? 0) > Date.now()) return null;
+  if (!process.env.DISCORD_BOT_TOKEN || Date.now() < rejectedUntil) return null;
   try {
     return await cached(id);
   } catch {
