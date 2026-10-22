@@ -20,6 +20,10 @@ export const T = {
   health: 'notify_platform_health',
   botAudit: 'notify_audit_logs',
   botState: 'notify_bot_state',
+  emailTemplates: 'notify_email_templates',
+  emailVersions: 'notify_email_template_versions',
+  emailOutbox: 'notify_email_outbox',
+  emailContacts: 'notify_email_contacts',
 } as const;
 
 export type Row = Record<string, unknown>;

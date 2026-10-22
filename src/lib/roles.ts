@@ -17,6 +17,12 @@ export const PERMISSIONS = {
   'contact.delete': 'admin',
   'reminder.send': 'admin',
   'maintenance.set': 'admin',
+  'email.template': 'admin',
+  'email.send': 'admin',
+  'email.send.bulk': 'admin',
+  'email.outbox': 'admin',
+  'email.contact': 'admin',
+  'email.settings': 'owner',
   'product.branding': 'admin',
   'support.act': 'admin',
   'support.danger': 'admin',
@@ -27,7 +33,7 @@ export type Permission = keyof typeof PERMISSIONS;
 
 /** Actions that additionally require a fresh second factor (<= 10 minutes). */
 export const DANGEROUS: ReadonlySet<Permission> = new Set<Permission>([
-  'server.whitelist', 'server.adjust_paid', 'contact.delete', 'maintenance.set', 'hub.admins', 'support.danger',
+  'server.whitelist', 'server.adjust_paid', 'contact.delete', 'maintenance.set', 'hub.admins', 'support.danger', 'email.send.bulk',
 ]);
 
 /** Display form: first letter capital, rest lower case ("owner" -> "Owner"). */

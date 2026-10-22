@@ -18,12 +18,14 @@ const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
  * Themed date picker that submits as a plain YYYY-MM-DD form value (works inside GET filter forms).
  * Replaces the browser's native picker so the calendar follows the light/dark theme.
  */
-export function DateField({ name, defaultValue, placeholder = 'Select date', ariaLabel }: { name: string; defaultValue?: string; placeholder?: string; ariaLabel?: string }) {
+export function DateField({ name, defaultValue, placeholder = 'Select date', ariaLabel, onChange, minDate, maxDate }: {
+  name: string; defaultValue?: string; placeholder?: string; ariaLabel?: string; onChange?: (v: string) => void; minDate?: string; maxDate?: string;
+}) {
   const [value, setRaw] = useState(defaultValue ?? '');
   const hidden = useRef<HTMLInputElement>(null);
   // Follow the URL (Clear all, back button); user picks apply the filter straight away.
   useEffect(() => { setRaw(defaultValue ?? ''); }, [defaultValue]);
-  const setValue = (v: string) => { flushSync(() => setRaw(v)); applyFilters(hidden.current); };
+  const setValue = (v: string) => { flushSync(() => setRaw(v)); applyFilters(hidden.current); onChange?.(v); };
   const [open, setOpen] = useState(false);
   const [up, setUp] = useState(false);
   const today = new Date();
@@ -70,10 +72,11 @@ export function DateField({ name, defaultValue, placeholder = 'Select date', ari
               if (!d) return <span key={i} />;
               const iso = toIso(view.y, view.m, d);
               const isSel = value === iso;
+              const out = (!!minDate && iso < minDate) || (!!maxDate && iso > maxDate);
               const isToday = iso === toIso(today.getFullYear(), today.getMonth(), today.getDate());
               return (
-                <button key={i} type="button" aria-pressed={isSel} onClick={() => { setValue(iso); setOpen(false); }}
-                  className={clsx('num h-8 rounded-lg text-[13px] transition-colors',
+                <button key={i} type="button" aria-pressed={isSel} disabled={out} onClick={() => { setValue(iso); setOpen(false); }}
+                  className={clsx('num h-8 rounded-lg text-[13px] transition-colors disabled:pointer-events-none disabled:opacity-30',
                     isSel ? 'bg-accent font-semibold text-accent-ink' : isToday ? 'bg-accent-soft font-semibold text-accent' : 'text-ink hover:bg-subtle')}>
                   {d}
                 </button>
