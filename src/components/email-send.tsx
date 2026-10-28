@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import clsx from 'clsx';
-import { checkRecipients, previewEmail, sendManual, sendTest, type PreviewResult, type RecipientCheck } from '@/products/disconotify/email-actions';
+import { batchStatus, checkRecipients, previewEmail, sendManual, sendTest, type PreviewResult, type RecipientCheck } from '@/products/disconotify/email-actions';
 import { hasErrors, validateTemplate } from '@/products/disconotify/email/validate';
 import { htmlToText } from '@/products/disconotify/email/render';
 import { SUBJECT_MAX, VAR_NAMES } from '@/products/disconotify/email/vars';
 import { DateField } from './date-field';
 import { Card } from './ui';
 import { EmailButtonList, EmailButtonPicker } from './email-button';
+import { BatchProgress } from './email-row-actions';
 import { fieldLabel as label } from './form';
 import { useToast } from './toast';
 
@@ -50,7 +51,8 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
   const [sending, startSend] = useTransition();
   const [testing, startTest] = useTransition();
   const toast = useToast();
-  const router = useRouter();
+  // After a send the progress shows right here instead of navigating to another page, so nothing reloads.
+  const [sent, setSent] = useState<{ batch: string; count: number; initial: Awaited<ReturnType<typeof batchStatus>> } | null>(null);
 
   const today = isoDay(new Date());
   const latest = isoDay(new Date(Date.now() + 30 * 86400_000));
@@ -107,10 +109,28 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
         sendAt: when === 'later' && sendDay ? new Date(`${sendDay}T${sendTime}`).toISOString() : null,
         confirmed, confirm: typed, reason, code: code || undefined,
       });
-      if (res.ok) { toast(true, res.message); router.push(`${base}/email/send/${res.batch}`); }
-      else if (res.needsStepUp) { setNeedsCode(true); if (res.stepUpInvalid) setError(res.error); }
-      else setError(res.error);
+      if (!res.ok) {
+        if (res.needsStepUp) { setNeedsCode(true); if (res.stepUpInvalid) setError(res.error); }
+        else setError(res.error);
+      } else if (res.batch) {
+        toast(true, res.message);
+        setSent({ batch: res.batch, count: n, initial: await batchStatus(res.batch) });
+      }
     });
+  }
+
+  if (sent) {
+    return (
+      <div className="max-w-4xl space-y-4">
+        <Card title={`${sent.count} email${sent.count === 1 ? '' : 's'} queued`}>
+          <BatchProgress batch={sent.batch} initial={sent.initial} />
+          <div className="mt-5 flex flex-wrap gap-2 border-t border-line pt-4">
+            <button type="button" className="btn btn-primary" onClick={() => { setSent(null); setCheck(null); setConfirmed(false); setTyped(''); setReason(''); setCode(''); setNeedsCode(false); }}>Send another email</button>
+            <Link className="btn" href={`${base}/email/outbox?kind=manual`}>Open the outbox</Link>
+          </div>
+        </Card>
+      </div>
+    );
   }
 
   return (
