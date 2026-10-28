@@ -145,3 +145,23 @@ describe('payments from Polar orders', () => {
     expect(filtersFromParams({ plan: 'growth,bogus', status: 'paid,x', from: 'bad', min: '5', max: '-1' })).toMatchObject({ plan: ['growth'], status: ['paid'], from: undefined, min: 5, max: undefined });
   });
 });
+
+describe('people in workspaces', () => {
+  it('adds up members across workspaces and ignores bad values', async () => {
+    const { sumMembers } = await import('@/products/team-management/api');
+    expect(sumMembers([{ members: 1 }, { members: 1 }, { members: 9 }])).toBe(11);
+    expect(sumMembers([{ members: 3 }, { members: Number.NaN }])).toBe(3);
+    expect(sumMembers([])).toBe(0);
+  });
+
+  it('reads every page of workspaces', async () => {
+    const { listAllWorkspaces } = await import('@/products/team-management/api');
+    const item = (i: number) => ({ id: `w${i}`, name: `W${i}`, members: 2, seatLimit: 10, status: 'active', plan: 'starter', owner: null });
+    const pages = [Array.from({ length: 100 }, (_, i) => item(i)), Array.from({ length: 30 }, (_, i) => item(100 + i))];
+    let call = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ page: call + 1, pageSize: 100, total: 130, items: pages[call++] }), { status: 200 })));
+    const all = await listAllWorkspaces();
+    expect(all).toHaveLength(130);
+    expect(call).toBe(2);
+  });
+});

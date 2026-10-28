@@ -95,6 +95,20 @@ export async function listWorkspaces(p: { search?: string; page: number; pageSiz
   return parse(workspacesSchema, await request('GET', `/workspaces?${sp}`));
 }
 
+/** Seats in use: people counted once per workspace they belong to. A person in two workspaces counts twice. */
+export const sumMembers = (items: { members: number }[]) => items.reduce((a, w) => a + (Number.isFinite(w.members) ? w.members : 0), 0);
+
+/** Every workspace, read page by page (at most 2,000). */
+export async function listAllWorkspaces(): Promise<Workspace[]> {
+  const out: Workspace[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const r = await listWorkspaces({ page, pageSize: 100 });
+    out.push(...r.items);
+    if (r.items.length < 100 || out.length >= r.total) break;
+  }
+  return out;
+}
+
 export const listWhitelist = async () => parse(z.array(whitelistEntrySchema).catch([]), await request('GET', '/whitelist'));
 
 export const addWhitelist = async (body: { email: string; plan: string; note?: string }) => parse(addResultSchema, await request('POST', '/whitelist', body));

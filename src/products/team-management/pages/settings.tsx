@@ -27,7 +27,7 @@ export async function SettingsPage({ role, manifest }: { role: RouteCtx['role'];
             ['Payments', `Polar ${polarEnv() === 'sandbox' ? 'sandbox' : 'live'}`],
             ['Payments access', polarPaymentsConfigured() ? <Badge key="p" tone="success">Token set</Badge> : <Badge key="p" tone="warning">No Polar token</Badge>],
           ]} />
-          <p className="mt-4 text-muted">The address and key live in the server environment as DUOPLUS_API_URL and DUOPLUS_ADMIN_KEY and are never sent to the browser. Payments are read-only here, read from Polar with its own token (TMS_POLAR_ACCESS_TOKEN). Receipts, refunds and tax happen in <a className="text-accent hover:underline" href={polarLink()} target="_blank" rel="noopener noreferrer">Polar</a>.</p>
+          <p className="mt-4 text-muted">The connection details are kept safely on the server and are never shown in the browser. You can only view payments here: refunds, receipts and tax invoices are handled in <a className="text-accent hover:underline" href={polarLink()} target="_blank" rel="noopener noreferrer">Polar</a>.</p>
         </Card>
       </div>
     </>

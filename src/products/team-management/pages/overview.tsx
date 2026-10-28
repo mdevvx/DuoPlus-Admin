@@ -6,6 +6,7 @@ import { Donut, RankedBars, type Segment } from '@/components/charts';
 import { int, money } from '@/lib/format';
 import type { RouteCtx } from '@/products/types';
 import { getOverview, PLAN_LABEL, polarLink, type Overview } from '../api';
+import { peopleInWorkspaces } from '../people';
 import { STATUS_COLOR, STATUS_ORDER, humanize, statusLabel } from '../labels';
 import { base, load } from './shared';
 
@@ -18,6 +19,8 @@ const EMPTY: Overview = {
 export async function OverviewPage(_ctx: RouteCtx) {
   const r = await load(getOverview, base);
   const o = r.ok ? r.data : EMPTY;
+  // Only people who are in a workspace; falls back to the API's registered-accounts total if the workspace list cannot be read.
+  const ppl = r.ok ? await peopleInWorkspaces().catch(() => null) : null;
   const updated = o.generatedAt && !Number.isNaN(Date.parse(o.generatedAt)) ? new Date(o.generatedAt) : new Date();
   const { byStatus, byPlan, whitelisted } = o.subscriptions;
   const b = o.billing;
@@ -37,7 +40,10 @@ export async function OverviewPage(_ctx: RouteCtx) {
       {!r.ok && <div className="mb-6">{r.panel}</div>}
 
       <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard icon="customers" hue="green" label="Users" value={r.ok ? int(o.users.total) : '—'} rows={[['New in the last 30 days', r.ok ? int(o.users.new30d) : '—']]} />
+        <StatCard icon="customers" hue="green" label={ppl || !r.ok ? 'People in workspaces' : 'Registered accounts'} value={r.ok ? int(ppl ? ppl.people : o.users.total) : '—'}
+          rows={[[ppl ? 'Across workspaces' : 'All sign-ups', r.ok ? int(ppl ? ppl.workspaces : o.workspaces.total) : '—']]}>
+          {ppl && <p className="text-xs text-muted">Counted per workspace, so someone in two workspaces counts twice. Sign-ups without a workspace are not included.</p>}
+        </StatCard>
         <StatCard icon="workspace" hue="blue" label="Workspaces" value={r.ok ? int(o.workspaces.total) : '—'} rows={[['New in the last 30 days', r.ok ? int(o.workspaces.new30d) : '—']]} />
         <StatCard icon="payments" hue="violet" label="Estimated MRR" value={r.ok ? money(b.mrrCents / 100) : '—'} rows={[['Paying accounts', r.ok ? int(b.payingAccounts) : '—']]}>
           <p className="text-xs text-muted">Paying accounts times their plan price. Trials, complimentary and whitelisted accounts are not revenue.</p>

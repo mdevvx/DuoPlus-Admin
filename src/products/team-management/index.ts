@@ -9,6 +9,7 @@ import { AuditPage } from './pages/audit';
 import { PaymentsPage } from './pages/payments';
 import { filterPayments, filtersFromParams, REASON_LABEL, STATUS_LABEL } from './payments';
 import { listPayments } from './polar';
+import { peopleInWorkspaces } from './people';
 import { SettingsPage } from './pages/settings';
 
 const base = `/p/${SLUG}`;
@@ -43,9 +44,9 @@ const teamManagement: ProductModule = {
   },
   headline: async () => {
     if (!tmsConfigured()) return [{ label: 'Users', value: '—' }, { label: 'Paying', value: '—' }, { label: 'MRR', value: '—' }];
-    const o = await getOverview();
+    const [o, ppl] = await Promise.all([getOverview(), peopleInWorkspaces().catch(() => null)]);
     return [
-      { label: 'Users', value: int(o.users.total) },
+      { label: 'People', value: int(ppl ? ppl.people : o.users.total) },
       { label: 'Paying', value: int(o.billing.payingAccounts) },
       { label: 'MRR', value: money(o.billing.mrrCents / 100) },
     ];
