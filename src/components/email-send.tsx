@@ -18,7 +18,7 @@ interface Prefill { guildId?: string; templateKey?: string; subject?: string; ht
 
 const TIMES = Array.from({ length: 96 }, (_, i) => `${String(Math.floor(i / 4)).padStart(2, '0')}:${String((i % 4) * 15).padStart(2, '0')}`);
 const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const STATES: [string, string][] = [['trial', 'Trial'], ['active', 'Active (paid)'], ['card_past_due', 'Card past due'], ['lapsed', 'Lapsed'], ['whitelisted', 'Whitelisted']];
+const STATES: [string, string][] = [['trial', 'Trial'], ['active', 'Active (paid)'], ['card_past_due', 'Card past due'], ['lapsed', 'Lapsed']];
 
 function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return <Card title={`${n}. ${title}`}>{children}</Card>;
@@ -63,7 +63,7 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
   const contentOk = mode === 'template' ? !!tpl && !(subjectOverride.length > SUBJECT_MAX) : !hasErrors(issues);
 
   const recipients = () => recMode === 'server' ? { mode: 'server' as const, guildId: guildId.trim() }
-    : recMode === 'filter' ? { mode: 'filter' as const, states: states as ('trial' | 'active' | 'lapsed' | 'card_past_due' | 'whitelisted')[] }
+    : recMode === 'filter' ? { mode: 'filter' as const, states: states as ('trial' | 'active' | 'lapsed' | 'card_past_due')[] }
     : { mode: 'addresses' as const, text: addresses };
   const extraMap = () => Object.fromEntries(extra.split('\n').map((l) => l.split('=')).filter((p) => p.length >= 2 && VAR_NAMES.has(p[0]!.trim())).map((p) => [p[0]!.trim(), p.slice(1).join('=').trim()]));
 
@@ -138,8 +138,8 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
             {check?.ok && (
               <span role="status" className="text-sm">
                 <b className="num">{check.total}</b> email{check.total === 1 ? '' : 's'}{check.servers > 0 && <> across <b className="num">{check.servers}</b> server{check.servers === 1 ? '' : 's'}</>}
-                {(check.skipped.noContacts + check.skipped.unsubscribed + check.skipped.invalid) > 0 && (
-                  <span className="text-muted"> · skipped: {[check.skipped.noContacts && `${check.skipped.noContacts} server(s) with no email`, check.skipped.unsubscribed && `${check.skipped.unsubscribed} unsubscribed`, check.skipped.invalid && `${check.skipped.invalid} invalid`].filter(Boolean).join(', ')}</span>
+                {(check.skipped.noContacts + check.skipped.unsubscribed + check.skipped.invalid + check.skipped.whitelisted) > 0 && (
+                  <span className="text-muted"> · skipped: {[check.skipped.noContacts && `${check.skipped.noContacts} server(s) with no email`, check.skipped.unsubscribed && `${check.skipped.unsubscribed} unsubscribed`, check.skipped.invalid && `${check.skipped.invalid} invalid`, check.skipped.whitelisted && `${check.skipped.whitelisted} whitelisted (never emailed)`].filter(Boolean).join(', ')}</span>
                 )}
               </span>
             )}

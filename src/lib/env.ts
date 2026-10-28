@@ -9,6 +9,8 @@ const schema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
   HUB_URL: z.url(),
+  /** Optional public https image for the email logo (for example on the website). Overrides the panel's own logo route. */
+  EMAIL_LOGO_URL: blankToUndefined(z.url().refine((u) => u.startsWith('https://'), 'must be https').optional()),
   SESSION_SECRET: z.string().min(32),
   INITIAL_OWNER_EMAIL: z.string().optional(),
   POLAR_DASHBOARD_ORG_SLUG: z.string().optional(),

@@ -9,6 +9,7 @@ import { reason, snowflake } from '@/lib/validation';
 import type { Permission } from '@/lib/roles';
 import { SLUG } from './db';
 import { getGuildInfo } from '@/lib/discord';
+import { parseBotSettingsForm } from './bot-settings';
 
 const base = z.object({ reason, confirm: z.string().optional(), code: z.string().optional() });
 
@@ -96,5 +97,16 @@ export async function setMaintenance(fd: FormData): Promise<ActionResult> {
     mustMatch(d.confirm, 'MAINTENANCE');
     await callRpc(hubDb(), 'dn_maintenance_set', { p_enabled: enabled, p_admin: admin.id, p_admin_email: admin.email, p_ip: ip, p_ua: ua, p_reason: d.reason });
     return enabled ? 'Maintenance mode is ON' : 'Maintenance mode is OFF';
+  });
+}
+
+/** Price, trial days and grace days. Empty boxes fall back to the bot's own defaults. Owner only, with a reason and authenticator check. */
+export async function saveBotSettings(fd: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    const { admin, ip, ua, d } = await gate('bot.settings', fd);
+    let value;
+    try { value = parseBotSettingsForm((k) => String(fd.get(k) ?? '')); } catch (e) { if (e instanceof z.ZodError) throw e; throw new UserError(e instanceof Error ? e.message : 'Check the values'); }
+    await callRpc(hubDb(), 'dn_bot_setting_save', { p_key: 'bot_settings', p_value: value, p_admin: admin.id, p_admin_email: admin.email, p_ip: ip, p_ua: ua, p_reason: d.reason });
+    return 'Settings saved. The bot picks them up within about 10 minutes.';
   });
 }

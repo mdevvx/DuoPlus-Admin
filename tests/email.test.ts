@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buttonHtml } from '@/products/disconotify/email/button';
 import { listButtons, moveBlock, removeBlock, replaceBlock, splitBlocks } from '@/products/disconotify/email/blocks';
+import { parseBotSettingsForm } from '@/products/disconotify/bot-settings';
 import { renderTemplate, htmlToText, contrastOnWhite } from '@/products/disconotify/email/render';
 import { sanitizeEmailHtml } from '@/products/disconotify/email/sanitize';
 import { hasErrors, validateTemplate } from '@/products/disconotify/email/validate';
@@ -97,5 +98,19 @@ describe('moving buttons', () => {
   it('removes and replaces a block', () => {
     expect(splitBlocks(removeBlock(body, 2))).not.toContain(b1);
     expect(splitBlocks(replaceBlock(body, 2, '<p>x</p>'))[2]).toBe('<p>x</p>');
+  });
+});
+
+describe('bot settings form', () => {
+  const form = (o: Record<string, string>) => (k: string) => o[k] ?? '';
+  it('accepts values, treats empty boxes as the bot default', () => {
+    expect(parseBotSettingsForm(form({ price_usd: '1.99', trial_days: '7', grace_days: '' }))).toEqual({ price_usd: 1.99, trial_days: 7 });
+    expect(parseBotSettingsForm(form({}))).toEqual({});
+  });
+  it('rejects bad numbers and out-of-range values', () => {
+    expect(() => parseBotSettingsForm(form({ price_usd: 'abc' }))).toThrow();
+    expect(() => parseBotSettingsForm(form({ price_usd: '0.10' }))).toThrow();
+    expect(() => parseBotSettingsForm(form({ trial_days: '2.5' }))).toThrow();
+    expect(() => parseBotSettingsForm(form({ trial_days: '91' }))).toThrow();
   });
 });

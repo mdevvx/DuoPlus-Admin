@@ -9,11 +9,11 @@ import { LayoutForm, RestoreButton, ScheduleForm, TemplateToggle } from '@/compo
 import { guildInfoMap } from '@/lib/discord';
 import { int, maskEmail, relative, sentence } from '@/lib/format';
 import { can } from '@/lib/roles';
-import { env } from '@/lib/env';
 import { PAGE_SIZE } from '@/lib/validation';
 import type { RouteCtx } from '@/products/types';
 import { SLUG, pick, str, type Row } from '../db';
 import { batchProgress, contactParams, getLayout, getOutboxRow, getSchedule, getTemplate, getVersions, listContacts, listOutbox, listTemplates, outboxHealth, outboxParams, OUTBOX_STATUSES } from '../queries/email';
+import { emailLogoUrl } from '../email/logo';
 import { BUILT_IN, CATEGORY_LABEL, SCHEDULE_DEFAULTS } from '../email/vars';
 import { ServerLink, base } from './shared';
 
@@ -157,7 +157,7 @@ export async function EmailOutboxPage({ searchParams, role }: RouteCtx) {
                       <DetailRow label="Send after"><When value={str(r.send_after)} /></DetailRow>
                       <DetailRow label="Attempts">{str(r.attempts) ?? '0'}</DetailRow>
                       <DetailRow label="Sent by">{str(r.created_by) ? maskEmail(str(r.created_by)) : 'Automatic'}</DetailRow>
-                      <DetailRow label="Detail" copy={str(r.status_detail)}>{str(r.status_detail) ?? '—'}</DetailRow>
+                      <DetailRow label="Detail" copy={r.status === 'sent' ? null : str(r.status_detail)}>{r.status === 'sent' ? 'Delivered to the mail server' : str(r.status_detail) ?? '—'}</DetailRow>
                       <DetailRow label="Message-ID" copy={str(r.provider_id)}>{str(r.provider_id) ?? '—'}</DetailRow>
                       <DetailRow label="Variables"><CopyBlock text={JSON.stringify(r.variables ?? {}, null, 2)} label="Copy JSON" /></DetailRow>
                     </dl>
@@ -206,7 +206,7 @@ export async function EmailContactsPage({ searchParams, role }: RouteCtx) {
       </div>
       <FilterBar action={path}>
         <input className="input w-40" name="guild" inputMode="numeric" placeholder="Server ID" defaultValue={p.guild} />
-        <TagSelect name="marketing" label="Marketing" value={p.marketing} options={[['', 'All'], ['subscribed', 'Subscribed'], ['unsubscribed', 'Unsubscribed']]} />
+        <TagSelect single name="marketing" label="Marketing" value={p.marketing} options={[['', 'All'], ['subscribed', 'Subscribed'], ['unsubscribed', 'Unsubscribed']]} />
       </FilterBar>
       {data.rows.length === 0 ? <div className="card"><EmptyState title={data.filtered ? 'No contacts match' : 'No email contacts yet'} hint={data.filtered ? 'Change or clear the filters.' : 'Addresses appear when someone activates a trial or checks out. You can also add one manually.'} /></div> : (
         <Table label="Email contacts">
@@ -247,6 +247,7 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
   let layout, schedule, health;
   try { [layout, schedule, health] = await Promise.all([getLayout(), getSchedule(), outboxHealth()]); } catch { return <ErrorPanel message="Could not load email settings." retryHref={`${root}/settings`} />; }
   const owner = can(role, 'email.settings');
+  const logoState = await emailLogoUrl().catch(() => ({ url: null as string | null }));
   const failRate = health.total24 ? Math.round((health.failed24 / health.total24) * 100) : 0;
   return (
     <>
@@ -273,7 +274,7 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
           )}
         </Card>
         <Card title="Layout and branding">
-          {owner ? <LayoutForm initial={layout.layout} logoSrc={`/api/brand/${SLUG}/logo`} brandingHref={`${base}/settings`} publicUrlOk={!/^(localhost|127\.|0\.0\.0\.0)/.test(new URL(env().HUB_URL).hostname)} /> : (
+          {owner ? <LayoutForm initial={layout.layout} logoSrc={`/api/brand/${SLUG}/logo`} brandingHref={`${base}/settings`} publicUrlOk={!!logoState.url} /> : (
             <KV items={[['Brand name', layout.layout.brand_name], ['Accent colour', layout.layout.accent_color], ['Logo', layout.layout.logo_url || 'None']]} />
           )}
           {!owner && <p className="mt-3 text-xs text-muted">Only the owner can change the layout and schedule.</p>}

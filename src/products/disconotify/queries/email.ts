@@ -172,7 +172,7 @@ export const sentCount = (rows: Row[]) => rows.reduce((a, r) => a + num(r.sent30
 
 // ---- manual send: recipients ----
 
-export const SEND_STATES = ['trial', 'active', 'lapsed', 'card_past_due', 'whitelisted'] as const;
+export const SEND_STATES = ['trial', 'active', 'lapsed', 'card_past_due'] as const;
 export const recipientSchema = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('server'), guildId: z.string().regex(/^\d{5,25}$/, 'Enter a server ID') }),
   z.object({ mode: z.literal('filter'), states: z.array(z.enum(SEND_STATES)).min(1, 'Pick at least one state') }),
@@ -181,13 +181,34 @@ export const recipientSchema = z.discriminatedUnion('mode', [
 export type RecipientInput = z.infer<typeof recipientSchema>;
 
 export interface Recipient { email: string; guild_id: string | null }
-export interface Resolved { servers: number; recipients: Recipient[]; skipped: { noContacts: number; unsubscribed: number; invalid: number } }
+export interface Resolved { servers: number; recipients: Recipient[]; skipped: { noContacts: number; unsubscribed: number; invalid: number; whitelisted: number } }
 
 const EMAIL = z.email().max(254);
 
+/**
+ * Whitelisted servers get free access and are never emailed from here, whether or not an address is on file.
+ * Returns their server IDs and every address attached to them (so a pasted address is skipped too).
+ */
+async function whitelisted(): Promise<{ guilds: Set<string>; emails: Set<string> }> {
+  const wl = await pn().from(T.billing).select('guild_id').eq('whitelisted', true).limit(20000);
+  const guilds = new Set(((wl.data ?? []) as Row[]).map((g) => String(g.guild_id)));
+  const emails = new Set<string>();
+  const ids = [...guilds];
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200);
+    const [a, b] = await Promise.all([
+      pn().from(T.emailContacts).select('email').in('guild_id', chunk).limit(20000),
+      pn().from(T.contactEmails).select('email').in('guild_id', chunk).limit(20000),
+    ]);
+    for (const r of [...((a.data ?? []) as Row[]), ...((b.data ?? []) as Row[])]) if (r.email) emails.add(String(r.email).toLowerCase());
+  }
+  return { guilds, emails };
+}
+
 /** Who a manual email would reach. Unsubscribed contacts are skipped for marketing emails, and the count is shown up front. */
 export async function resolveRecipients(r: RecipientInput, marketing: boolean): Promise<Resolved> {
-  const skipped = { noContacts: 0, unsubscribed: 0, invalid: 0 };
+  const skipped = { noContacts: 0, unsubscribed: 0, invalid: 0, whitelisted: 0 };
+  const wl = await whitelisted();
   if (r.mode === 'addresses') {
     const seen = new Set<string>();
     const recipients: Recipient[] = [];
@@ -195,6 +216,7 @@ export async function resolveRecipients(r: RecipientInput, marketing: boolean): 
       if (!EMAIL.safeParse(raw).success) { skipped.invalid++; continue; }
       if (seen.has(raw)) continue;
       seen.add(raw);
+      if (wl.emails.has(raw)) { skipped.whitelisted++; continue; }
       recipients.push({ email: raw, guild_id: null });
     }
     return { servers: 0, recipients, skipped };
@@ -215,6 +237,8 @@ export async function resolveRecipients(r: RecipientInput, marketing: boolean): 
     }).map((b) => String(b.guild_id));
   }
 
+  skipped.whitelisted = guildIds.filter((g) => wl.guilds.has(g)).length;
+  guildIds = guildIds.filter((g) => !wl.guilds.has(g));
   const rows: Row[] = [];
   const legacy: Row[] = [];
   for (let i = 0; i < guildIds.length; i += 200) {

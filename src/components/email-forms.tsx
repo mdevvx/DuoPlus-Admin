@@ -68,7 +68,7 @@ export function LayoutForm({ initial, logoSrc, brandingHref, publicUrlOk }: { in
           </div>
         </div>
         <span className={fieldHint}>The logo comes from the product branding, shown up to 48 px tall, with the brand name as its alt text. <Link className="text-accent hover:underline" href={brandingHref}>Change it in Settings</Link>, then save the layout again.</span>
-        {showLogo && !publicUrlOk && <span className="mt-1.5 block"><Notice tone="warning">The panel address is a local one, so mail clients cannot load the logo yet. It works once the panel is deployed at its public address.</Notice></span>}
+        {showLogo && !publicUrlOk && <span className="mt-1.5 block"><Notice tone="warning">Email apps cannot load the logo from a panel running on a local address, so saving is blocked until you save from the deployed panel, or set EMAIL_LOGO_URL to a public https image.</Notice></span>}
       </div>
 
       <div>

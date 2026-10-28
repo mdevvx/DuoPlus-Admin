@@ -2,6 +2,7 @@ import 'server-only';
 import { auditFilters, orTerm, queryAudit } from '@/lib/audit-query';
 import { PAGE_SIZE, splitCsv } from '@/lib/validation';
 import { parseFlag } from '../state';
+import { botSettingsSchema, type BotSettings } from '../bot-settings';
 import { pn, T, daysFrom, iso, must, pick, type Row } from '../db';
 import { SLUG } from '../db';
 
@@ -166,4 +167,13 @@ const SETTING_KEYS = ['price_usd', 'price', 'trial_days', 'grace_days', 'reminde
 export async function getBotSettings() {
   const { data } = await pn().from(T.botState).select('key,value').in('key', SETTING_KEYS);
   return (data ?? []) as Row[];
+}
+
+/** Settings saved from the panel (price, trial days, grace days). A missing field means the bot uses its own default. */
+export async function getSavedBotSettings(): Promise<BotSettings> {
+  const { data } = await pn().from(T.botState).select('value').eq('key', 'bot_settings').maybeSingle();
+  let v: unknown = (data as Row | null)?.value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = null; } }
+  const parsed = botSettingsSchema.safeParse(v ?? {});
+  return parsed.success ? parsed.data : {};
 }

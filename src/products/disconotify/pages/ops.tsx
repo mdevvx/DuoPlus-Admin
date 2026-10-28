@@ -6,9 +6,10 @@ import { can } from '@/lib/roles';
 import { BrandingCard } from '@/components/branding-card';
 import { dateTime, int, platformLabel, relative, sentence, statusTone } from '@/lib/format';
 import { PAGE_SIZE } from '@/lib/validation';
-import { getBotSettings, getMergedAudit, getPlatformHealth, getTikTokBlockRate, getAbandonedCheckouts, getFailedDms, getReminders, getSubscriptionHealth } from '../queries/ops';
+import { getBotSettings, getSavedBotSettings, getMergedAudit, getPlatformHealth, getTikTokBlockRate, getAbandonedCheckouts, getFailedDms, getReminders, getSubscriptionHealth } from '../queries/ops';
 import Link from 'next/link';
-import { setMaintenance } from '../actions';
+import { saveBotSettings, setMaintenance } from '../actions';
+import { BOT_SETTING_FIELDS, type BotSettings } from '../bot-settings';
 import { emailCountsByType, emailStatsByGuild, getSchedule, outboxHealth } from '../queries/email';
 import type { RouteCtx } from '@/products/types';
 import { ServerLink, base } from './shared';
@@ -322,10 +323,11 @@ export async function AuditPage({ searchParams }: RouteCtx) {
 
 export async function SettingsPage({ role, manifest }: { role: RouteCtx['role']; manifest: { name: string; icon: string; logo?: string } }) {
   const rows = await getBotSettings();
+  const saved: BotSettings = await getSavedBotSettings().catch(() => ({}));
   const [schedule, health] = await Promise.all([getSchedule().catch(() => null), outboxHealth().catch(() => null)]);
   return (
     <>
-      <PageHeader title="Settings" description="Product branding, plus how the bot currently runs (read only, change on the bot's host)." updatedAt={new Date()} />
+      <PageHeader title="Settings" description="Product branding, pricing and trial settings, and how the bot currently runs." updatedAt={new Date()} />
       <div className="mb-4"><BrandingCard slug={SLUG} role={role} manifest={manifest} /></div>
       {schedule && (
         <div className="mb-4">
@@ -339,11 +341,21 @@ export async function SettingsPage({ role, manifest }: { role: RouteCtx['role'];
           </Card>
         </div>
       )}
-      <Card>
-        {rows.length === 0 ? <EmptyState title="Configured on the bot's host" hint="Price, trial days, grace days and the reminder schedule are environment variables of the bot, not stored in the database." /> : (
+      <div className="mb-4">
+        <Card title="Pricing and trial"
+          action={can(role, 'bot.settings') && (
+            <ConfirmAction label="Edit" title="Edit pricing and trial" description="Leave a box empty to use the bot's own default. The bot picks changes up within about 10 minutes." action={saveBotSettings} hidden={{}}
+              fields={BOT_SETTING_FIELDS.map((f) => ({ name: f.key, label: f.label, placeholder: `Bot default · ${f.hint}`, optional: true, defaultValue: saved[f.key] === undefined ? '' : String(saved[f.key]) }))} />
+          )}>
+          <KV items={BOT_SETTING_FIELDS.map((f): [string, React.ReactNode] => [f.label, saved[f.key] === undefined ? <span key={f.key} className="text-muted">Bot default</span> : f.format(saved[f.key]!)])} />
+          <p className="mt-4 text-xs text-muted">Stored in the database and changeable here. A field set to “Bot default” keeps using the value the bot has in its own settings. Changing the price here does not change the price in Polar.</p>
+        </Card>
+      </div>
+      {rows.length > 0 && (
+        <Card title="Other bot settings">
           <KV items={rows.map((r) => [String(r.key).replace(/_/g, ' '), typeof r.value === 'object' ? JSON.stringify(r.value) : String(r.value)])} />
-        )}
       </Card>
+      )}
     </>
   );
 }
