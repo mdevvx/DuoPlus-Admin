@@ -39,7 +39,7 @@ export function WorkspacePeople({ id, name, members, seatLimit }: { id: string; 
           {pending && !state && <p className="flex items-center gap-2 text-muted" role="status"><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading people…</p>}
           {state && 'error' in state && (
             <Notice tone={state.unsupported ? 'info' : 'danger'}>
-              {state.error}{state.unsupported && <> Add <b>GET /api/v1/admin/workspaces/:id/members</b> to its operator API (it returns each person&apos;s email, name, role, status and join date) and this list fills in.</>}
+              {state.error}{state.unsupported && <> Add <b>GET /api/v1/admin/users</b> to its operator API and this list fills in.</>}
             </Notice>
           )}
           {state && 'list' in state && (state.list.length === 0 ? <p className="text-muted">Nobody is listed in this workspace.</p> : (
@@ -52,14 +52,15 @@ export function WorkspacePeople({ id, name, members, seatLimit }: { id: string; 
                     {m.fullName && <span className="block truncate text-xs text-muted">{m.email}</span>}
                   </span>
                   <span className="shrink-0 text-right text-xs">
-                    <span className="block font-medium">{humanize(m.role)}{m.status === 'invited' ? ' · invited' : ''}</span>
-                    <span className="block text-muted">{m.joinedAt ? `Joined ${when(m.joinedAt)}` : ''}</span>
+                    <span className="block font-medium">{humanize(m.role)}</span>
+                    <span className="block text-muted">{m.createdAt ? `Signed up ${when(m.createdAt)}` : ''}</span>
                   </span>
                   {m.email && <CopyButton value={m.email} label="Copy email" />}
                 </li>
               ))}
             </ul>
           ))}
+          {state && 'list' in state && state.list.length < members && <p className="mt-3 text-xs text-muted">{members - state.list.length} more {members - state.list.length === 1 ? 'seat is' : 'seats are'} counted for this workspace but not listed, for example pending invites.</p>}
         </div>
         <footer className="flex justify-end border-t border-line bg-subtle px-5 py-3.5"><button type="button" className="btn btn-primary" onClick={() => ref.current?.close()}>Close</button></footer>
       </dialog>

@@ -166,45 +166,58 @@ describe('people in workspaces', () => {
   });
 });
 
-describe('workspace members', () => {
-  it('reads an array or an { items } wrapper, and tolerates odd values', async () => {
-    const { listMembers } = await import('@/products/team-management/api');
-    const m = { id: 'u1', email: 'ada@acme.com', fullName: 'Ada', role: 'admin', status: 'active', joinedAt: '2026-10-01T00:00:00Z' };
-    vi.stubGlobal('fetch', reply([m, { id: 'u2', email: 'bob@acme.com', role: 7, fullName: null }]));
-    const list = await listMembers('11111111-1111-1111-1111-111111111111');
-    expect(list).toHaveLength(2);
-    expect(list[0]).toMatchObject({ email: 'ada@acme.com', role: 'admin' });
-    expect(list[1]).toMatchObject({ email: 'bob@acme.com', role: '', status: 'active', fullName: null });
-    vi.stubGlobal('fetch', reply({ items: [m] }));
-    expect(await listMembers('w1')).toHaveLength(1);
+describe('users and workspace members', () => {
+  const user = (o: Record<string, unknown> = {}) => ({
+    id: 'u1', email: 'ada@acme.com', fullName: 'Ada', avatarUrl: null, createdAt: '2026-10-01T09:00:00Z', emailConfirmed: true, lastSignInAt: '2026-10-27T08:30:00Z',
+    twoFactorEnabled: false, whitelisted: false, workspaces: [{ id: 'w1', name: 'Acme Inc.', role: 'admin' }], ...o,
   });
 
-  it('asks for the right path, and reports a missing endpoint as an error with its status', async () => {
-    const { listMembers } = await import('@/products/team-management/api');
-    const f = reply({ error: { message: 'Unauthorized', code: 'unauthorized' } }, 401);
+  it('reads the users list from the spec sample, including people with no workspace', async () => {
+    const { listUsers } = await import('@/products/team-management/api');
+    const f = reply({ page: 1, pageSize: 25, total: 2, items: [user(), user({ id: 'u2', email: 'bob@acme.com', fullName: null, workspaces: [], twoFactorEnabled: true, whitelisted: true })] });
     vi.stubGlobal('fetch', f);
-    await expect(listMembers('abc/def')).rejects.toMatchObject({ status: 401 });
-    expect((f.mock.calls[0] as unknown as [string])[0]).toBe('https://api.tms.test/api/v1/admin/workspaces/abc%2Fdef/members');
+    const r = await listUsers({ page: 1, pageSize: 25, search: 'a' });
+    expect((f.mock.calls[0] as unknown as [string])[0]).toBe('https://api.tms.test/api/v1/admin/users?page=1&pageSize=25&search=a');
+    expect(r.items[0]).toMatchObject({ email: 'ada@acme.com', emailConfirmed: true, twoFactorEnabled: false, workspaces: [{ id: 'w1', role: 'admin' }] });
+    expect(r.items[1]).toMatchObject({ workspaces: [], twoFactorEnabled: true, whitelisted: true });
   });
-});
 
-describe('users', () => {
-  it('lists owners once each, with every workspace they own', async () => {
+  it('survives odd values', async () => {
+    const { listUsers } = await import('@/products/team-management/api');
+    vi.stubGlobal('fetch', reply({ page: 1, pageSize: 25, total: 1, items: [{ id: 'u3', email: 'x@y.com', emailConfirmed: 'yes', workspaces: 'none', lastSignInAt: 5 }] }));
+    const r = await listUsers({ page: 1, pageSize: 25 });
+    expect(r.items[0]).toMatchObject({ emailConfirmed: null, workspaces: [], lastSignInAt: null, whitelisted: false });
+  });
+
+  it('works out who is in a workspace from every user, and filters workspaces by person', async () => {
+    const { membersOfWorkspace, listWorkspaces } = await import('@/products/team-management/api');
+    const users = [
+      user(), user({ id: 'u2', email: 'bob@acme.com', fullName: null, workspaces: [{ id: 'w1', name: 'Acme Inc.', role: 'member' }, { id: 'w2', name: 'Beta', role: 'admin' }] }),
+      user({ id: 'u3', email: 'cy@z.com', workspaces: [] }),
+    ].map((u) => ({ ...u, workspaces: u.workspaces })) as never;
+    expect(membersOfWorkspace(users, 'w1').map((m) => [m.email, m.role])).toEqual([['ada@acme.com', 'admin'], ['bob@acme.com', 'member']]);
+    expect(membersOfWorkspace(users, 'w2').map((m) => m.email)).toEqual(['bob@acme.com']);
+    expect(membersOfWorkspace(users, 'nope')).toEqual([]);
+
+    const f = reply({ page: 1, pageSize: 25, total: 0, items: [] });
+    vi.stubGlobal('fetch', f);
+    await listWorkspaces({ page: 1, pageSize: 25, userId: 'u2' });
+    expect((f.mock.calls[0] as unknown as [string])[0]).toContain('userId=u2');
+  });
+
+  it('reads every page of users', async () => {
+    const { listAllUsers } = await import('@/products/team-management/api');
+    const pages = [Array.from({ length: 100 }, (_, i) => user({ id: `a${i}` })), Array.from({ length: 20 }, (_, i) => user({ id: `b${i}` }))];
+    let call = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ page: call + 1, pageSize: 100, total: 120, items: pages[call++] }), { status: 200 })));
+    expect(await listAllUsers()).toHaveLength(120);
+    expect(call).toBe(2);
+  });
+
+  it('lists each owner once with every workspace they own (older API without /users)', async () => {
     const { ownersOf } = await import('@/products/team-management/api');
     const w = (name: string, email: string | null) => ({ id: name, name, owner: email ? { id: 'o', email, fullName: null } : null }) as never;
     const owners = ownersOf([w('Acme inc', 'Me@x.com'), w('Acme Inc', 'me@x.com'), w('DuoPlus', null), w('Beta', 'zed@y.com')]);
     expect(owners.map((o) => [o.email, o.workspaces.length])).toEqual([['Me@x.com', 2], ['zed@y.com', 1]]);
-  });
-
-  it('reads the users list defensively', async () => {
-    const { listUsers } = await import('@/products/team-management/api');
-    vi.stubGlobal('fetch', reply({ page: 1, pageSize: 25, total: 2, items: [
-      { id: 'u1', email: 'ada@acme.com', fullName: 'Ada', createdAt: '2026-10-01T00:00:00Z', confirmed: true, workspaces: [{ id: 'w1', name: 'Acme', role: 'admin' }] },
-      { id: 'u2', email: 'bob@acme.com', confirmed: 'yes', workspaces: 'none' },
-    ] }));
-    const r = await listUsers({ page: 1, pageSize: 25, search: 'a' });
-    expect(r.total).toBe(2);
-    expect(r.items[0]).toMatchObject({ email: 'ada@acme.com', confirmed: true, workspaces: [{ name: 'Acme', role: 'admin' }] });
-    expect(r.items[1]).toMatchObject({ email: 'bob@acme.com', confirmed: null, workspaces: [] });
   });
 });

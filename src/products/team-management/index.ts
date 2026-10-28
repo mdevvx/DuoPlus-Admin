@@ -8,6 +8,7 @@ import { WhitelistPage } from './pages/whitelist';
 import { AuditPage } from './pages/audit';
 import { PaymentsPage } from './pages/payments';
 import { UsersPage } from './pages/users';
+import { WorkspaceDetailPage } from './pages/workspace';
 import { filterPayments, filtersFromParams, REASON_LABEL, STATUS_LABEL } from './payments';
 import { listPayments } from './polar';
 import { peopleInWorkspaces } from './people';
@@ -29,6 +30,7 @@ const teamManagement: ProductModule = {
   routes: {
     '': { permission: 'read', render: OverviewPage },
     workspaces: { permission: 'read', render: WorkspacesPage },
+    'workspaces/:id': { permission: 'read', render: WorkspaceDetailPage },
     users: { permission: 'read', render: UsersPage },
     payments: { permission: 'read', render: PaymentsPage },
     whitelist: { permission: 'read', render: WhitelistPage },

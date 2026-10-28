@@ -89,9 +89,10 @@ function parse<T>(schema: z.ZodType<T>, data: unknown): T {
 
 export const getOverview = async () => parse(overviewSchema, await request('GET', '/overview'));
 
-export async function listWorkspaces(p: { search?: string; page: number; pageSize: number }) {
+export async function listWorkspaces(p: { search?: string; userId?: string; page: number; pageSize: number }) {
   const sp = new URLSearchParams({ page: String(p.page), pageSize: String(p.pageSize) });
   if (p.search) sp.set('search', p.search);
+  if (p.userId) sp.set('userId', p.userId); // only the workspaces this person belongs to
   return parse(workspacesSchema, await request('GET', `/workspaces?${sp}`));
 }
 
@@ -109,46 +110,45 @@ export async function listAllWorkspaces(): Promise<Workspace[]> {
   return out;
 }
 
-const memberSchema = z.object({
-  id: str, email: str, fullName: z.string().nullable().catch(null),
-  role: str, // admin | manager | member | guest
-  status: z.string().catch('active'), // active | invited
-  joinedAt: str,
-});
-export type Member = z.infer<typeof memberSchema>;
-
-/**
- * People in one workspace. Not part of the original operator API: the DuoPlus app must expose
- * GET /api/v1/admin/workspaces/:id/members returning an array (or { items }) of
- * { id, email, fullName, role, status, joinedAt }. Until then this throws a 404/401 TmsError.
- */
-export async function listMembers(workspaceId: string): Promise<Member[]> {
-  const data = await request('GET', `/workspaces/${encodeURIComponent(workspaceId)}/members`);
-  const items = Array.isArray(data) ? data : Array.isArray((data as { items?: unknown })?.items) ? (data as { items: unknown[] }).items : null;
-  if (!items) throw new TmsError(0, 'bad_response', 'The Team Management System API sent an unexpected response');
-  return items.map((m) => memberSchema.parse(m));
-}
-
 const userSchema = z.object({
-  id: str, email: str, fullName: z.string().nullable().catch(null), createdAt: str,
-  confirmed: z.boolean().nullable().catch(null), // email confirmed
+  id: str, email: str, fullName: z.string().nullable().catch(null), avatarUrl: z.string().nullable().catch(null), createdAt: str,
+  emailConfirmed: z.boolean().nullable().catch(null), lastSignInAt: z.string().nullable().catch(null), twoFactorEnabled: z.boolean().nullable().catch(null),
+  whitelisted: z.boolean().catch(false),
+  // An empty list means the person has no workspace.
   workspaces: z.array(z.object({ id: str, name: z.string().catch('Untitled workspace'), role: z.string().catch('') }).catch({ id: '', name: 'Untitled workspace', role: '' })).catch([]),
 });
 export type AppUser = z.infer<typeof userSchema>;
 const usersSchema = z.object({ page: num, pageSize: num, total: num, items: z.array(userSchema).catch([]) });
 
-/**
- * Every registered account. Not part of the original operator API: the DuoPlus app must expose
- * GET /api/v1/admin/users?search=&page=&pageSize= returning { page, pageSize, total, items: [{ id, email, fullName,
- * createdAt, confirmed, workspaces: [{ id, name, role }] }] }. Until then this throws a 401/404 TmsError.
- */
+/** Every account, including people with no workspace. GET /users?search=&page=&pageSize= (at most 100 per page). */
 export async function listUsers(p: { search?: string; page: number; pageSize: number }) {
   const sp = new URLSearchParams({ page: String(p.page), pageSize: String(p.pageSize) });
   if (p.search) sp.set('search', p.search);
   return parse(usersSchema, await request('GET', `/users?${sp}`));
 }
 
-/** The owners found in the workspace list: the people we can name without a users endpoint. */
+/** Every account, read page by page (at most 2,000). */
+export async function listAllUsers(): Promise<AppUser[]> {
+  const out: AppUser[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const r = await listUsers({ page, pageSize: 100 });
+    out.push(...r.items);
+    if (r.items.length < 100 || out.length >= r.total) break;
+  }
+  return out;
+}
+
+/** One person in a workspace. The API has no members route, so these are read from each user's own workspace list. */
+export interface Member { id: string; email: string; fullName: string | null; role: string; createdAt: string }
+
+export function membersOfWorkspace(users: AppUser[], workspaceId: string): Member[] {
+  return users.flatMap((u) => {
+    const w = u.workspaces.find((x) => x.id === workspaceId);
+    return w ? [{ id: u.id, email: u.email, fullName: u.fullName, role: w.role, createdAt: u.createdAt }] : [];
+  });
+}
+
+/** The owners found in the workspace list: the people we can name when the users route is not available. */
 export function ownersOf(workspaces: Workspace[]): { key: string; email: string; fullName: string | null; workspaces: { name: string }[] }[] {
   const by = new Map<string, { key: string; email: string; fullName: string | null; workspaces: { name: string }[] }>();
   for (const w of workspaces) {

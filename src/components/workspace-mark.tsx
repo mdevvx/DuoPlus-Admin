@@ -3,13 +3,13 @@
 import { useState } from 'react';
 
 /** Workspace logo, or its first letter when there is none or the image does not load (for example a host the panel's CSP blocks). */
-export function WorkspaceMark({ name, logoUrl, size = 32 }: { name: string; logoUrl: string | null; size?: number }) {
+export function WorkspaceMark({ name, logoUrl, size = 32, round }: { name: string; logoUrl: string | null; size?: number; round?: boolean }) {
   const [broken, setBroken] = useState(false);
   const letter = (name.trim().charAt(0) || '?').toUpperCase();
   const box = { width: size, height: size };
   if (logoUrl && !broken && /^https:\/\//i.test(logoUrl)) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logoUrl} alt="" referrerPolicy="no-referrer" onError={() => setBroken(true)} style={box} className="shrink-0 rounded-lg border border-line bg-surface object-cover" />;
+    return <img src={logoUrl} alt="" referrerPolicy="no-referrer" onError={() => setBroken(true)} style={box} className={`shrink-0 border border-line bg-surface object-cover ${round ? 'rounded-full' : 'rounded-lg'}`} />;
   }
-  return <span aria-hidden style={box} className="flex shrink-0 items-center justify-center rounded-lg bg-accent-soft text-sm font-semibold text-accent">{letter}</span>;
+  return <span aria-hidden style={box} className={`flex shrink-0 items-center justify-center bg-accent-soft text-sm font-semibold text-accent ${round ? 'rounded-full' : 'rounded-lg'}`}>{letter}</span>;
 }
