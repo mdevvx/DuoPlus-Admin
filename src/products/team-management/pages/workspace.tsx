@@ -4,7 +4,6 @@ import { Badge, Card, Cell, EmptyState, ErrorPanel, KV, PageHeader, Stat, Table,
 import { ProgressBar } from '@/components/charts';
 import { Notice } from '@/components/form';
 import { CopyId } from '@/components/small-client';
-import { RefreshButton } from '@/components/refresh-button';
 import { WorkspaceMark } from '@/components/workspace-mark';
 import { int } from '@/lib/format';
 import type { RouteCtx } from '@/products/types';
@@ -35,7 +34,7 @@ export async function WorkspaceDetailPage({ params }: RouteCtx) {
   return (
     <>
       <PageHeader icon={<WorkspaceMark name={ws.name} logoUrl={ws.logoUrl} size={52} />} title={ws.name} description={`Workspace detail · ${ws.id}`} updatedAt={new Date()}
-        actions={<><RefreshButton className="btn" />{back}</>} />
+        actions={back} />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <StatusBadge status={ws.status} />

@@ -93,7 +93,13 @@ export function Sidebar({ products, user }: { products: ShellProduct[]; user: Sh
         <div className={sideLabel}>Main</div>
         {current ? <div className="relative ml-4 space-y-0.5 border-l border-side-line pl-2.5">{current.nav.map((n) => {
           const href = n.path ? `/p/${current.slug}/${n.path}` : `/p/${current.slug}`;
-          const active = n.path ? path === href || path.startsWith(href + '/') : path === href;
+          // Only the closest match is highlighted: /email/send also sits under /email, but "Reminders & email" must not light up with it.
+          const longest = current.nav.reduce((best, m) => {
+            const h = m.path ? `/p/${current.slug}/${m.path}` : `/p/${current.slug}`;
+            const hit = m.path ? path === h || path.startsWith(h + '/') : path === h;
+            return hit && h.length > best ? h.length : best;
+          }, -1);
+          const active = (n.path ? path === href || path.startsWith(href + '/') : path === href) && href.length === longest;
           return (
             <Link key={n.path} href={href} aria-current={active ? 'page' : undefined} className={navClass(active)}>
               <ActiveBar show={active} /><Icon name={n.icon} className="h-[18px] w-[18px]" /> {n.label}

@@ -6,7 +6,6 @@ import { DonexelTemplateEditor } from '@/components/donexel-template-editor';
 import { ContactManage, EmailSettingsForm, OutboxDetailButton, RunRemindersButton, TemplateSwitch } from '@/components/donexel-email-bits';
 import { Filters } from '@/components/filters';
 import { Notice } from '@/components/form';
-import { RefreshButton } from '@/components/refresh-button';
 import { int } from '@/lib/format';
 import { can } from '@/lib/roles';
 import type { RouteCtx } from '@/products/types';
@@ -30,7 +29,7 @@ export async function EmailRemindersPage({ role }: RouteCtx) {
   return (
     <>
       <PageHeader title="Reminders & email" description="Which automatic emails go out, and how many recently." updatedAt={new Date()}
-        actions={<>{<RefreshButton className="btn" />}{edit && r.ok && <RunRemindersButton />}</>} />
+        actions={<>{edit && r.ok && <RunRemindersButton />}</>} />
       {!r.ok ? r.panel : (() => {
         const [o, rem] = r.data;
         return (
@@ -161,7 +160,7 @@ export async function EmailOutboxPage({ searchParams, role }: RouteCtx) {
   return (
     <>
       <PageHeader title="Email outbox" description="Every email Donexel has sent or tried to send, with its status." updatedAt={new Date()}
-        actions={<>{<RefreshButton className="btn" />}{can(role, 'tms.email') && <Link className="btn btn-primary" href={`${root}/send`}>Send email</Link>}</>} />
+        actions={<>{can(role, 'tms.email') && <Link className="btn btn-primary" href={`${root}/send`}>Send email</Link>}</>} />
       <Filters action={path} fields={[
         { type: 'search', key: 'q', label: 'Search', placeholder: 'Search by recipient or subject' },
         { type: 'select', key: 'status', label: 'Status', options: OUTBOX_STATUSES.map((s): [string, string] => [s, humanize(s)]) },
@@ -201,7 +200,7 @@ export async function EmailContactsPage({ searchParams, role }: RouteCtx) {
   const r = await load(() => listEmailContacts({ search: p.q, page: p.page, pageSize: PER }), path);
   return (
     <>
-      <PageHeader title="Email contacts" description="Everyone Donexel can email. Switching reminders off stops reminders only: account and billing emails are always sent." updatedAt={new Date()} actions={<RefreshButton className="btn" />} />
+      <PageHeader title="Email contacts" description="Everyone Donexel can email. Switching reminders off stops reminders only: account and billing emails are always sent." updatedAt={new Date()} />
       <Filters action={path} fields={[{ type: 'search', key: 'q', label: 'Search', placeholder: 'Search by email or name' }]} />
       {!r.ok ? r.panel : r.data.items.length === 0 ? <div className="card"><EmptyState title={p.q ? 'No contacts match' : 'No contacts yet'} hint={p.q ? 'Check the spelling or clear the search.' : undefined} /></div> : (
         <>

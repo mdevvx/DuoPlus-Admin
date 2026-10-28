@@ -4,7 +4,6 @@ import { Badge, Card, Cell, DetailRow, EmptyState, ErrorPanel, PageHeader, Pagin
 import { CopyId, DetailModal } from '@/components/small-client';
 import { Filters } from '@/components/filters';
 import { Notice } from '@/components/form';
-import { RefreshButton } from '@/components/refresh-button';
 import { can } from '@/lib/roles';
 import { money, int } from '@/lib/format';
 import { PAGE_SIZE, csvEnum, splitCsv } from '@/lib/validation';
@@ -56,7 +55,7 @@ export async function PaymentsPage({ role, searchParams }: RouteCtx) {
     <>
       <PageHeader title="Payments" description="Orders for the Starter, Growth and Scale plans, read from Polar. Refunds and receipts happen in Polar." updatedAt={new Date()}
         actions={<>
-          <RefreshButton className="btn" />
+          
           {can(role, 'export.csv') && <a className="btn" href={`/api/export/team-management/payments${qs ? `?${qs}` : ''}`}>Export CSV</a>}
           <a className="btn" href={org} target="_blank" rel="noopener noreferrer">Open Polar <ExternalLink className="h-3.5 w-3.5" aria-hidden /></a>
         </>} />

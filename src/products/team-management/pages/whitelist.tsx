@@ -3,7 +3,6 @@ import { Card, Cell, EmptyState, PageHeader, Table, Tr, When } from '@/component
 import { ConfirmAction } from '@/components/confirm-action';
 import { Filters } from '@/components/filters';
 import { Notice } from '@/components/form';
-import { RefreshButton } from '@/components/refresh-button';
 import { WhitelistAdd } from '@/components/whitelist-form';
 import { can } from '@/lib/roles';
 import type { RouteCtx } from '@/products/types';
@@ -22,7 +21,7 @@ export async function WhitelistPage({ role, searchParams }: RouteCtx) {
 
   return (
     <>
-      <PageHeader title="Whitelist" description="People on this list never pay. Their workspaces are complimentary on the plan you choose." updatedAt={new Date()} actions={<RefreshButton className="btn" />} />
+      <PageHeader title="Whitelist" description="People on this list never pay. Their workspaces are complimentary on the plan you choose." updatedAt={new Date()} />
 
       {canEdit && (
         <div className="mb-5">

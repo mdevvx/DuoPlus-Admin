@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { Badge, Card, Cell, EmptyState, ErrorPanel, PageHeader, Pagination, Stat, Table, Tr, When } from '@/components/ui';
 import { Filters } from '@/components/filters';
 import { Notice } from '@/components/form';
-import { RefreshButton } from '@/components/refresh-button';
 import { WorkspaceMark } from '@/components/workspace-mark';
 import { int } from '@/lib/format';
 import type { RouteCtx } from '@/products/types';
@@ -58,7 +57,7 @@ export async function UsersPage({ searchParams }: RouteCtx) {
 
   return (
     <>
-      <PageHeader title="Users" description="Everyone who has an account, and the workspaces they belong to." updatedAt={new Date()} actions={<RefreshButton className="btn" />} />
+      <PageHeader title="Users" description="Everyone who has an account, and the workspaces they belong to." updatedAt={new Date()} />
       {failure ? <ErrorPanel message={failure} retryHref={path} /> : (
         <>
           <div className="mb-5 grid max-w-3xl grid-cols-3 gap-4">

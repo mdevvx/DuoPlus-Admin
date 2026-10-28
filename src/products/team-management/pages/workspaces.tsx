@@ -3,7 +3,6 @@ import { Badge, Cell, EmptyState, ErrorPanel, PageHeader, Pagination, Table, Tr,
 import { Filters } from '@/components/filters';
 import { WorkspaceMark } from '@/components/workspace-mark';
 import { WorkspacePeople } from '@/components/workspace-people';
-import { RefreshButton } from '@/components/refresh-button';
 import { int } from '@/lib/format';
 import type { RouteCtx } from '@/products/types';
 import { Card, Stat } from '@/components/ui';
@@ -37,7 +36,7 @@ export async function WorkspacesPage({ searchParams }: RouteCtx) {
 
   return (
     <>
-      <PageHeader title="Workspaces" description="Every workspace across all accounts, with its owner, plan and seat usage." updatedAt={new Date()} actions={<RefreshButton className="btn" />} />
+      <PageHeader title="Workspaces" description="Every workspace across all accounts, with its owner, plan and seat usage." updatedAt={new Date()} />
       {totals && (
         <div className="mb-5 grid max-w-3xl grid-cols-3 gap-4">
           <Card><Stat label="Workspaces" value={int(totals.workspaces)} hint="All of them" /></Card>
