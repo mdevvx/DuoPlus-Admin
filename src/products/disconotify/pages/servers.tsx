@@ -18,6 +18,7 @@ import { ServerAvatar } from '@/components/server-avatar';
 import { DiscordNotice } from '@/components/discord-notice';
 import { getGuildInfo, guildInfoMap } from '@/lib/discord';
 import { SLUG, num, str } from '../db';
+import { platformOrder } from '@/lib/platforms';
 import { Filters } from '@/components/filters';
 import { STATE_LABEL, subscriptionState } from '../state';
 
@@ -214,9 +215,12 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
             )}
         </Card>
         <Card title="Payment history"><PaymentsMini rows={d.payments} /></Card>
-        <Card title="Monitored accounts"><GenericRows compact rows={d.accounts} label="Monitored accounts" prefer={['platform', 'username', 'display_name', 'status']} /></Card>
+        <Card title="Monitored accounts"><GenericRows compact rows={[...d.accounts].sort((a, b) => platformOrder(str(a.platform)) - platformOrder(str(b.platform)))} label="Monitored accounts" prefer={['platform', 'username', 'display_name', 'status']} /></Card>
         <Card title="Notification channels"><ChannelsMini rows={d.channels} /></Card>
-        <Card title="Recent events"><GenericRows compact rows={d.events} label="Events" prefer={['created_at', 'platform', 'event_type', 'title']} /></Card>
+        <Card title="Recent events"><GenericRows compact rows={d.events.map((e) => {
+          const meta = typeof e.metadata === 'object' && e.metadata !== null ? (e.metadata as Record<string, unknown>) : {};
+          return { ...e, category: meta.category ?? e.category, viewers: meta.viewer_count ?? e.viewers };
+        })} label="Events" prefer={['created_at', 'platform', 'event_type', 'title', 'category', 'viewers']} /></Card>
         <Card title="Bot activity log"><GenericRows compact rows={d.audit} label="Audit entries" prefer={['created_at', 'action', 'user_id']} /></Card>
       </div>
       <p className="mt-4 text-muted">All server actions are written to the audit log with before/after values. <Link className="text-accent" href={`${base}/audit?target=${id.data}`}>View this server&apos;s audit trail</Link></p>

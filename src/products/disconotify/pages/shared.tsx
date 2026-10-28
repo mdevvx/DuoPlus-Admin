@@ -3,6 +3,7 @@ import { Badge, EmptyState, Table, Tr } from '@/components/ui';
 import { ClampText, CopyId } from '@/components/small-client';
 import { ServerIdentity } from '@/components/server-avatar';
 import type { GuildInfo } from '@/lib/discord';
+import { accountUrl, platformColor } from '@/lib/platforms';
 import { dateTime, money, platformLabel, providerLabel, sentence, statusTone } from '@/lib/format';
 import { STATE_LABEL, subscriptionState } from '../state';
 import { pick, str, type Row } from '../db';
@@ -23,6 +24,16 @@ export function StateBadge({ billing, botPresent }: { billing: Row; botPresent: 
 /** Marks a payment made in Polar's sandbox so it is never mistaken for live revenue. */
 export function TestBadge({ test }: { test: boolean }) {
   return test ? <Badge tone="warning">Sandbox</Badge> : null;
+}
+
+/** A platform's name with its brand colour as a dot, in the same badge as every other status in the panel. */
+export function PlatformBadge({ platform, suffix }: { platform: string | null | undefined; suffix?: string }) {
+  return (
+    <Badge tone="neutral">
+      <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: platformColor(platform) }} />
+      {platformLabel(platform)}{suffix ? ` · ${suffix}` : ''}
+    </Badge>
+  );
 }
 
 export function PaymentStatus({ status }: { status: unknown }) {
@@ -96,13 +107,14 @@ export function GenericRows({ rows, prefer = [], label, max = 7, compact }: { ro
           const v = r[c];
           const s = v === null || v === undefined ? '—' : String(v);
           if (c === 'status' && typeof v === 'string') return <td key={c} className="td"><Badge tone={statusTone(v)}>{sentence(v)}</Badge></td>;
-          if (c === 'username' && typeof v === 'string' && String(r.platform).toLowerCase() === 'tiktok') {
-            return <td key={c} className="td"><a className="text-accent hover:underline" href={`https://www.tiktok.com/@${encodeURIComponent(v)}`} target="_blank" rel="noopener noreferrer">@{v}</a></td>;
+          if (c === 'username' && typeof v === 'string' && accountUrl(str(r.platform), v)) {
+            const tiktok = String(r.platform).toLowerCase() === 'tiktok';
+            return <td key={c} className="td"><a className="text-accent hover:underline" href={accountUrl(str(r.platform), v)!} target="_blank" rel="noopener noreferrer">{tiktok ? '@' : ''}{v}</a></td>;
           }
           if (c === 'platform_event_id' && typeof v === 'string' && String(r.platform).toLowerCase() === 'tiktok' && r.username) {
             return <td key={c} className="td"><a className="text-accent hover:underline" href={`https://www.tiktok.com/@${encodeURIComponent(String(r.username))}/video/${encodeURIComponent(v)}`} target="_blank" rel="noopener noreferrer">Open video</a></td>;
           }
-          if (c === 'platform' && typeof v === 'string') return <td key={c} className="td">{platformLabel(v)}</td>;
+          if (c === 'platform' && typeof v === 'string') return <td key={c} className="td"><PlatformBadge platform={v} /></td>;
           if (c === 'provider' && typeof v === 'string') return <td key={c} className="td">{providerLabel(v)}</td>;
           if (typeof v === 'string' && /(_type|^type|action|kind|category|level)$/.test(c) && /^[a-z0-9_.:-]{2,40}$/.test(v)) return <td key={c} className="td">{sentence(v)}</td>;
           if (typeof v === 'string' && v.length > 64) return <td key={c} className="td"><ClampText text={v} title={c.replace(/_/g, ' ').replace(/^./, (x) => x.toUpperCase())} /></td>;

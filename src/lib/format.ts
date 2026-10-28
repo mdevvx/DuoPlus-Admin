@@ -1,3 +1,4 @@
+import { PLATFORMS } from './platforms';
 export function maskEmail(email: string | null | undefined): string {
   if (!email) return '—';
   const [local = '', domain = ''] = email.split('@');
@@ -35,14 +36,10 @@ export function sentence(v: string | null | undefined): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '—';
 }
 
-const PLATFORMS: Record<string, string> = {
-  youtube: 'YouTube', kick: 'Kick', instagram: 'Instagram', twitter: 'Twitter / X', x: 'Twitter / X',
-  twitch: 'Twitch', tiktok: 'TikTok', facebook: 'Facebook', reddit: 'Reddit', discord: 'Discord',
-};
 /** Platform names keep their brand capitalisation. */
 export function platformLabel(v: string | null | undefined): string {
   const k = (v ?? '').trim().toLowerCase();
-  return PLATFORMS[k] ?? sentence(v);
+  return PLATFORMS[k]?.label ?? sentence(v);
 }
 
 /** Tone for a free-text status value. */

@@ -163,7 +163,7 @@ export async function getMergedAudit(sp: Record<string, string | undefined>) {
 }
 
 // ---------------------------------------------------------------- settings
-const SETTING_KEYS = ['price_usd', 'price', 'trial_days', 'grace_days', 'reminder_schedule', 'reminder_days'];
+const SETTING_KEYS = ['price_usd', 'price', 'trial_days', 'grace_days', 'reminder_schedule', 'reminder_days', 'twitch_poll_interval_seconds'];
 export async function getBotSettings() {
   const { data } = await pn().from(T.botState).select('key,value').in('key', SETTING_KEYS);
   return (data ?? []) as Row[];

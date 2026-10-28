@@ -5,6 +5,7 @@ import { can } from '@/lib/roles';
 import { BrandingCard } from '@/components/branding-card';
 import { dateTime, int, platformLabel, relative, sentence, statusTone } from '@/lib/format';
 import { PAGE_SIZE } from '@/lib/validation';
+import { PLATFORMS, platformColor, platformOrder } from '@/lib/platforms';
 import { getBotSettings, getSavedBotSettings, getMergedAudit, getPlatformHealth, getTikTokBlockRate, getAbandonedCheckouts, getFailedDms, getReminders, getSubscriptionHealth } from '../queries/ops';
 import Link from 'next/link';
 import { saveBotSettings, setMaintenance } from '../actions';
@@ -144,14 +145,18 @@ export async function RemindersPage({ role, admin }: RouteCtx) {
   );
 }
 
-const PLATFORM_ORDER = ['youtube', 'kick', 'instagram', 'twitter', 'x', 'tiktok'];
-const orderOf = (p: string) => { const i = PLATFORM_ORDER.indexOf(p.toLowerCase()); return i === -1 ? 99 : i; };
+const orderOf = platformOrder;
 
 const isPaused = (r: Row) => !!r.rate_limited_until && new Date(String(r.rate_limited_until)).getTime() > Date.now();
 const isDisabled = (r: Row) => String(r.status ?? '').toLowerCase() === 'disabled';
 
 /** Both quotas are rolling windows, so the remaining value can move up as well as down. YouTube's is an estimate. */
 const QUOTA_PERIOD: Record<string, string> = { youtube: 'today (estimate)', instagram: 'this hour' };
+
+/** What a healthy day looks like, for platforms where that helps tell a quiet day from a stuck poller. */
+const EXPECTED: Record<string, string> = {
+  twitch: 'About 2,880 requests a day however many accounts: one batched call every 30 seconds, plus one more per 100 channels. Twitch reports no quota.',
+};
 
 /** Quota meter where the provider reports one; "N/A" where it does not (X, TikTok). */
 function QuotaCell({ row, full }: { row: Row; full?: boolean }) {
@@ -223,7 +228,7 @@ export async function HealthPage({ role }: RouteCtx) {
             return (
               <Card key={i} className={bad ? 'border-warning' : undefined}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-base font-semibold">{platformLabel(str(p.platform))}</span>
+                  <span className="inline-flex items-center gap-2 text-base font-semibold"><span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ background: platformColor(str(p.platform)) }} />{platformLabel(str(p.platform))}</span>
                   <PlatformStatus row={p} short />
                 </div>
                 <div className="mt-4 flex items-end justify-between gap-3">
@@ -287,6 +292,7 @@ export async function HealthPage({ role }: RouteCtx) {
                     <DetailRow label="Failures in a row">{int(num(p.consecutive_failures))}</DetailRow>
                     <DetailRow label="Requests today">{int(num(p.requests_today))}</DetailRow>
                     {isPaused(p) && <DetailRow label="Paused until"><When value={str(p.rate_limited_until)} /></DetailRow>}
+                    {EXPECTED[String(p.platform).toLowerCase()] && <DetailRow label="Expected load">{EXPECTED[String(p.platform).toLowerCase()]}</DetailRow>}
                   </dl>
                   <div className="mt-4">
                     <div className="mb-1 text-xs text-muted">Last error message</div>
@@ -323,11 +329,23 @@ export async function AuditPage({ searchParams }: RouteCtx) {
 export async function SettingsPage({ role, manifest }: { role: RouteCtx['role']; manifest: { name: string; icon: string; logo?: string } }) {
   const rows = await getBotSettings();
   const saved: BotSettings = await getSavedBotSettings().catch(() => ({}));
-  const [schedule, health] = await Promise.all([getSchedule().catch(() => null), outboxHealth().catch(() => null)]);
+  const [schedule, health, platformHealth] = await Promise.all([getSchedule().catch(() => null), outboxHealth().catch(() => null), getPlatformHealth().catch(() => null)]);
+  const live = new Set((platformHealth?.platforms ?? []).map((r) => String(r.platform).toLowerCase()));
   return (
     <>
       <PageHeader title="Settings" description="Product branding, pricing and trial settings, and how the bot currently runs." updatedAt={new Date()} />
       <div className="mb-4"><BrandingCard slug={SLUG} role={role} manifest={manifest} /></div>
+      {platformHealth && (
+        <div className="mb-4">
+          <Card title="Platforms" action={<Link className="text-sm text-accent hover:underline" href={`${base}/health`}>Platform health</Link>}>
+            <KV items={[
+              ...(['youtube', 'kick', 'twitch', 'instagram', 'twitter', 'tiktok'] as const).map((k): [string, React.ReactNode] => [PLATFORMS[k]!.label, live.has(k) || (k === 'twitter' && live.has('x')) ? <Badge key={k} tone="success">On</Badge> : <Badge key={k} tone="neutral">Off</Badge>]),
+              ['Twitch poll interval', '30 seconds by default'],
+            ]} />
+            <p className="mt-4 text-xs text-muted">A platform is on once it has reported health, which happens after its first poll. Twitch turns on only when the bot has its Twitch credentials; the panel never sees them. The poll interval is the bot&apos;s TWITCH_POLL_INTERVAL_SECONDS setting (30 seconds when unset).</p>
+          </Card>
+        </div>
+      )}
       {schedule && (
         <div className="mb-4">
           <Card title="Email" action={<Link className="text-sm text-accent hover:underline" href={`${base}/email/settings`}>Email settings</Link>}>

@@ -2,10 +2,11 @@ import Link from 'next/link';
 import { Badge, Card, EmptyState, ErrorPanel, PageHeader, Pagination, Stat, Table, Tr } from '@/components/ui';
 import { CopyId } from '@/components/small-client';
 import { dateOnly, int, platformLabel, sentence } from '@/lib/format';
+import { platformColor } from '@/lib/platforms';
 import { PAGE_SIZE } from '@/lib/validation';
 import { botParams, getBotDashboard, listBotServers } from '../queries/bot';
 import type { RouteCtx } from '@/products/types';
-import { ServerLink, base } from './shared';
+import { PlatformBadge, ServerLink, base } from './shared';
 import { guildInfoMap } from '@/lib/discord';
 import { RankedBars } from '@/components/charts';
 import { DiscordNotice } from '@/components/discord-notice';
@@ -35,7 +36,7 @@ export async function BotStatusPage({ searchParams }: RouteCtx) {
       <div className="mb-6 grid grid-cols-2 gap-5">
         <Card title="Integrations by platform">
           {dash.byPlatform.length === 0 ? <EmptyState title="No monitored accounts yet" /> : (
-            <RankedBars items={dash.byPlatform.slice(0, 8).map(([name, n]) => ({ label: platformLabel(name), value: n }))} />
+            <RankedBars items={dash.byPlatform.slice(0, 8).map(([name, n]) => ({ label: platformLabel(name), value: n, color: platformColor(name) }))} />
           )}
         </Card>
         <Card title="Platform status" action={<Link className="text-xs text-accent" href={`${base}/health`}>Details</Link>}>
@@ -61,7 +62,7 @@ export async function BotStatusPage({ searchParams }: RouteCtx) {
               <td className="td"><CopyId value={r.guild_id} /></td>
               <td className="td">{r.bot_present === false ? <Badge>Removed</Badge> : <Badge tone="success">Installed</Badge>}</td>
               <td className="td">{r.platforms.length === 0 ? <span className="text-muted">None set up</span> : (
-                <span className="flex flex-wrap gap-1">{r.platforms.map(([n, c]) => <Badge key={n} tone="info">{platformLabel(n)} · {c}</Badge>)}</span>
+                <span className="flex flex-wrap gap-1">{r.platforms.map(([n, c]) => <PlatformBadge key={n} platform={n} suffix={String(c)} />)}</span>
               )}</td>
               <td className="td num text-right">{r.channels}</td><td className="td num text-right">{r.alerts}</td><td className="td num">{dateOnly(r.created_at)}</td>
             </Tr>
