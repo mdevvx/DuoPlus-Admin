@@ -2,10 +2,13 @@ import { z } from 'zod';
 import { Badge, Cell, EmptyState, ErrorPanel, PageHeader, Pagination, Table, Tr, When } from '@/components/ui';
 import { Filters } from '@/components/filters';
 import { WorkspaceMark } from '@/components/workspace-mark';
+import { WorkspacePeople } from '@/components/workspace-people';
 import { RefreshButton } from '@/components/refresh-button';
 import { int } from '@/lib/format';
 import type { RouteCtx } from '@/products/types';
-import { describe, listWorkspaces, tmsConfigured } from '../api';
+import { Card, Stat } from '@/components/ui';
+import { describe, getOverview, listWorkspaces, tmsConfigured } from '../api';
+import { peopleInWorkspaces } from '../people';
 import { PlanText, StatusBadge, base } from './shared';
 
 const PER = 25;
@@ -25,9 +28,19 @@ export async function WorkspacesPage({ searchParams }: RouteCtx) {
     try { data = await listWorkspaces({ search: p.q, page: p.page, pageSize: PER }); } catch (e) { failure = describe(e); }
   }
 
+  // All-workspace totals (not narrowed by the search below), so the three numbers always add up.
+  const totals = failure || !data ? null : await Promise.all([getOverview(), peopleInWorkspaces()]).then(([o, ppl]) => ({ workspaces: o.workspaces.total, people: ppl.people, users: o.users.total })).catch(() => null);
+
   return (
     <>
       <PageHeader title="Workspaces" description="Every workspace across all accounts, with its owner, plan and seat usage." updatedAt={new Date()} actions={<RefreshButton className="btn" />} />
+      {totals && (
+        <div className="mb-5 grid max-w-3xl grid-cols-3 gap-4">
+          <Card><Stat label="Workspaces" value={int(totals.workspaces)} hint="All of them" /></Card>
+          <Card><Stat label="People in workspaces" value={int(totals.people)} hint="Counted per workspace" /></Card>
+          <Card><Stat label="Registered users" value={int(totals.users)} hint="All accounts" /></Card>
+        </div>
+      )}
       <Filters action={path} fields={[{ type: 'search', key: 'q', label: 'Search', placeholder: 'Search by workspace name' }]} />
       {failure || !data ? <ErrorPanel message={failure ?? 'Could not load workspaces.'} retryHref={path} />
         : data.items.length === 0 ? <div className="card"><EmptyState title={p.q ? 'No workspaces match' : 'No workspaces yet'} hint={p.q ? 'Check the spelling or clear the search.' : 'Workspaces appear when someone signs up.'} /></div>
@@ -51,7 +64,7 @@ export async function WorkspacesPage({ searchParams }: RouteCtx) {
                       {w.whitelisted && <Badge tone="info">Whitelisted</Badge>}
                     </div>
                   </td>
-                  <td className="td num whitespace-nowrap text-right">{int(w.members)}{w.seatLimit > 0 && <span className="text-muted"> / {int(w.seatLimit)}</span>}</td>
+                  <td className="td whitespace-nowrap text-right"><WorkspacePeople id={w.id} name={w.name} members={w.members} seatLimit={w.seatLimit} /></td>
                   <td className="td whitespace-nowrap"><When value={w.createdAt || null} /></td>
                 </Tr>
               ))}</tbody>

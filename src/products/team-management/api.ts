@@ -109,6 +109,58 @@ export async function listAllWorkspaces(): Promise<Workspace[]> {
   return out;
 }
 
+const memberSchema = z.object({
+  id: str, email: str, fullName: z.string().nullable().catch(null),
+  role: str, // admin | manager | member | guest
+  status: z.string().catch('active'), // active | invited
+  joinedAt: str,
+});
+export type Member = z.infer<typeof memberSchema>;
+
+/**
+ * People in one workspace. Not part of the original operator API: the DuoPlus app must expose
+ * GET /api/v1/admin/workspaces/:id/members returning an array (or { items }) of
+ * { id, email, fullName, role, status, joinedAt }. Until then this throws a 404/401 TmsError.
+ */
+export async function listMembers(workspaceId: string): Promise<Member[]> {
+  const data = await request('GET', `/workspaces/${encodeURIComponent(workspaceId)}/members`);
+  const items = Array.isArray(data) ? data : Array.isArray((data as { items?: unknown })?.items) ? (data as { items: unknown[] }).items : null;
+  if (!items) throw new TmsError(0, 'bad_response', 'The Team Management System API sent an unexpected response');
+  return items.map((m) => memberSchema.parse(m));
+}
+
+const userSchema = z.object({
+  id: str, email: str, fullName: z.string().nullable().catch(null), createdAt: str,
+  confirmed: z.boolean().nullable().catch(null), // email confirmed
+  workspaces: z.array(z.object({ id: str, name: z.string().catch('Untitled workspace'), role: z.string().catch('') }).catch({ id: '', name: 'Untitled workspace', role: '' })).catch([]),
+});
+export type AppUser = z.infer<typeof userSchema>;
+const usersSchema = z.object({ page: num, pageSize: num, total: num, items: z.array(userSchema).catch([]) });
+
+/**
+ * Every registered account. Not part of the original operator API: the DuoPlus app must expose
+ * GET /api/v1/admin/users?search=&page=&pageSize= returning { page, pageSize, total, items: [{ id, email, fullName,
+ * createdAt, confirmed, workspaces: [{ id, name, role }] }] }. Until then this throws a 401/404 TmsError.
+ */
+export async function listUsers(p: { search?: string; page: number; pageSize: number }) {
+  const sp = new URLSearchParams({ page: String(p.page), pageSize: String(p.pageSize) });
+  if (p.search) sp.set('search', p.search);
+  return parse(usersSchema, await request('GET', `/users?${sp}`));
+}
+
+/** The owners found in the workspace list: the people we can name without a users endpoint. */
+export function ownersOf(workspaces: Workspace[]): { key: string; email: string; fullName: string | null; workspaces: { name: string }[] }[] {
+  const by = new Map<string, { key: string; email: string; fullName: string | null; workspaces: { name: string }[] }>();
+  for (const w of workspaces) {
+    if (!w.owner?.email) continue;
+    const k = w.owner.email.toLowerCase();
+    const cur = by.get(k) ?? { key: k, email: w.owner.email, fullName: w.owner.fullName, workspaces: [] };
+    cur.workspaces.push({ name: w.name });
+    by.set(k, cur);
+  }
+  return [...by.values()].sort((a, b) => a.email.localeCompare(b.email));
+}
+
 export const listWhitelist = async () => parse(z.array(whitelistEntrySchema).catch([]), await request('GET', '/whitelist'));
 
 export const addWhitelist = async (body: { email: string; plan: string; note?: string }) => parse(addResultSchema, await request('POST', '/whitelist', body));

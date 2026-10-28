@@ -40,15 +40,18 @@ export async function OverviewPage(_ctx: RouteCtx) {
       {!r.ok && <div className="mb-6">{r.panel}</div>}
 
       <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard icon="customers" hue="green" label={ppl || !r.ok ? 'People in workspaces' : 'Registered accounts'} value={r.ok ? int(ppl ? ppl.people : o.users.total) : '—'}
-          rows={[[ppl ? 'Across workspaces' : 'All sign-ups', r.ok ? int(ppl ? ppl.workspaces : o.workspaces.total) : '—']]}>
-          {ppl && <p className="text-xs text-muted">Counted per workspace, so someone in two workspaces counts twice. Sign-ups without a workspace are not included.</p>}
+        <StatCard icon="workspace" hue="blue" label="Workspaces" value={r.ok ? int(o.workspaces.total) : '—'} rows={[['New in the last 30 days', r.ok ? int(o.workspaces.new30d) : '—']]}>
+          <Link className="text-sm font-medium text-accent hover:underline" href={`${base}/workspaces`}>See all workspaces</Link>
         </StatCard>
-        <StatCard icon="workspace" hue="blue" label="Workspaces" value={r.ok ? int(o.workspaces.total) : '—'} rows={[['New in the last 30 days', r.ok ? int(o.workspaces.new30d) : '—']]} />
-        <StatCard icon="payments" hue="violet" label="Estimated MRR" value={r.ok ? money(b.mrrCents / 100) : '—'} rows={[['Paying accounts', r.ok ? int(b.payingAccounts) : '—']]}>
+        <StatCard icon="customers" hue="green" label="People in workspaces" value={r.ok && ppl ? int(ppl.people) : '—'} rows={[['Across workspaces', r.ok && ppl ? int(ppl.workspaces) : '—']]}>
+          <p className="text-xs text-muted">Counted per workspace, so someone in two workspaces counts twice.</p>
+        </StatCard>
+        <StatCard icon="customers" hue="violet" label="Registered users" value={r.ok ? int(o.users.total) : '—'} rows={[['New in the last 30 days', r.ok ? int(o.users.new30d) : '—']]}>
+          <Link className="text-sm font-medium text-accent hover:underline" href={`${base}/users`}>See all users</Link>
+        </StatCard>
+        <StatCard icon="payments" hue="amber" label="Estimated MRR" value={r.ok ? money(b.mrrCents / 100) : '—'} rows={[['Paying accounts', r.ok ? int(b.payingAccounts) : '—']]}>
           <p className="text-xs text-muted">Paying accounts times their plan price. Trials, complimentary and whitelisted accounts are not revenue.</p>
         </StatCard>
-        <StatCard icon="subscriptions" hue="green" label="Paying accounts" value={r.ok ? int(b.payingAccounts) : '—'} rows={[['Active and past due', r.ok ? int(b.payingAccounts) : '—']]} />
         <StatCard icon="reminders" hue="amber" label="Trialing accounts" value={r.ok ? int(b.trialingAccounts) : '—'}
           rows={[['Trials ending within 3 days', r.ok ? <span key="t" className={b.trialsEndingIn3Days > 0 ? 'text-warning' : undefined}>{int(b.trialsEndingIn3Days)}</span> : '—']]} />
         <StatCard icon="whitelist" hue="rose" label="Whitelisted emails" value={r.ok ? int(whitelisted) : '—'}>

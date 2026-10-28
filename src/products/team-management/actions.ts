@@ -5,7 +5,7 @@ import { ensureStepUp, requireAdmin } from '@/lib/auth';
 import { runAction, UserError, type ActionResult } from '@/lib/action';
 import { writeAudit } from '@/lib/audit';
 import { reason } from '@/lib/validation';
-import { PLANS, SLUG, TmsError, addWhitelist, removeWhitelist, type AddResult } from './api';
+import { PLANS, SLUG, TmsError, addWhitelist, listMembers, removeWhitelist, type AddResult, type Member } from './api';
 
 const email = z.string().trim().toLowerCase().pipe(z.email('Enter a valid email address').max(254));
 const common = z.object({ reason, code: z.string().optional() });
@@ -63,4 +63,26 @@ export async function removeWhitelistEntry(fd: FormData): Promise<ActionResult> 
     await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'whitelist.remove', target_type: 'whitelist', target_id: d.email, reason: d.reason });
     return 'Removed from the whitelist';
   });
+}
+
+export type MembersResult =
+  | { ok: true; members: Member[] }
+  | { ok: false; unsupported?: boolean; error: string };
+
+/** The people in one workspace, for the Workspaces page. Viewing them is written to the audit log. */
+export async function loadWorkspaceMembers(workspaceId: string): Promise<MembersResult> {
+  try {
+    const id = z.string().regex(/^[\w-]{8,64}$/, 'Invalid workspace').parse(workspaceId);
+    const { admin } = await requireAdmin({ product: SLUG, permission: 'read' });
+    const members = await listMembers(id);
+    await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'view.workspace_members', target_type: 'workspace', target_id: id, after: { count: members.length } });
+    return { ok: true, members };
+  } catch (e) {
+    if (e instanceof TmsError) {
+      // The key is good for the other routes, so a 401/404/405 on this path means the app has no members endpoint yet.
+      if ([401, 404, 405].includes(e.status)) return { ok: false, unsupported: true, error: 'The Team Management System API does not list a workspace\'s people yet.' };
+      if (e.code === 'unreachable') return { ok: false, error: 'Could not reach the Team Management System.' };
+    }
+    return { ok: false, error: 'Could not load the people in this workspace.' };
+  }
 }

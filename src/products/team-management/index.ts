@@ -7,6 +7,7 @@ import { WorkspacesPage } from './pages/workspaces';
 import { WhitelistPage } from './pages/whitelist';
 import { AuditPage } from './pages/audit';
 import { PaymentsPage } from './pages/payments';
+import { UsersPage } from './pages/users';
 import { filterPayments, filtersFromParams, REASON_LABEL, STATUS_LABEL } from './payments';
 import { listPayments } from './polar';
 import { peopleInWorkspaces } from './people';
@@ -19,6 +20,7 @@ const teamManagement: ProductModule = {
   navigation: [
     { label: 'Overview', path: '', icon: 'overview', shortcut: 'o' },
     { label: 'Workspaces', path: 'workspaces', icon: 'workspace', shortcut: 'w' },
+    { label: 'Users', path: 'users', icon: 'customers', shortcut: 'u' },
     { label: 'Payments', path: 'payments', icon: 'payments', shortcut: 'p' },
     { label: 'Whitelist', path: 'whitelist', icon: 'whitelist', shortcut: 'l' },
     { label: 'Audit', path: 'audit', icon: 'audit', permission: 'hub.audit' },
@@ -27,6 +29,7 @@ const teamManagement: ProductModule = {
   routes: {
     '': { permission: 'read', render: OverviewPage },
     workspaces: { permission: 'read', render: WorkspacesPage },
+    users: { permission: 'read', render: UsersPage },
     payments: { permission: 'read', render: PaymentsPage },
     whitelist: { permission: 'read', render: WhitelistPage },
     audit: { permission: 'hub.audit', render: AuditPage },
