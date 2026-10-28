@@ -14,11 +14,8 @@ function parse<T>(schema: z.ZodType<T>, data: unknown): T {
   return r.data;
 }
 
-/** Template categories as the API names them. Unknown ones are shown as they come. */
-export const CATEGORY_ORDER = ['account', 'billing', 'reminder'] as const;
-export const CATEGORY_LABEL: Record<string, string> = { account: 'Account', billing: 'Billing', reminder: 'Reminders' };
-/** Turning these off can lock people out of their account. */
-export const ACCOUNT_CRITICAL = new Set(['signup_confirm', 'password_reset', 'invitation']);
+// Shared plain values (categories, statuses, critical templates) live in ./email-meta so browser components can use them too.
+export { ACCOUNT_CRITICAL, CATEGORY_LABEL, CATEGORY_ORDER, OUTBOX_SOURCES, OUTBOX_STATUSES } from './email-meta';
 
 // ---- overview and reminders ----
 const overviewSchema = z.object({
@@ -67,8 +64,6 @@ export interface SendInput { to: string[]; subject: string; heading?: string; bo
 export const sendEmail = async (m: SendInput) => parse(sendSchema, await request('POST', '/email/send', { ...m }));
 
 // ---- outbox ----
-export const OUTBOX_STATUSES = ['queued', 'sent', 'failed', 'skipped'] as const;
-export const OUTBOX_SOURCES = ['system', 'reminder', 'manual'] as const;
 const outboxItemSchema = z.object({
   id: str, templateKey: opt, source: str, to: str, toName: opt, userId: opt, subject: str, status: str, error: opt, sentBy: opt, createdAt: str,
 });

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { previewTemplateAction, saveTemplateAction, testTemplateAction, resetTemplateAction, type PreviewResult } from '@/products/team-management/email-actions';
 import type { EmailTemplate } from '@/products/team-management/email-api';
-import { ACCOUNT_CRITICAL } from '@/products/team-management/email-api';
+import { ACCOUNT_CRITICAL } from '@/products/team-management/email-meta';
 import { ConfirmAction } from './confirm-action';
 import { fieldHint, fieldLabel as label, Notice } from './form';
 import { useToast } from './toast';

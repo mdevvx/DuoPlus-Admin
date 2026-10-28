@@ -11,9 +11,8 @@ import { int } from '@/lib/format';
 import { can } from '@/lib/roles';
 import type { RouteCtx } from '@/products/types';
 import { describe } from '../api';
-import {
-  ACCOUNT_CRITICAL, CATEGORY_LABEL, CATEGORY_ORDER, OUTBOX_SOURCES, OUTBOX_STATUSES, emailOverview, emailReminders, getEmailSettings, listEmailContacts, listEmailTemplates, listOutbox,
-} from '../email-api';
+import { emailOverview, emailReminders, getEmailSettings, listEmailContacts, listEmailTemplates, listOutbox } from '../email-api';
+import { ACCOUNT_CRITICAL, CATEGORY_LABEL, CATEGORY_ORDER, OUTBOX_SOURCES, OUTBOX_STATUSES } from '../email-meta';
 import { parseRecipients } from '../email-compose';
 import { humanize } from '../labels';
 import { base, load } from './shared';
