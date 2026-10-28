@@ -1,6 +1,5 @@
-import { Badge, Card, DetailRow, EmptyState, ErrorPanel, KV, PageHeader, Pagination, FilterBar, Stat, TagInput, Table, Tr, When } from '@/components/ui';
+import { Badge, Card, DetailRow, EmptyState, ErrorPanel, KV, PageHeader, Pagination, Stat, Table, Tr, When } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
-import { DateField } from '@/components/date-field';
 import { AuditTable } from '@/components/audit-table';
 import { can } from '@/lib/roles';
 import { BrandingCard } from '@/components/branding-card';
@@ -18,6 +17,7 @@ import { SLUG, num, str, type Row } from '../db';
 import { writeAudit } from '@/lib/audit';
 import { CopyId } from '@/components/small-client';
 import { DmStatus, PaymentStatus, dmKindLabel } from './shared';
+import { Filters } from '@/components/filters';
 import { ClampText, DetailModal } from '@/components/small-client';
 
 export async function SubscriptionsPage() {
@@ -308,13 +308,12 @@ export async function AuditPage({ searchParams }: RouteCtx) {
   return (
     <>
       <PageHeader title="Audit" description="Admin actions on this product merged with the bot's own audit log." updatedAt={new Date()} />
-      <FilterBar action={`${base}/audit`}>
-        <TagInput name="action" placeholder="Action prefix" value={f.action} className="w-52" />
-        <TagInput name="admin" placeholder="Admin email contains" value={f.admin} className="w-60" />
-        <TagInput name="target" placeholder="Server ID" value={f.target} className="w-52" />
-        <DateField name="from" defaultValue={f.from} placeholder="From date" />
-        <DateField name="to" defaultValue={f.to} placeholder="To date" />
-      </FilterBar>
+      <Filters action={`${base}/audit`} fields={[
+        { type: 'text', key: 'action', label: 'Action', placeholder: 'Action prefix, e.g. server.', hint: 'Separate several with commas.' },
+        { type: 'text', key: 'admin', label: 'Admin', placeholder: 'Admin email contains', hint: 'Matches part of the admin email.' },
+        { type: 'text', key: 'target', label: 'Server ID', placeholder: 'Server ID' },
+        { type: 'daterange', key: 'date', label: 'Date', fromKey: 'from', toKey: 'to' },
+      ]} />
       <AuditTable rows={rows} showProduct={false} />
       <Pagination base={`${base}/audit`} params={params} page={f.page} pageSize={PAGE_SIZE} total={total} />
     </>

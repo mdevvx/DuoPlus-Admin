@@ -7,13 +7,22 @@ import { COOKIE, cookieOpts, sessionState } from '@/lib/session-policy';
 const PUBLIC = ['/login'];
 const isStatic = (p: string) => p.startsWith('/_next/') || p.startsWith('/products/') || p.startsWith('/api/brand/') || p === '/favicon.ico' || p === '/icon.svg' || p === '/icon.png' || p === '/apple-icon.png' || p === '/logo.svg';
 
+/** Storage host for the email logo (and EMAIL_LOGO_URL's host), so the email preview can show it. */
+function imageHosts(): string {
+  const out: string[] = [];
+  for (const u of [process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.EMAIL_LOGO_URL]) {
+    try { if (u) out.push(new URL(u).origin); } catch { /* not a URL */ }
+  }
+  return [...new Set(out)].join(' ');
+}
+
 function csp(nonce: string) {
   const dev = process.env.NODE_ENV !== 'production';
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'", // inline style attributes only (no inline scripts)
-    "img-src 'self' data: blob: https://cdn.discordapp.com",
+    `img-src 'self' data: blob: https://cdn.discordapp.com ${imageHosts()}`.trim(),
     "font-src 'self'",
     `connect-src 'self'${dev ? ' ws:' : ''}`,
     "object-src 'none'",

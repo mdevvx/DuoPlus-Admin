@@ -1,8 +1,7 @@
 import { ExternalLink } from 'lucide-react';
-import { DetailRow, EmptyState, ErrorPanel, FilterBar, PageHeader, Pagination, Select, TagSelect, Table, Tr, When } from '@/components/ui';
+import { DetailRow, EmptyState, ErrorPanel, PageHeader, Pagination, Table, Tr, When } from '@/components/ui';
 import Link from 'next/link';
 import { DetailModal, CopyId } from '@/components/small-client';
-import { DateField } from '@/components/date-field';
 import { money, providerLabel } from '@/lib/format';
 import { can } from '@/lib/roles';
 import { env } from '@/lib/env';
@@ -12,6 +11,7 @@ import { polarLink } from '../state';
 import type { RouteCtx } from '@/products/types';
 import { PaymentStatus, ServerLink, TestBadge, base } from './shared';
 import { guildInfoMap } from '@/lib/discord';
+import { Filters } from '@/components/filters';
 import { str } from '../db';
 
 export async function PaymentsPage({ searchParams, role }: RouteCtx) {
@@ -27,15 +27,13 @@ export async function PaymentsPage({ searchParams, role }: RouteCtx) {
     <>
       <PageHeader title="Payments" description="Ledger across Polar (card) and NOWPayments (crypto). Read only: refunds happen in the provider." updatedAt={new Date()}
         actions={can(role, 'export.csv') && <a className="btn" href={`/api/export/disconotify/payments${qs ? `?${qs}` : ''}`}>Export CSV</a>} />
-      <FilterBar action={path}>
-        <TagSelect name="provider" label="Provider" value={p.provider} options={[['', 'All'], ['polar', 'Polar (card)'], ['nowpayments', 'NOWPayments']]} />
-        <Select name="mode" label="Mode" value={p.mode} options={[['live', 'Live'], ['test', 'Sandbox'], ['all', 'Live and test']]} />
-        <TagSelect name="status" label="Status" value={p.status} options={[['', 'All'], ['paid', 'Paid'], ['pending', 'Pending'], ['failed', 'Failed'], ['expired', 'Expired']]} />
-        <DateField name="from" defaultValue={p.from} placeholder="From date" />
-        <DateField name="to" defaultValue={p.to} placeholder="To date" />
-        <input className="input w-24" type="number" step="0.01" name="min" placeholder="Min $" defaultValue={p.min} />
-        <input className="input w-24" type="number" step="0.01" name="max" placeholder="Max $" defaultValue={p.max} />
-      </FilterBar>
+      <Filters action={path} fields={[
+        { type: 'multi', key: 'provider', label: 'Provider', options: [['', 'All'], ['polar', 'Polar (card)'], ['nowpayments', 'NOWPayments']] },
+        { type: 'select', key: 'mode', label: 'Mode', options: [['live', 'Live'], ['test', 'Sandbox'], ['all', 'Live and test']], default: 'live' },
+        { type: 'multi', key: 'status', label: 'Status', options: [['', 'All'], ['paid', 'Paid'], ['pending', 'Pending'], ['failed', 'Failed'], ['expired', 'Expired']] },
+        { type: 'daterange', key: 'date', label: 'Date', fromKey: 'from', toKey: 'to' },
+        { type: 'numrange', key: 'amount', label: 'Amount', minKey: 'min', maxKey: 'max', prefix: '$' },
+      ]} />
       {p.mode === 'test' && <p className="mb-3 rounded-lg bg-warning-soft px-4 py-3 text-warning" role="status">Sandbox payments (Polar test mode). They are not real revenue and are left out of the Overview, MRR and live totals.</p>}
       {p.mode === 'live' && data.testCount > 0 && <p className="mb-3 text-muted">{data.testCount} sandbox payment{data.testCount === 1 ? '' : 's'} are hidden from this live view. <Link className="font-medium text-accent hover:underline" href={`${path}?mode=test`}>View sandbox payments</Link></p>}
       <p className="mb-3 text-muted">{p.mode === 'test' ? 'Sandbox' : 'Live'} paid total for this filter: <span className="num font-semibold text-ink">{money(p.mode === 'test' ? data.testPaidTotal : data.paidTotal)}</span>

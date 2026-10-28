@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Badge, Card, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Pagination, SortHeader, Stat, TagSelect, Table, Tr, When } from '@/components/ui';
+import { Badge, Card, EmptyState, ErrorPanel, KV, PageHeader, Pagination, SortHeader, Stat, Table, Tr, When } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
 import { CopyId } from '@/components/small-client';
 import { can } from '@/lib/roles';
@@ -18,6 +18,7 @@ import { ServerAvatar } from '@/components/server-avatar';
 import { DiscordNotice } from '@/components/discord-notice';
 import { getGuildInfo, guildInfoMap } from '@/lib/discord';
 import { SLUG, num, str } from '../db';
+import { Filters } from '@/components/filters';
 import { STATE_LABEL, subscriptionState } from '../state';
 
 export async function ServersPage({ searchParams }: RouteCtx) {
@@ -31,10 +32,10 @@ export async function ServersPage({ searchParams }: RouteCtx) {
     <>
       <PageHeader title="Servers" description="Every Discord server with billing state." updatedAt={new Date()} />
       <DiscordNotice />
-      <FilterBar action={path}>
-        <input className="input w-64" name="q" placeholder="Server ID" defaultValue={p.q} />
-        <TagSelect name="state" label="State" value={p.state} options={[['', 'All'], ['trial', 'Trial'], ['active', 'Active'], ['lapsed', 'Lapsed'], ['whitelisted', 'Whitelisted'], ['card_past_due', 'Card past due'], ['bot_removed', 'Bot removed'], ['new', 'New (no billing yet)'], ['not_activated', 'Not activated']]} />
-      </FilterBar>
+      <Filters action={path} fields={[
+        { type: 'search', key: 'q', label: 'Search', placeholder: 'Server ID' },
+        { type: 'multi', key: 'state', label: 'State', options: [['', 'All'], ['trial', 'Trial'], ['active', 'Active'], ['lapsed', 'Lapsed'], ['whitelisted', 'Whitelisted'], ['card_past_due', 'Card past due'], ['bot_removed', 'Bot removed'], ['new', 'New (no billing yet)'], ['not_activated', 'Not activated']] },
+      ]} />
       {data.rows.length === 0 ? <div className="card"><EmptyState title="No servers match" hint="Change the search or filters." /></div> : (
         <Table label="Servers">
           <thead><tr>

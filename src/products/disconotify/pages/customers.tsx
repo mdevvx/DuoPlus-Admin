@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { Badge, Card, Cell, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Pagination, Select, Table, Tr } from '@/components/ui';
+import { Badge, Card, Cell, EmptyState, ErrorPanel, KV, PageHeader, Pagination, Table, Tr } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
 import { CopyId } from '@/components/small-client';
 import { can } from '@/lib/roles';
@@ -12,6 +12,7 @@ import { deleteContact, disableReminders, enableReminders } from '../actions';
 import type { RouteCtx } from '@/products/types';
 import { DmStatus, PaymentsMini, ServerLink, base } from './shared';
 import { guildInfoMap, userInfoMap } from '@/lib/discord';
+import { Filters, type FilterField } from '@/components/filters';
 import { SLUG, T, pn, str, type Row } from '../db';
 
 export async function CustomersPage({ searchParams }: RouteCtx) {
@@ -25,10 +26,10 @@ export async function CustomersPage({ searchParams }: RouteCtx) {
       <PageHeader title="Customers"
         description={data.derived ? 'Discord users the bot has dealt with: who paid, shared an email or received a DM. Emails are masked in this list.' : 'Discord users with a contact on file. Emails are masked in this list.'}
         updatedAt={new Date()} />
-      <FilterBar action={path}>
-        <input className="input w-64" name="q" placeholder={data.derived ? 'Discord ID or email' : 'Username, email or Discord ID'} defaultValue={p.q} />
-        {!data.derived && <Select name="optout" label="Reminders" value={p.optout} options={[['', 'All'], ['0', 'Allowed'], ['1', 'Opted out']]} />}
-      </FilterBar>
+      <Filters action={path} fields={[
+        { type: 'search', key: 'q', label: 'Search', placeholder: data.derived ? 'Discord ID or email' : 'Username, email or Discord ID' },
+        ...(!data.derived ? [{ type: 'select', key: 'optout', label: 'Reminders', options: [['', 'All'], ['0', 'Allowed'], ['1', 'Opted out']] } satisfies FilterField] : []),
+      ]} />
       {data.rows.length === 0 ? <div className="card"><EmptyState title="No customers match" hint={data.derived ? 'Nobody has paid, shared an email or been messaged by the bot yet.' : undefined} /></div> : data.derived ? (
         <Table label="Customers">
           <thead><tr><th className="th">User</th><th className="th">Discord ID</th><th className="th">Email</th><th className="th">Last DM</th><th className="th text-right">Servers</th><th className="th text-right">Lifetime</th></tr></thead>

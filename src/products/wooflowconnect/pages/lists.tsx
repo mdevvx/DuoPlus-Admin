@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import { Download, ExternalLink } from 'lucide-react';
-import { Badge, Card, Cell, EmptyState, FilterBar, PageHeader, Pagination, Select, Stat, TagInput, Table, Tr, When } from '@/components/ui';
+import { Badge, Card, Cell, EmptyState, PageHeader, Pagination, Stat, Table, Tr, When } from '@/components/ui';
 import { AuditTable } from '@/components/audit-table';
-import { DateField } from '@/components/date-field';
 import { env } from '@/lib/env';
 import { int, sentence } from '@/lib/format';
 import { PAGE_SIZE, listParams } from '@/lib/validation';
@@ -10,6 +9,7 @@ import { auditFilters, queryAudit } from '@/lib/audit-query';
 import type { RouteCtx } from '@/products/types';
 import { SLUG, b, cents, first, list, n, obj, s, totalOf, whenOf, wfcGet, type J } from '../api';
 import { ClampText } from '@/components/small-client';
+import { Filters } from '@/components/filters';
 import { CustomerLink, PAYMENT_TONE, PlanBadge, StoreBadge, base, load, planOf } from './shared';
 
 const PER = 50;
@@ -25,10 +25,10 @@ export async function StoresPage({ searchParams }: RouteCtx) {
   return (
     <>
       <PageHeader title="Stores" description="WooCommerce stores activated with a licence. Online means a check-in within 30 hours, quiet up to 3 days, stale after that." updatedAt={new Date()} actions={exportBtn('stores')} />
-      <FilterBar action={path}>
-        <input className="input w-64" name="q" placeholder="Domain, Store ID or owner email" defaultValue={p.q} />
-        <Select name="state" label="State" value={p.state} options={STORE_STATES} />
-      </FilterBar>
+      <Filters action={path} fields={[
+        { type: 'search', key: 'q', label: 'Search', placeholder: 'Domain, Store ID or owner email' },
+        { type: 'select', key: 'state', label: 'State', options: STORE_STATES },
+      ]} />
       {!r.ok ? r.panel : (() => {
         const rows = list(r.data, 'stores', 'items', 'rows', 'data');
         return (
@@ -69,10 +69,10 @@ export async function PaymentsPage({ searchParams }: RouteCtx) {
           <a className="btn" href={org ? `https://polar.sh/dashboard/${org}/sales` : 'https://polar.sh/dashboard'} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" aria-hidden /> Open Polar</a>
           {exportBtn('payments')}
         </>} />
-      <FilterBar action={path}>
-        <input className="input w-64" name="q" placeholder="Customer email or reference" defaultValue={p.q} />
-        <Select name="status" label="Status" value={p.status} options={[['', 'All'], ['paid', 'Paid'], ['failed', 'Failed']]} />
-      </FilterBar>
+      <Filters action={path} fields={[
+        { type: 'search', key: 'q', label: 'Search', placeholder: 'Customer email or reference' },
+        { type: 'select', key: 'status', label: 'Status', options: [['', 'All'], ['paid', 'Paid'], ['failed', 'Failed']] },
+      ]} />
       {!r.ok ? r.panel : (() => {
         const rows = list(r.data, 'payments', 'items', 'rows', 'data');
         const total = first(obj(r.data), 'total_paid', 'paid_total', 'sum_cents');
@@ -113,7 +113,9 @@ export async function DownloadsPage({ searchParams }: RouteCtx) {
   return (
     <>
       <PageHeader title="Downloads" description="Every plugin download, with who and from where." updatedAt={new Date()} actions={exportBtn('downloads')} />
-      <FilterBar action={path}><input className="input w-64" name="q" placeholder="Email, IP or browser" defaultValue={p.q} /></FilterBar>
+      <Filters action={path} fields={[
+        { type: 'search', key: 'q', label: 'Search', placeholder: 'Email, IP or browser' },
+      ]} />
       {!r.ok ? r.panel : (() => {
         const rows = list(r.data, 'downloads', 'items', 'rows', 'data');
         const unique = first(obj(r.data), 'unique', 'unique_downloaders', 'unique_users');
@@ -149,10 +151,10 @@ export async function ActivityPage({ searchParams }: RouteCtx) {
   return (
     <>
       <PageHeader title="Activity" description="Activations, charges, charge failures, refusals and admin actions." updatedAt={new Date()} />
-      <FilterBar action={path}>
-        <input className="input w-44" name="event" placeholder="Event, e.g. charge" defaultValue={p.event} />
-        <input className="input w-64" name="q" placeholder="Email or detail" defaultValue={p.q} />
-      </FilterBar>
+      <Filters action={path} fields={[
+        { type: 'text', key: 'event', label: 'Event', placeholder: 'Event, e.g. charge' },
+        { type: 'search', key: 'q', label: 'Search', placeholder: 'Email or detail' },
+      ]} />
       {!r.ok ? r.panel : (() => {
         const rows = list(r.data, 'activity', 'events', 'items', 'rows', 'data');
         return (
@@ -189,7 +191,9 @@ export async function LookupPage({ searchParams }: RouteCtx) {
   return (
     <>
       <PageHeader title="Support lookup" description="Paste an email, Store ID, domain or licence key hint to find the customer." />
-      <FilterBar action={path}><input className="input w-96" name="q" placeholder="Email, WFS-XXXX-XXXX, domain or key hint" defaultValue={q} autoFocus /></FilterBar>
+      <Filters action={path} fields={[
+        { type: 'search', key: 'q', label: 'Search', placeholder: 'Email, WFS-XXXX-XXXX, domain or key hint', autoFocus: true },
+      ]} />
       {r === null ? <div className="card"><EmptyState title="Search for a customer" hint="Type at least 2 characters." /></div>
         : !r.ok ? r.panel : (() => {
           const rows = list(r.data, 'results', 'matches', 'customers', 'items');
@@ -216,13 +220,12 @@ export async function AuditPage({ searchParams }: RouteCtx) {
   return (
     <>
       <PageHeader title="Audit" description="Admin actions on this product: customer views, support actions, exports and branding." updatedAt={new Date()} />
-      <FilterBar action={`${base}/audit`}>
-        <TagInput name="action" placeholder="Action prefix" value={f.action} className="w-52" />
-        <TagInput name="admin" placeholder="Admin email contains" value={f.admin} className="w-60" />
-        <TagInput name="target" placeholder="Customer ID" value={f.target} className="w-52" />
-        <DateField name="from" defaultValue={f.from} placeholder="From date" />
-        <DateField name="to" defaultValue={f.to} placeholder="To date" />
-      </FilterBar>
+      <Filters action={`${base}/audit`} fields={[
+        { type: 'text', key: 'action', label: 'Action', placeholder: 'Action prefix', hint: 'Separate several with commas.' },
+        { type: 'text', key: 'admin', label: 'Admin', placeholder: 'Admin email contains', hint: 'Matches part of the admin email.' },
+        { type: 'text', key: 'target', label: 'Customer ID', placeholder: 'Customer ID' },
+        { type: 'daterange', key: 'date', label: 'Date', fromKey: 'from', toKey: 'to' },
+      ]} />
       <AuditTable rows={rows} showProduct={false} />
       <Pagination base={`${base}/audit`} params={params} page={f.page} pageSize={PAGE_SIZE} total={total} />
     </>

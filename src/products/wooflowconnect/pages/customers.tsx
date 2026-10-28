@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { Download } from 'lucide-react';
-import { Badge, Card, Cell, EmptyState, FilterBar, KV, PageHeader, Pagination, Select, Table, Tr, When } from '@/components/ui';
+import { Badge, Card, Cell, EmptyState, KV, PageHeader, Pagination, Table, Tr, When } from '@/components/ui';
 import { ConfirmAction } from '@/components/confirm-action';
 import { CopyId } from '@/components/small-client';
 import { can } from '@/lib/roles';
@@ -11,6 +11,7 @@ import { listParams } from '@/lib/validation';
 import type { RouteCtx } from '@/products/types';
 import { SLUG, b, cents, first, list, n, obj, s, totalOf, when, whenOf, wfcGet } from '../api';
 import { supportAction } from '../actions';
+import { Filters } from '@/components/filters';
 import { PaymentRows, PlanBadge, StoreBadge, base, load, planOf } from './shared';
 
 const PER = 50;
@@ -29,11 +30,11 @@ export async function CustomersPage({ searchParams }: RouteCtx) {
     <>
       <PageHeader title="Customers" description="Everyone with a WooFlowConnect account, with their plan and activated store." updatedAt={new Date()}
         actions={<a className="btn" href={`/api/export/${SLUG}/users`}><Download className="h-4 w-4" aria-hidden /> Export CSV</a>} />
-      <FilterBar action={path}>
-        <input className="input w-64" name="q" placeholder="Email, domain or Store ID" defaultValue={p.q} />
-        <Select name="state" label="Plan" value={p.state} options={STATES} />
-        <Select name="sort" label="Sort" value={p.sort ?? 'created'} options={SORTS} />
-      </FilterBar>
+      <Filters action={path} fields={[
+        { type: 'search', key: 'q', label: 'Search', placeholder: 'Email, domain or Store ID' },
+        { type: 'select', key: 'state', label: 'Plan', options: STATES },
+        { type: 'select', key: 'sort', label: 'Sort', options: SORTS, default: 'created' },
+      ]} />
       {!r.ok ? r.panel : <CustomerTable data={r.data} p={p} path={path} />}
     </>
   );

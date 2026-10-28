@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Badge, Card, EmptyState, ErrorPanel, FilterBar, PageHeader, Pagination, Select, Stat, Table, Tr } from '@/components/ui';
+import { Badge, Card, EmptyState, ErrorPanel, PageHeader, Pagination, Stat, Table, Tr } from '@/components/ui';
 import { CopyId } from '@/components/small-client';
 import { dateOnly, int, platformLabel, sentence } from '@/lib/format';
 import { PAGE_SIZE } from '@/lib/validation';
@@ -9,6 +9,7 @@ import { ServerLink, base } from './shared';
 import { guildInfoMap } from '@/lib/discord';
 import { RankedBars } from '@/components/charts';
 import { DiscordNotice } from '@/components/discord-notice';
+import { Filters } from '@/components/filters';
 import { str } from '../db';
 
 const ok = (s: string) => ['ok', 'healthy', 'operational', 'up'].includes(s.toLowerCase());
@@ -47,10 +48,10 @@ export async function BotStatusPage({ searchParams }: RouteCtx) {
       </div>
 
       <DiscordNotice />
-      <FilterBar action={path}>
-        <input className="input w-64" name="q" placeholder="Server ID" defaultValue={p.q} />
-        <Select name="bot" label="Bot" value={p.bot} options={[['present', 'Installed'], ['removed', 'Removed'], ['all', 'All']]} />
-      </FilterBar>
+      <Filters action={path} fields={[
+        { type: 'search', key: 'q', label: 'Search', placeholder: 'Server ID' },
+        { type: 'select', key: 'bot', label: 'Bot', options: [['present', 'Installed'], ['removed', 'Removed'], ['all', 'All']], default: 'present' },
+      ]} />
       {list.rows.length === 0 ? <div className="card"><EmptyState title="No servers match" /></div> : (
         <Table label="Servers and integrations">
           <thead><tr><th className="th">Server</th><th className="th">ID</th><th className="th">Bot</th><th className="th">Monitored accounts</th><th className="th text-right">Channels</th><th className="th text-right">Alerts</th><th className="th">Added</th></tr></thead>

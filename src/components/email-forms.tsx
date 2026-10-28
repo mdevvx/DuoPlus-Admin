@@ -46,7 +46,7 @@ function useSave<T>(fn: (v: T) => ReturnType<typeof saveLayout>) {
   return { pending, error, run: (v: T) => { setError(null); start(async () => { const r = await fn(v); if (r.ok) { toast(true, r.message); router.refresh(); } else setError(r.error); }); } };
 }
 
-export function LayoutForm({ initial, logoSrc, brandingHref, publicUrlOk }: { initial: EmailLayout; logoSrc: string; brandingHref: string; publicUrlOk: boolean }) {
+export function LayoutForm({ initial, logoSrc, brandingHref }: { initial: EmailLayout; logoSrc: string; brandingHref: string }) {
   const [v, setV] = useState(initial);
   const [showLogo, setShowLogo] = useState(!!initial.logo_url);
   const s = useSave<EmailLayout & { show_logo: boolean }>((x) => saveLayout((({ logo_url: _logo, ...rest }) => rest)(x)));
@@ -67,8 +67,7 @@ export function LayoutForm({ initial, logoSrc, brandingHref, publicUrlOk }: { in
             <label className="flex items-center gap-2"><input type="radio" name="logo" checked={!showLogo} onChange={() => setShowLogo(false)} /> Show the brand name only</label>
           </div>
         </div>
-        <span className={fieldHint}>The logo comes from the product branding, shown up to 48 px tall, with the brand name as its alt text. <Link className="text-accent hover:underline" href={brandingHref}>Change it in Settings</Link>, then save the layout again.</span>
-        {showLogo && !publicUrlOk && <span className="mt-1.5 block"><Notice tone="warning">Email apps cannot load the logo from a panel running on a local address, so saving is blocked until you save from the deployed panel, or set EMAIL_LOGO_URL to a public https image.</Notice></span>}
+        <span className={fieldHint}>The logo comes from the product branding, shown up to 48 px tall, with the brand name as its alt text. Saving stores a copy as a public image so every email app can load it. <Link className="text-accent hover:underline" href={brandingHref}>Change it in Settings</Link>, then save the layout again.</span>
       </div>
 
       <div>

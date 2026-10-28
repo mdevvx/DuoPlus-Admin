@@ -1,8 +1,7 @@
 import Link from 'next/link';
-import { Badge, Card, Cell, DetailRow, EmptyState, ErrorPanel, FilterBar, KV, PageHeader, Pagination, Stat, Table, TagSelect, Tr, When } from '@/components/ui';
+import { Badge, Card, Cell, DetailRow, EmptyState, ErrorPanel, KV, PageHeader, Pagination, Stat, Table, Tr, When } from '@/components/ui';
 import { ClampText, CopyBlock, CopyId, DetailModal } from '@/components/small-client';
 import { EmailEditor } from '@/components/email-editor';
-import { DateField } from '@/components/date-field';
 import { EmailSend } from '@/components/email-send';
 import { AddContact, BatchProgress, ContactActions, EraseAddress, ExportMenu, OutboxActions, RevealAddress } from '@/components/email-row-actions';
 import { LayoutForm, RestoreButton, ScheduleForm, TemplateToggle } from '@/components/email-forms';
@@ -13,8 +12,8 @@ import { PAGE_SIZE } from '@/lib/validation';
 import type { RouteCtx } from '@/products/types';
 import { SLUG, pick, str, type Row } from '../db';
 import { batchProgress, contactParams, getLayout, getOutboxRow, getSchedule, getTemplate, getVersions, listContacts, listOutbox, listTemplates, outboxHealth, outboxParams, OUTBOX_STATUSES } from '../queries/email';
-import { emailLogoUrl } from '../email/logo';
 import { BUILT_IN, CATEGORY_LABEL, SCHEDULE_DEFAULTS } from '../email/vars';
+import { Filters } from '@/components/filters';
 import { ServerLink, base } from './shared';
 
 const root = `${base}/email`;
@@ -120,15 +119,14 @@ export async function EmailOutboxPage({ searchParams, role }: RouteCtx) {
       <PageHeader title="Email outbox" description="Every email ever queued, with its status. Bodies are re-rendered, never stored." updatedAt={new Date()}
         actions={can(role, 'email.send') && <Link className="btn btn-primary" href={`${root}/send`}>Send email</Link>} />
       {health.stale > 0 && <p role="alert" className="mb-3 rounded-lg bg-warning-soft px-4 py-3 text-warning">{health.stale} email{health.stale === 1 ? ' has' : 's have'} been queued for over 15 minutes. The bot may not be sending: is it online, and are the EMAIL_SMTP_* settings complete?</p>}
-      <FilterBar action={path}>
-        <TagSelect name="status" label="Status" value={p.status} options={[['', 'All'], ...OUTBOX_STATUSES.map((s): [string, string] => [s, sentence(s)])]} />
-        <TagSelect name="template" label="Template" value={p.template} options={[['', 'All'], ['custom', 'Custom'], ...templates.map((t): [string, string] => [String(t.key), pick(t, 'name') ?? String(t.key)])]} />
-        <TagSelect name="kind" label="Kind" value={p.kind} options={[['', 'All'], ['auto', 'Automatic'], ['manual', 'Manual']]} />
-        <input className="input w-40" name="guild" inputMode="numeric" placeholder="Server ID" defaultValue={p.guild} />
-        <input className="input w-48" name="by" type="email" placeholder="Sent by" defaultValue={p.by} />
-        <DateField name="from" defaultValue={p.from} placeholder="From date" />
-        <DateField name="to" defaultValue={p.to} placeholder="To date" />
-      </FilterBar>
+      <Filters action={path} fields={[
+        { type: 'multi', key: 'status', label: 'Status', options: [['', 'All'], ...OUTBOX_STATUSES.map((s): [string, string] => [s, sentence(s)])] },
+        { type: 'multi', key: 'template', label: 'Template', options: [['', 'All'], ['custom', 'Custom'], ...templates.map((t): [string, string] => [String(t.key), pick(t, 'name') ?? String(t.key)])] },
+        { type: 'multi', key: 'kind', label: 'Kind', options: [['', 'All'], ['auto', 'Automatic'], ['manual', 'Manual']] },
+        { type: 'text', key: 'guild', label: 'Server ID', placeholder: 'Server ID' },
+        { type: 'text', key: 'by', label: 'Sent by', placeholder: 'Sent by' },
+        { type: 'daterange', key: 'date', label: 'Date', fromKey: 'from', toKey: 'to' },
+      ]} />
       {data.rows.length === 0 ? <div className="card"><EmptyState title="No emails match" /></div> : (
         <Table label="Email outbox">
           <thead><tr>{['When', 'Recipient', 'Template', 'Status', 'Subject', ''].map((h, i) => <th key={i} className="th">{h}</th>)}</tr></thead>
@@ -204,10 +202,10 @@ export async function EmailContactsPage({ searchParams, role }: RouteCtx) {
         <Card><Stat label="Subscribed to marketing" value={int(data.subscribed)} /></Card>
         <Card><Stat label="Unsubscribed" value={int(data.unsubscribed)} /></Card>
       </div>
-      <FilterBar action={path}>
-        <input className="input w-40" name="guild" inputMode="numeric" placeholder="Server ID" defaultValue={p.guild} />
-        <TagSelect single name="marketing" label="Marketing" value={p.marketing} options={[['', 'All'], ['subscribed', 'Subscribed'], ['unsubscribed', 'Unsubscribed']]} />
-      </FilterBar>
+      <Filters action={path} fields={[
+        { type: 'text', key: 'guild', label: 'Server ID', placeholder: 'Server ID' },
+        { type: 'select', key: 'marketing', label: 'Marketing', options: [['', 'All'], ['subscribed', 'Subscribed'], ['unsubscribed', 'Unsubscribed']] },
+      ]} />
       {data.rows.length === 0 ? <div className="card"><EmptyState title={data.filtered ? 'No contacts match' : 'No email contacts yet'} hint={data.filtered ? 'Change or clear the filters.' : 'Addresses appear when someone activates a trial or checks out. You can also add one manually.'} /></div> : (
         <Table label="Email contacts">
           <thead><tr>{['Address', 'Server', 'Marketing', 'Added', ''].map((h, i) => <th key={i} className="th">{h}</th>)}</tr></thead>
@@ -247,7 +245,6 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
   let layout, schedule, health;
   try { [layout, schedule, health] = await Promise.all([getLayout(), getSchedule(), outboxHealth()]); } catch { return <ErrorPanel message="Could not load email settings." retryHref={`${root}/settings`} />; }
   const owner = can(role, 'email.settings');
-  const logoState = await emailLogoUrl().catch(() => ({ url: null as string | null }));
   const failRate = health.total24 ? Math.round((health.failed24 / health.total24) * 100) : 0;
   return (
     <>
@@ -274,7 +271,7 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
           )}
         </Card>
         <Card title="Layout and branding">
-          {owner ? <LayoutForm initial={layout.layout} logoSrc={`/api/brand/${SLUG}/logo`} brandingHref={`${base}/settings`} publicUrlOk={!!logoState.url} /> : (
+          {owner ? <LayoutForm initial={layout.layout} logoSrc={`/api/brand/${SLUG}/logo`} brandingHref={`${base}/settings`} /> : (
             <KV items={[['Brand name', layout.layout.brand_name], ['Accent colour', layout.layout.accent_color], ['Logo', layout.layout.logo_url || 'None']]} />
           )}
           {!owner && <p className="mt-3 text-xs text-muted">Only the owner can change the layout and schedule.</p>}

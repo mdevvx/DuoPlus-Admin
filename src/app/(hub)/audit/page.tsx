@@ -3,9 +3,9 @@ import { requirePage } from '@/lib/auth';
 import { auditFilters, queryAudit } from '@/lib/audit-query';
 import { flatParams, PAGE_SIZE } from '@/lib/validation';
 import { AuditTable } from '@/components/audit-table';
-import { FilterBar, PageHeader, Pagination, TagInput } from '@/components/ui';
+import { PageHeader, Pagination } from '@/components/ui';
+import { Filters } from '@/components/filters';
 import { can } from '@/lib/roles';
-import { DateField } from '@/components/date-field';
 
 export const metadata: Metadata = { title: 'Audit log' };
 
@@ -23,13 +23,12 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       <PageHeader title="Audit log" description="Every action by every admin, append-only."
         updatedAt={new Date()}
         actions={can(role, 'export.csv') && <a className="btn" href={`/api/export/hub/audit${exportQs ? `?${exportQs}` : ''}`}>Export CSV</a>} />
-      <FilterBar action="/audit">
-        <TagInput name="action" placeholder="Action prefix (server.)" value={f.action} className="w-56" />
-        <TagInput name="admin" placeholder="Admin email contains" value={f.admin} className="w-60" />
-        <TagInput name="target" placeholder="Target ID" value={f.target} className="w-48" />
-        <DateField name="from" defaultValue={f.from} placeholder="From date" />
-        <DateField name="to" defaultValue={f.to} placeholder="To date" />
-      </FilterBar>
+      <Filters action="/audit" fields={[
+        { type: 'text', key: 'action', label: 'Action', placeholder: 'Action prefix (server.)', hint: 'Separate several with commas.' },
+        { type: 'text', key: 'admin', label: 'Admin', placeholder: 'Admin email contains', hint: 'Matches part of the admin email.' },
+        { type: 'text', key: 'target', label: 'Target', placeholder: 'Target ID' },
+        { type: 'daterange', key: 'date', label: 'Date', fromKey: 'from', toKey: 'to' },
+      ]} />
       <AuditTable rows={rows} />
       <Pagination base="/audit" params={params} page={f.page} pageSize={PAGE_SIZE} total={total} />
     </>
