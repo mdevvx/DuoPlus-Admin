@@ -1,0 +1,66 @@
+'use server';
+
+import { z } from 'zod';
+import { ensureStepUp, requireAdmin } from '@/lib/auth';
+import { runAction, UserError, type ActionResult } from '@/lib/action';
+import { writeAudit } from '@/lib/audit';
+import { reason } from '@/lib/validation';
+import { PLANS, SLUG, TmsError, addWhitelist, removeWhitelist, type AddResult } from './api';
+
+const email = z.string().trim().toLowerCase().pipe(z.email('Enter a valid email address').max(254));
+const common = z.object({ reason, code: z.string().optional() });
+const addInput = common.extend({ email, plan: z.enum(PLANS), note: z.string().trim().max(300).optional() });
+const removeInput = common.extend({ email, confirm: z.string().optional() });
+
+const flat = (fd: FormData) => Object.fromEntries([...fd].map(([k, v]) => [k, typeof v === 'string' ? v : '']));
+
+/** Turns the API's failures into messages an admin can act on. The admin key never appears in any of them. */
+function explain(e: unknown): never {
+  if (e instanceof TmsError) {
+    if (e.code === 'not_configured') throw new UserError('The Team Management System connection is not set up (DUOPLUS_API_URL, DUOPLUS_ADMIN_KEY).');
+    if (e.code === 'unreachable') throw new UserError('Could not reach the Team Management System. Nothing was changed.');
+    if (e.status === 401) throw new UserError('The Team Management System rejected the admin key.');
+    if (e.status === 429) throw new UserError('Too many requests to the Team Management System. Try again in a minute.');
+    if (e.status === 400 || e.status === 422) throw new UserError(e.message || 'The Team Management System rejected that request.');
+    if (e.status === 404) throw new UserError(e.message === 'http_404' ? 'The Team Management System operator API was not found. Check DUOPLUS_API_URL.' : e.message);
+  }
+  throw e;
+}
+
+export type AddWhitelistResult = ActionResult & { result?: AddResult };
+
+/** Adding (or updating) a whitelist entry. Makes that person's existing workspaces complimentary right away. */
+export async function addWhitelistEntry(fd: FormData): Promise<AddWhitelistResult> {
+  let result: AddResult | undefined;
+  const res = await runAction(async () => {
+    const d = addInput.parse(flat(fd));
+    const { admin } = await requireAdmin({ product: SLUG, permission: 'tms.whitelist' });
+    await ensureStepUp(admin, 'tms.whitelist', d.code?.trim() || undefined);
+    try { result = await addWhitelist({ email: d.email, plan: d.plan, ...(d.note ? { note: d.note } : {}) }); } catch (e) { explain(e); }
+    // The change lives in another system, so its audit row is written here after it succeeded.
+    await writeAudit({
+      admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'whitelist.add', target_type: 'whitelist', target_id: d.email, reason: d.reason,
+      after: { plan: d.plan, note: d.note ?? null, workspaces: result?.workspaces, activeSubscription: result?.activeSubscription },
+    });
+    return 'Added to the whitelist';
+  });
+  return res.ok ? { ...res, result } : res;
+}
+
+/** Removing an entry sends the workspaces that were comped through it back to normal billing. */
+export async function removeWhitelistEntry(fd: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    const d = removeInput.parse(flat(fd));
+    if ((d.confirm ?? '').trim().toLowerCase() !== d.email) throw new UserError(`Type "${d.email}" exactly to confirm.`);
+    const { admin } = await requireAdmin({ product: SLUG, permission: 'tms.whitelist' });
+    await ensureStepUp(admin, 'tms.whitelist', d.code?.trim() || undefined);
+    try {
+      await removeWhitelist(d.email);
+    } catch (e) {
+      if (e instanceof TmsError && e.status === 404) throw new UserError('That email is not on the whitelist (it may already have been removed).');
+      explain(e);
+    }
+    await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'whitelist.remove', target_type: 'whitelist', target_id: d.email, reason: d.reason });
+    return 'Removed from the whitelist';
+  });
+}

@@ -8,11 +8,11 @@ const LABEL: Record<string, string> = {
   'email.layout.save': 'Email layout saved', 'email.schedule.save': 'Email schedule saved', 'email.send': 'Manual email sent',
   'email.outbox.retry': 'Email retried', 'email.outbox.cancel': 'Email cancelled', 'email.contact.add': 'Email contact added',
   'email.contact.remove': 'Email contact removed', 'email.contact.resubscribe': 'Contact re-subscribed', 'email.contact.unsubscribe': 'Contact unsubscribed',
-  'email.contact.erase': 'Email address erased', 'email.contact.reveal': 'Email address revealed', 'email.outbox.reveal': 'Email recipient revealed', 'export.csv': 'CSV export',
+  'email.contact.erase': 'Email address erased', 'email.contact.reveal': 'Email address revealed', 'email.outbox.reveal': 'Email recipient revealed', 'export.csv': 'CSV export', 'whitelist.add': 'Whitelist entry added', 'whitelist.remove': 'Whitelist entry removed',
 };
 const label = (a: string) => LABEL[a] ?? sentence(a.replace('.', ': '));
 
-const tone = (a: string) => (a.startsWith('auth.failure') || a.includes('delete') ? 'danger' : a.startsWith('auth') ? 'info' : a.includes('whitelist') || a.includes('adjust') || a.includes('maintenance') || a === 'email.send' || a.endsWith('.erase') || a.endsWith('.reveal') ? 'warning' : 'neutral') as 'danger' | 'info' | 'warning' | 'neutral';
+const tone = (a: string) => (a.startsWith('auth.failure') || a.includes('delete') ? 'danger' : a.startsWith('auth') ? 'info' : a.includes('whitelist') || a.includes('adjust') || a.includes('maintenance') || a === 'email.send' || a.endsWith('.erase') || a.startsWith('whitelist.') || a.endsWith('.reveal') ? 'warning' : 'neutral') as 'danger' | 'info' | 'warning' | 'neutral';
 
 export function AuditTable({ rows, showProduct = true }: { rows: (AuditRow & { source?: string })[]; showProduct?: boolean }) {
   if (rows.length === 0) return <div className="card"><EmptyState title="No audit entries" hint="Try widening the filters." /></div>;

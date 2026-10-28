@@ -20,6 +20,16 @@ const schema = z.object({
   WFC_API_KEY: blankToUndefined(z.string().optional()),
   WFC_API_BASE: blankToUndefined(z.url().optional()),
   WFC_POLAR_ORG_SLUG: blankToUndefined(z.string().optional()),
+  // Team Management System (the DuoPlus app) operator API. SERVER ONLY.
+  DUOPLUS_API_URL: blankToUndefined(z.url().optional()),
+  DUOPLUS_ADMIN_KEY: blankToUndefined(z.string().min(8).optional()),
+  // Which Polar the Team Management System uses, so dashboard links never mix sandbox and live. Defaults to production.
+  TMS_POLAR_ENV: blankToUndefined(z.enum(['production', 'sandbox']).optional()),
+  TMS_POLAR_ORG_SLUG: blankToUndefined(z.string().optional()),
+  // Polar token for reading the Team Management System's orders (needs order read access), from the same environment as TMS_POLAR_ENV.
+  TMS_POLAR_ACCESS_TOKEN: blankToUndefined(z.string().optional()),
+  // Optional comma-separated Polar product IDs of the Starter, Growth and Scale products. Without them plans are matched by name.
+  TMS_POLAR_PRODUCT_IDS: blankToUndefined(z.string().optional()),
 });
 
 let cached: z.infer<typeof schema> | undefined;
