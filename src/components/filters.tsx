@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
+import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition, type ReactNode } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, ListFilter, Loader2, Plus, RotateCcw, Search, Type, Hash, X } from 'lucide-react';
@@ -41,8 +41,12 @@ const PRESETS: [string, () => [string, string]][] = [
 export function Filters({ action, fields }: { action: string; fields: FilterField[] }) {
   const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
+  const urlParams = useSearchParams();
   const [pending, start] = useTransition();
+  // The page re-renders on the server for every change, which takes a moment. Show the new filters at once and
+  // let the URL catch up when the server answers (or snap back if it fails).
+  const [optimistic, setOptimistic] = useOptimistic(urlParams.toString());
+  const params = useMemo(() => new URLSearchParams(optimistic), [optimistic]);
   const [open, setOpen] = useState(false);
   const [field, setField] = useState<FilterField | null>(null);
   const [menuQuery, setMenuQuery] = useState('');
@@ -58,7 +62,10 @@ export function Filters({ action, fields }: { action: string; fields: FilterFiel
     for (const [k, v] of Object.entries(patch)) { if (v === undefined || v === '') qs.delete(k); else qs.set(k, v); }
     qs.delete('page'); // a new filter starts again from page 1
     const q = qs.toString();
-    start(() => router.push(q ? `${action || pathname}?${q}` : action || pathname));
+    start(() => {
+      setOptimistic(q);
+      router.push(q ? `${action || pathname}?${q}` : action || pathname);
+    });
   }
 
   // Which fields are applied, and how each one reads on its chip.
@@ -104,7 +111,8 @@ export function Filters({ action, fields }: { action: string; fields: FilterFiel
 
   return (
     <div ref={box} className="relative mb-4">
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-2.5 shadow-soft" aria-busy={pending}>
+      <div className="relative flex flex-wrap items-center gap-2 overflow-hidden rounded-xl border border-line bg-surface p-2.5 shadow-soft" aria-busy={pending}>
+        {pending && <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden bg-accent-soft"><span className="block h-full w-1/3 animate-[filter-load_1s_ease-in-out_infinite] rounded bg-accent" /></span>}
         {search && <SearchBox field={search} value={get(search.key)} onApply={(v) => apply({ [search.key]: v })} />}
 
         {active.map(({ f, text }) => (
@@ -124,7 +132,7 @@ export function Filters({ action, fields }: { action: string; fields: FilterFiel
         )}
 
         <span className="ml-auto flex items-center gap-2">
-          {pending && <span role="status" className="inline-flex items-center gap-1.5 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Updating…</span>}
+          {pending && <span role="status" className="inline-flex items-center gap-1.5 text-xs text-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Updating</span>}
           {anyActive && (
             <button type="button" onClick={reset} className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm text-muted transition-colors hover:bg-subtle hover:text-ink">
               <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Reset
@@ -177,7 +185,7 @@ function SearchBox({ field, value, onApply }: { field: Extract<FilterField, { ty
     <label className="relative block w-72 max-w-full">
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
       <input className="input pl-9 pr-8" type="search" value={text} placeholder={field.placeholder} aria-label={field.label} autoFocus={field.autoFocus}
-        onChange={(e) => { setText(e.target.value); clearTimeout(timer.current); timer.current = setTimeout(() => push(e.target.value), 450); }}
+        onChange={(e) => { setText(e.target.value); clearTimeout(timer.current); timer.current = setTimeout(() => push(e.target.value), 300); }}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); push(text); } }} />
       {text && <button type="button" aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted hover:text-ink" onClick={() => { setText(''); push(''); }}><X className="h-3.5 w-3.5" /></button>}
     </label>

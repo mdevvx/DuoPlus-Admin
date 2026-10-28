@@ -11,7 +11,9 @@ import { can } from '@/lib/roles';
 import { PAGE_SIZE } from '@/lib/validation';
 import type { RouteCtx } from '@/products/types';
 import { SLUG, pick, str, type Row } from '../db';
-import { batchProgress, contactParams, getLayout, getOutboxRow, getSchedule, getTemplate, getVersions, listContacts, listOutbox, listTemplates, outboxHealth, outboxParams, OUTBOX_STATUSES } from '../queries/email';
+import { templateNames, batchProgress, contactParams, getLayout, getOutboxRow, getSchedule, getTemplate, getVersions, listContacts, listOutbox, listTemplates, outboxHealth, outboxParams, OUTBOX_STATUSES } from '../queries/email';
+import { logoLoads } from '../email/logo';
+import { Notice } from '@/components/form';
 import { BUILT_IN, CATEGORY_LABEL, SCHEDULE_DEFAULTS } from '../email/vars';
 import { Filters } from '@/components/filters';
 import { ServerLink, base } from './shared';
@@ -64,7 +66,8 @@ export async function EmailTemplatePage({ params, role, admin }: RouteCtx) {
   let t: Row | null;
   let versions: Row[] | null;
   let accent = '#5B6CF0';
-  try { [t, versions] = await Promise.all([getTemplate(key), getVersions(key), getLayout().then((l) => { accent = l.layout.accent_color; })]).then((r) => [r[0], r[1]] as const); } catch { return <ErrorPanel message="Could not load this template." retryHref={`${root}/templates/${key}`} />; }
+  let logoUrl = '';
+  try { [t, versions] = await Promise.all([getTemplate(key), getVersions(key), getLayout().then((l) => { accent = l.layout.accent_color; logoUrl = l.layout.logo_url; })]).then((r) => [r[0], r[1]] as const); } catch { return <ErrorPanel message="Could not load this template." retryHref={`${root}/templates/${key}`} />; }
   if (!t) return <div className="card"><EmptyState title="Template not found" hint="It may have been removed." /></div>;
   const category = str(t.category) ?? 'transactional';
   const builtIn = key in BUILT_IN;
@@ -79,6 +82,9 @@ export async function EmailTemplatePage({ params, role, admin }: RouteCtx) {
         <span><b>Sent when:</b> {BUILT_IN[key]?.trigger ?? 'Only when sent manually.'}</span>
         {builtIn && <span className="text-muted">Built-in: the key and the trigger cannot be changed.</span>}
       </div>
+      {logoUrl && !(await logoLoads(logoUrl)) && (
+        <div className="mb-4"><Notice tone="warning">The logo in your email layout no longer loads, so emails show only the brand name as text. <Link className="font-medium underline" href={`${root}/settings`}>Open Email settings</Link> and press Save layout to store the product logo again.</Notice></div>
+      )}
       <EmailEditor accent={accent} adminEmail={admin.email} tplKey={key} version={version} category={category} builtIn={builtIn} canEdit={edit}
         initial={{ name: pick(t, 'name') ?? key, description: pick(t, 'description') ?? '', subject: pick(t, 'subject') ?? '', preheader: pick(t, 'preheader') ?? '', html: pick(t, 'body_html') ?? '', text: pick(t, 'body_text') ?? '' }} />
       <div className="mt-6">
@@ -110,7 +116,7 @@ export async function EmailOutboxPage({ searchParams, role }: RouteCtx) {
   const p = outboxParams.parse(searchParams);
   const path = `${root}/outbox`;
   let data, health, templates: Row[];
-  try { [data, health, templates] = await Promise.all([listOutbox(p), outboxHealth(), listTemplates()]); } catch { return <ErrorPanel message="Could not load the outbox." retryHref={path} />; }
+  try { [data, health, templates] = await Promise.all([listOutbox(p), outboxHealth(), templateNames()]); } catch { return <ErrorPanel message="Could not load the outbox." retryHref={path} />; }
   const infos = await guildInfoMap(data.rows.map((r) => str(r.guild_id)).filter((g): g is string => !!g));
   const name = (k: string | null) => (k ? pick(templates.find((t) => t.key === k), 'name') ?? k : 'Custom');
   const params = Object.fromEntries(Object.entries(p).filter(([k, v]) => k !== 'page' && v !== undefined).map(([k, v]) => [k, String(v)]));
@@ -245,6 +251,7 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
   let layout, schedule, health;
   try { [layout, schedule, health] = await Promise.all([getLayout(), getSchedule(), outboxHealth()]); } catch { return <ErrorPanel message="Could not load email settings." retryHref={`${root}/settings`} />; }
   const owner = can(role, 'email.settings');
+  const logoBroken = !!layout.layout.logo_url && !(await logoLoads(layout.layout.logo_url));
   const failRate = health.total24 ? Math.round((health.failed24 / health.total24) * 100) : 0;
   return (
     <>
@@ -271,6 +278,7 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
           )}
         </Card>
         <Card title="Layout and branding">
+          {logoBroken && <div className="mb-4"><Notice tone="warning">The saved logo address no longer loads. Keep “Show the product logo” selected and press Save layout to store a working copy.</Notice></div>}
           {owner ? <LayoutForm initial={layout.layout} logoSrc={`/api/brand/${SLUG}/logo`} brandingHref={`${base}/settings`} /> : (
             <KV items={[['Brand name', layout.layout.brand_name], ['Accent colour', layout.layout.accent_color], ['Logo', layout.layout.logo_url || 'None']]} />
           )}

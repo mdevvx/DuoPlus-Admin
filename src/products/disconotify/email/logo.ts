@@ -60,3 +60,14 @@ export async function emailLogoUrl(): Promise<{ url: string } | { url: null; rea
   // The file name carries a hash of the image, so a new logo gets a new address and mail apps never show a stale one.
   return { url: `${base}/storage/v1/object/public/${BUCKET}/${name}` };
 }
+
+/** True when the saved logo address answers with an image. A broken link means emails show only the logo's alt text. */
+export async function logoLoads(url: string): Promise<boolean> {
+  if (!url) return true; // no logo: the brand name is shown instead
+  try {
+    const r = await fetch(url, { method: 'GET', redirect: 'follow', signal: AbortSignal.timeout(4000), cache: 'no-store' });
+    return r.ok && (r.headers.get('content-type') ?? '').startsWith('image/');
+  } catch {
+    return false;
+  }
+}

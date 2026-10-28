@@ -45,6 +45,13 @@ export async function listTemplates(): Promise<(Row & { sent30: number })[]> {
   return rows.map((r) => ({ ...r, sent30: counts.get(String(r.key)) ?? 0 }));
 }
 
+/** Just the key and name of each template, for dropdowns and labels. Much cheaper than listTemplates(). */
+export async function templateNames(): Promise<Row[]> {
+  const { data, error } = await pn().from(T.emailTemplates).select('key,name').order('key', { ascending: true });
+  if (error) throw new Error('template names query failed');
+  return (data ?? []) as Row[];
+}
+
 export async function getTemplate(key: string): Promise<Row | null> {
   const { data, error } = await pn().from(T.emailTemplates).select('*').eq('key', key).maybeSingle();
   if (error) throw new Error('template query failed');
