@@ -26,7 +26,7 @@ export async function WorkspacesPage({ searchParams }: RouteCtx) {
 
   let data: Awaited<ReturnType<typeof listWorkspaces>> | null = null;
   let failure: string | null = null;
-  if (!tmsConfigured()) failure = 'Team Management System is not connected. Add DUOPLUS_API_URL and DUOPLUS_ADMIN_KEY to the environment and redeploy.';
+  if (!tmsConfigured()) failure = 'Donexel is not connected. Add DONEXEL_API_URL and DONEXEL_ADMIN_KEY to the environment and redeploy.';
   else {
     try { data = await listWorkspaces({ search: p.q, userId: p.user, page: p.page, pageSize: PER }); } catch (e) { failure = describe(e); }
   }

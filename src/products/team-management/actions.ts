@@ -18,12 +18,12 @@ const flat = (fd: FormData) => Object.fromEntries([...fd].map(([k, v]) => [k, ty
 /** Turns the API's failures into messages an admin can act on. The admin key never appears in any of them. */
 function explain(e: unknown): never {
   if (e instanceof TmsError) {
-    if (e.code === 'not_configured') throw new UserError('The Team Management System connection is not set up (DUOPLUS_API_URL, DUOPLUS_ADMIN_KEY).');
-    if (e.code === 'unreachable') throw new UserError('Could not reach the Team Management System. Nothing was changed.');
-    if (e.status === 401) throw new UserError('The Team Management System rejected the admin key.');
-    if (e.status === 429) throw new UserError('Too many requests to the Team Management System. Try again in a minute.');
-    if (e.status === 400 || e.status === 422) throw new UserError(e.message || 'The Team Management System rejected that request.');
-    if (e.status === 404) throw new UserError(e.message === 'http_404' ? 'The Team Management System operator API was not found. Check DUOPLUS_API_URL.' : e.message);
+    if (e.code === 'not_configured') throw new UserError('The Donexel connection is not set up (DONEXEL_API_URL, DONEXEL_ADMIN_KEY).');
+    if (e.code === 'unreachable') throw new UserError('Could not reach Donexel. Nothing was changed.');
+    if (e.status === 401) throw new UserError('The Donexel rejected the admin key.');
+    if (e.status === 429) throw new UserError('Too many requests to Donexel. Try again in a minute.');
+    if (e.status === 400 || e.status === 422) throw new UserError(e.message || 'The Donexel rejected that request.');
+    if (e.status === 404) throw new UserError(e.message === 'http_404' ? 'The Donexel operator API was not found. Check DONEXEL_API_URL.' : e.message);
   }
   throw e;
 }
@@ -81,8 +81,8 @@ export async function loadWorkspaceMembers(workspaceId: string): Promise<Members
   } catch (e) {
     if (e instanceof TmsError) {
       // The key is good for the other routes, so a 401/404/405 here means the app has no users route (an older API).
-      if ([401, 404, 405].includes(e.status)) return { ok: false, unsupported: true, error: 'This Team Management System API does not list users yet.' };
-      if (e.code === 'unreachable') return { ok: false, error: 'Could not reach the Team Management System.' };
+      if ([401, 404, 405].includes(e.status)) return { ok: false, unsupported: true, error: 'This Donexel API does not list users yet.' };
+      if (e.code === 'unreachable') return { ok: false, error: 'Could not reach Donexel.' };
     }
     return { ok: false, error: 'Could not load the people in this workspace.' };
   }

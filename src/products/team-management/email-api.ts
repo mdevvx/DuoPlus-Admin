@@ -1,0 +1,103 @@
+import 'server-only';
+import { z } from 'zod';
+import { TmsError, request } from './api';
+
+// Every field has a fallback, so a missing or unexpected value renders defensively instead of breaking the page.
+const num = z.coerce.number().catch(0);
+const str = z.string().catch('');
+const bool = z.boolean().catch(false);
+const opt = z.string().nullable().catch(null);
+
+function parse<T>(schema: z.ZodType<T>, data: unknown): T {
+  const r = schema.safeParse(data);
+  if (!r.success) throw new TmsError(0, 'bad_response', 'The Donexel API sent an unexpected response');
+  return r.data;
+}
+
+/** Template categories as the API names them. Unknown ones are shown as they come. */
+export const CATEGORY_ORDER = ['account', 'billing', 'reminder'] as const;
+export const CATEGORY_LABEL: Record<string, string> = { account: 'Account', billing: 'Billing', reminder: 'Reminders' };
+/** Turning these off can lock people out of their account. */
+export const ACCOUNT_CRITICAL = new Set(['signup_confirm', 'password_reset', 'invitation']);
+
+// ---- overview and reminders ----
+const overviewSchema = z.object({
+  configured: bool, from: str, remindersEnabled: bool,
+  last30d: z.object({ total: num, sent: num, failed: num, skipped: num }).catch({ total: 0, sent: 0, failed: 0, skipped: 0 }),
+});
+export type EmailOverview = z.infer<typeof overviewSchema>;
+export const emailOverview = async () => parse(overviewSchema, await request('GET', '/email/overview'));
+
+const ruleSchema = z.object({ key: str, name: str, trigger: str, enabled: bool, sentLast30d: num });
+const remindersSchema = z.object({ enabled: bool, rules: z.array(ruleSchema).catch([]) });
+export type ReminderRule = z.infer<typeof ruleSchema>;
+export const emailReminders = async () => parse(remindersSchema, await request('GET', '/email/reminders'));
+
+const runSchema = z.record(z.string(), num).catch({});
+export const runReminders = async () => parse(runSchema, await request('POST', '/email/reminders/run'));
+
+// ---- templates ----
+const draftSchema = z.object({ subject: str, heading: str, body: str, buttonLabel: str });
+const templateSchema = z.object({
+  key: str, name: str, category: str, trigger: str, variables: z.array(z.string()).catch([]),
+  hasLink: bool, sensitive: bool, enabled: z.boolean().catch(true), customized: bool,
+  subject: str, heading: str, body: str, buttonLabel: str,
+  defaults: draftSchema.catch({ subject: '', heading: '', body: '', buttonLabel: '' }),
+});
+export type EmailTemplate = z.infer<typeof templateSchema>;
+export const listEmailTemplates = async () => parse(z.array(templateSchema).catch([]), await request('GET', '/email/templates'));
+
+export interface TemplateInput { subject: string; heading: string; body: string; buttonLabel: string; enabled: boolean }
+export const saveEmailTemplate = async (key: string, t: TemplateInput) => parse(templateSchema, await request('PUT', `/email/templates/${encodeURIComponent(key)}`, { ...t }));
+export const resetEmailTemplate = async (key: string) => { await request('DELETE', `/email/templates/${encodeURIComponent(key)}`); };
+
+const previewSchema = z.object({ subject: str, text: str, html: str });
+export type TemplatePreview = z.infer<typeof previewSchema>;
+export const previewEmailTemplate = async (key: string, draft: Partial<Omit<TemplateInput, 'enabled'>>) =>
+  parse(previewSchema, await request('POST', `/email/templates/${encodeURIComponent(key)}/preview`, { ...draft }));
+
+/** Sends the saved template with sample values to one address. A 502 carries { status, error } in the error's body. */
+export const testEmailTemplate = async (key: string, to: string, sentBy: string) => { await request('POST', `/email/templates/${encodeURIComponent(key)}/test`, { to, sentBy }); };
+
+// ---- sending ----
+const resultSchema = z.object({ to: str, status: str, error: opt, id: opt });
+const sendSchema = z.object({ results: z.array(resultSchema).catch([]), sent: num, failed: num });
+export type SendResult = z.infer<typeof resultSchema>;
+export interface SendInput { to: string[]; subject: string; heading?: string; body: string; button?: { label: string; url: string }; sentBy: string }
+export const sendEmail = async (m: SendInput) => parse(sendSchema, await request('POST', '/email/send', { ...m }));
+
+// ---- outbox ----
+export const OUTBOX_STATUSES = ['queued', 'sent', 'failed', 'skipped'] as const;
+export const OUTBOX_SOURCES = ['system', 'reminder', 'manual'] as const;
+const outboxItemSchema = z.object({
+  id: str, templateKey: opt, source: str, to: str, toName: opt, userId: opt, subject: str, status: str, error: opt, sentBy: opt, createdAt: str,
+});
+export type OutboxItem = z.infer<typeof outboxItemSchema>;
+const outboxSchema = z.object({ page: num, pageSize: num, total: num, items: z.array(outboxItemSchema).catch([]) });
+export async function listOutbox(p: { status?: string; source?: string; template?: string; search?: string; page: number; pageSize: number }) {
+  const sp = new URLSearchParams({ page: String(p.page), pageSize: String(p.pageSize) });
+  for (const k of ['status', 'source', 'template', 'search'] as const) if (p[k]) sp.set(k, p[k]!);
+  return parse(outboxSchema, await request('GET', `/email/outbox?${sp}`));
+}
+const outboxDetailSchema = outboxItemSchema.extend({ body: str, canResend: bool });
+export type OutboxDetail = z.infer<typeof outboxDetailSchema>;
+export const getOutboxItem = async (id: string) => parse(outboxDetailSchema, await request('GET', `/email/outbox/${encodeURIComponent(id)}`));
+export const resendOutboxItem = async (id: string, sentBy: string) => { await request('POST', `/email/outbox/${encodeURIComponent(id)}/resend`, { sentBy }); };
+
+// ---- contacts ----
+const contactSchema = z.object({ id: str, email: str, fullName: opt, createdAt: str, remindersOptedOut: bool, lastEmailAt: opt });
+export type EmailContact = z.infer<typeof contactSchema>;
+const contactsSchema = z.object({ page: num, pageSize: num, total: num, items: z.array(contactSchema).catch([]) });
+export async function listEmailContacts(p: { search?: string; page: number; pageSize: number }) {
+  const sp = new URLSearchParams({ page: String(p.page), pageSize: String(p.pageSize) });
+  if (p.search) sp.set('search', p.search);
+  return parse(contactsSchema, await request('GET', `/email/contacts?${sp}`));
+}
+export const setContactOptOut = async (email: string, optedOut: boolean) => { await request('PUT', `/email/contacts/${encodeURIComponent(email)}/optout`, { optedOut }); };
+export const sendPasswordReset = async (contactId: string) => { await request('POST', `/email/contacts/${encodeURIComponent(contactId)}/password-reset`); };
+
+// ---- settings ----
+const settingsSchema = z.object({ fromName: str, replyTo: str, footer: str, remindersEnabled: bool, senderAddress: str, configured: bool });
+export type EmailSettings = z.infer<typeof settingsSchema>;
+export const getEmailSettings = async () => parse(settingsSchema, await request('GET', '/email/settings'));
+export const saveEmailSettings = async (s: { fromName: string; replyTo: string; footer: string; remindersEnabled: boolean }) => { await request('PUT', '/email/settings', { ...s }); };

@@ -6,7 +6,7 @@ import { parseOrders, type PaymentRow } from './payments';
 const LIMIT = 100;
 const MAX_PAGES = 5; // the latest 500 orders; plenty for a monthly SaaS, and it keeps each load fast
 
-/** The Team Management System's Polar environment. It must match the token's: sandbox and live never mix. */
+/** Donexel's Polar environment. It must match the token's: sandbox and live never mix. */
 export const polarEnv = () => (env().TMS_POLAR_ENV === 'sandbox' ? 'sandbox' : 'production');
 
 /** Its own token, or the panel's live token when both point at the same Polar environment. */
@@ -35,7 +35,7 @@ async function get(path: string, tk: string): Promise<unknown> {
   return res.json().catch(() => { throw new PolarError(0, 'bad_response', 'Polar sent an unreadable response'); });
 }
 
-/** Latest orders for the three Team Management System plans, newest first. Cached for a minute. */
+/** Latest orders for Donexel's three plans, newest first. Cached for a minute. */
 const latestOrders = unstable_cache(async (productIds: string): Promise<PaymentRow[]> => {
   const tk = token();
   if (!tk) throw new PolarError(0, 'not_configured', 'No Polar token');
@@ -59,7 +59,7 @@ export async function listPayments(): Promise<{ rows: PaymentRow[]; byProductIds
 
 export function describePolar(e: unknown): string {
   if (!(e instanceof PolarError)) return 'Could not load payments from Polar.';
-  if (e.code === 'not_configured') return 'Polar is not connected for the Team Management System. Add TMS_POLAR_ACCESS_TOKEN (a Polar token with order read access).';
+  if (e.code === 'not_configured') return 'Polar is not connected for Donexel. Add TMS_POLAR_ACCESS_TOKEN (a Polar token with order read access).';
   if (e.status === 401 || e.status === 403) return 'Polar rejected the token. It may be wrong, expired, from the other Polar environment, or missing order read access.';
   if (e.status === 429) return 'Polar rate limit reached. Try again in a minute.';
   if (e.code === 'unreachable') return 'Could not reach Polar.';

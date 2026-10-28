@@ -10,7 +10,7 @@ type Loaded<T> = { ok: true; data: T } | { ok: false; panel: ReactNode };
 /** Runs an API call and turns every failure (not set up, bad key, unreachable…) into a panel the page can show. */
 export async function load<T>(fn: () => Promise<T>, retryHref: string): Promise<Loaded<T>> {
   if (!tmsConfigured()) {
-    return { ok: false, panel: <Card><EmptyState title="Team Management System is not connected" hint="Add DUOPLUS_API_URL and DUOPLUS_ADMIN_KEY to the environment and redeploy." /></Card> };
+    return { ok: false, panel: <Card><EmptyState title="Donexel is not connected" hint="Add DONEXEL_API_URL and DONEXEL_ADMIN_KEY to the environment and redeploy." /></Card> };
   }
   try {
     return { ok: true, data: await fn() };

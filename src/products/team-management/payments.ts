@@ -1,5 +1,5 @@
 /**
- * Payments of the Team Management System, read from Polar's orders. Pure functions (no I/O) so they can be tested:
+ * Payments of Donexel, read from Polar's orders. Pure functions (no I/O) so they can be tested:
  * parsing tolerates missing or renamed fields, and filtering happens here on the cached list.
  */
 export type J = Record<string, unknown>;
@@ -12,7 +12,7 @@ const first = (o: J, ...keys: string[]): unknown => { for (const k of keys) if (
 export const PLAN_NAMES = ['starter', 'growth', 'scale'] as const;
 export type PlanName = (typeof PLAN_NAMES)[number];
 
-/** "Growth plan (monthly)" → "growth". Anything else is not a Team Management System plan. */
+/** "Growth plan (monthly)" → "growth". Anything else is not a Donexel plan. */
 export function planOf(productName: string): PlanName | null {
   const n = productName.toLowerCase();
   return PLAN_NAMES.find((p) => new RegExp(`\\b${p}\\b`).test(n)) ?? null;

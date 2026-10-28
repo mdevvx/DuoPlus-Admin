@@ -13,17 +13,24 @@ import { filterPayments, filtersFromParams, REASON_LABEL, STATUS_LABEL } from '.
 import { listPayments } from './polar';
 import { peopleInWorkspaces } from './people';
 import { SettingsPage } from './pages/settings';
+import { EmailContactsPage, EmailOutboxPage, EmailRemindersPage, EmailSendPage, EmailSettingsPage, EmailTemplatePage, EmailTemplatesPage } from './pages/email';
 
 const base = `/p/${SLUG}`;
 
 const teamManagement: ProductModule = {
-  manifest: { slug: SLUG, name: 'Team Management System', description: 'Workspaces, subscriptions and the billing whitelist', icon: 'workspace' },
+  manifest: { slug: SLUG, name: 'Donexel', description: 'Workspaces, subscriptions and the billing whitelist', icon: 'workspace' },
   navigation: [
     { label: 'Overview', path: '', icon: 'overview', shortcut: 'o' },
     { label: 'Workspaces', path: 'workspaces', icon: 'workspace', shortcut: 'w' },
     { label: 'Users', path: 'users', icon: 'customers', shortcut: 'u' },
     { label: 'Payments', path: 'payments', icon: 'payments', shortcut: 'p' },
     { label: 'Whitelist', path: 'whitelist', icon: 'whitelist', shortcut: 'l' },
+    { label: 'Reminders & email', path: 'email', icon: 'reminders', shortcut: 'r' },
+    { label: 'Email templates', path: 'email/templates', icon: 'template', shortcut: 't' },
+    { label: 'Send email', path: 'email/send', icon: 'outbox', shortcut: 'm' },
+    { label: 'Email outbox', path: 'email/outbox', icon: 'outbox', shortcut: 'b' },
+    { label: 'Email contacts', path: 'email/contacts', icon: 'contact', shortcut: 'c' },
+    { label: 'Email settings', path: 'email/settings', icon: 'settings' },
     { label: 'Audit', path: 'audit', icon: 'audit', permission: 'hub.audit' },
     { label: 'Settings', path: 'settings', icon: 'settings' },
   ],
@@ -34,6 +41,13 @@ const teamManagement: ProductModule = {
     users: { permission: 'read', render: UsersPage },
     payments: { permission: 'read', render: PaymentsPage },
     whitelist: { permission: 'read', render: WhitelistPage },
+    email: { permission: 'read', render: EmailRemindersPage },
+    'email/templates': { permission: 'read', render: EmailTemplatesPage },
+    'email/templates/:key': { permission: 'read', render: EmailTemplatePage },
+    'email/send': { permission: 'read', render: EmailSendPage },
+    'email/outbox': { permission: 'read', render: EmailOutboxPage },
+    'email/contacts': { permission: 'read', render: EmailContactsPage },
+    'email/settings': { permission: 'read', render: EmailSettingsPage },
     audit: { permission: 'hub.audit', render: AuditPage },
     settings: { permission: 'read', render: ({ role }) => SettingsPage({ role, manifest: teamManagement.manifest }) },
   },
@@ -57,7 +71,7 @@ const teamManagement: ProductModule = {
     ];
   },
   attention: async () => {
-    if (!tmsConfigured()) return [{ label: 'Team Management System is not connected', detail: 'Setup', href: `${base}/settings`, tone: 'warning' }];
+    if (!tmsConfigured()) return [{ label: 'Donexel is not connected', detail: 'Setup', href: `${base}/settings`, tone: 'warning' }];
     const o = await getOverview();
     const out: Attention[] = [];
     if (o.billing.trialsEndingIn3Days > 0) out.push({ label: 'Trials ending within 3 days', detail: String(o.billing.trialsEndingIn3Days), href: `${base}/workspaces`, tone: 'info' });

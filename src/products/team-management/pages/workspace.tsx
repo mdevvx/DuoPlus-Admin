@@ -20,7 +20,7 @@ const roleTone = (r: string) => (r === 'admin' ? 'info' : 'neutral') as 'info' |
 export async function WorkspaceDetailPage({ params }: RouteCtx) {
   const id = params.id ?? '';
   const back = <Link className="btn" href={`${base}/workspaces`}><ArrowLeft className="h-4 w-4" aria-hidden /> All workspaces</Link>;
-  if (!tmsConfigured()) return <><PageHeader title="Workspace" actions={back} /><Card><EmptyState title="Team Management System is not connected" hint="Add DUOPLUS_API_URL and DUOPLUS_ADMIN_KEY to the environment and redeploy." /></Card></>;
+  if (!tmsConfigured()) return <><PageHeader title="Workspace" actions={back} /><Card><EmptyState title="Donexel is not connected" hint="Add DONEXEL_API_URL and DONEXEL_ADMIN_KEY to the environment and redeploy." /></Card></>;
 
   let ws;
   try { ws = (await allWorkspaces()).find((w) => w.id === id); } catch (e) { return <><PageHeader title="Workspace" actions={back} /><ErrorPanel message={describe(e)} retryHref={`${base}/workspaces/${id}`} /></>; }

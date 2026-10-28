@@ -6,12 +6,18 @@ export const SLUG = 'team-management';
 
 /** Thrown for any non-2xx answer, network failure or unexpected response. `code` is the API's error code when it sent one. */
 export class TmsError extends Error {
-  constructor(public status: number, public code: string, message: string) { super(message); }
+  /** `body` is the parsed error answer, for routes (send, test) that return details with a 502. */
+  constructor(public status: number, public code: string, message: string, public body?: unknown) { super(message); }
 }
 
-export const tmsConfigured = () => !!(env().DUOPLUS_API_URL && env().DUOPLUS_ADMIN_KEY);
+/** The Donexel operator API address and key (DONEXEL_*, or the older DUOPLUS_* names). */
+export function connection(): { url: string | undefined; key: string | undefined } {
+  const e = env();
+  return { url: e.DONEXEL_API_URL ?? e.DUOPLUS_API_URL, key: e.DONEXEL_ADMIN_KEY ?? e.DUOPLUS_ADMIN_KEY };
+}
+export const tmsConfigured = () => { const c = connection(); return !!(c.url && c.key); };
 
-/** DUOPLUS_API_URL may be the API's domain or already include /api/v1/admin; both work. */
+/** DONEXEL_API_URL may be the API's domain or already include /api/v1/admin; both work. */
 export function adminBase(url: string): string {
   const u = url.trim().replace(/\/+$/, '');
   if (u.endsWith('/api/v1/admin')) return u;
@@ -19,9 +25,12 @@ export function adminBase(url: string): string {
   return `${u}/api/v1/admin`;
 }
 
-async function request(method: 'GET' | 'POST' | 'DELETE', path: string, body?: Record<string, unknown>): Promise<unknown> {
-  const { DUOPLUS_API_URL: url, DUOPLUS_ADMIN_KEY: key } = env();
-  if (!url || !key) throw new TmsError(0, 'not_configured', 'DUOPLUS_API_URL and DUOPLUS_ADMIN_KEY are not both set');
+export type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+/** One call to the operator API. Exported for the email module so the address, key header, timeout and errors live in one place. */
+export async function request(method: Method, path: string, body?: Record<string, unknown>): Promise<unknown> {
+  const { url, key } = connection();
+  if (!url || !key) throw new TmsError(0, 'not_configured', 'DONEXEL_API_URL and DONEXEL_ADMIN_KEY are not both set');
   let res: Response;
   try {
     res = await fetch(`${adminBase(url)}${path}`, {
@@ -33,13 +42,15 @@ async function request(method: 'GET' | 'POST' | 'DELETE', path: string, body?: R
       signal: AbortSignal.timeout(10_000),
     });
   } catch {
-    throw new TmsError(0, 'unreachable', 'Could not reach the Team Management System API');
+    throw new TmsError(0, 'unreachable', 'Could not reach the Donexel API');
   }
   if (res.status === 204) return null;
   const json: unknown = await res.json().catch(() => null);
   if (!res.ok) {
-    const e = (json as { error?: { message?: unknown; code?: unknown } } | null)?.error;
-    throw new TmsError(res.status, typeof e?.code === 'string' ? e.code : `http_${res.status}`, typeof e?.message === 'string' ? e.message : `http_${res.status}`);
+    // Errors are { error: { message, code } }; a hosting platform's own error page is { status, code, message } instead.
+    const top = (json ?? {}) as { error?: { message?: unknown; code?: unknown }; message?: unknown; code?: unknown };
+    const e = top.error ?? top;
+    throw new TmsError(res.status, typeof e.code === 'string' ? e.code : `http_${res.status}`, typeof e.message === 'string' ? e.message : `http_${res.status}`, json);
   }
   return json;
 }
@@ -83,7 +94,7 @@ export type AddResult = z.infer<typeof addResultSchema>;
 
 function parse<T>(schema: z.ZodType<T>, data: unknown): T {
   const r = schema.safeParse(data);
-  if (!r.success) throw new TmsError(0, 'bad_response', 'The Team Management System API sent an unexpected response');
+  if (!r.success) throw new TmsError(0, 'bad_response', 'The Donexel API sent an unexpected response');
   return r.data;
 }
 
@@ -184,12 +195,13 @@ export function polarLink(): string {
 
 /** Plain-language reason for a failed call, safe to show to an admin. */
 export function describe(e: unknown): string {
-  if (!(e instanceof TmsError)) return 'Could not load data from the Team Management System.';
-  if (e.code === 'not_configured') return 'The Team Management System connection is not set up. Add DUOPLUS_API_URL and DUOPLUS_ADMIN_KEY to the environment and redeploy.';
-  if (e.status === 401) return 'The Team Management System rejected the admin key (wrong, missing or changed).';
-  if (e.status === 404) return 'The Team Management System operator API answered 404. Its ADMIN_API_KEY is probably not set, or DUOPLUS_API_URL is wrong.';
-  if (e.status === 429) return 'The Team Management System rate limit was reached (120 requests per minute). Try again shortly.';
-  if (e.code === 'unreachable') return 'Could not reach the Team Management System API.';
-  if (e.code === 'bad_response') return 'The Team Management System API sent a response this panel could not read.';
-  return 'The Team Management System API returned an error.';
+  if (!(e instanceof TmsError)) return 'Could not load data from Donexel.';
+  if (e.code === 'not_configured') return 'The Donexel connection is not set up. Add DONEXEL_API_URL and DONEXEL_ADMIN_KEY to the environment and redeploy.';
+  if (e.status === 401) return 'The Donexel rejected the admin key (wrong, missing or changed).';
+  if (e.status === 404 && /application not found/i.test(e.message)) return 'The Donexel API address answered "Application not found". The Railway service is not deployed at that domain, or the domain in DONEXEL_API_URL is wrong.';
+  if (e.status === 404) return 'The Donexel operator API answered 404. Its ADMIN_API_KEY is probably not set, or DONEXEL_API_URL is wrong.';
+  if (e.status === 429) return 'The Donexel rate limit was reached (120 requests per minute). Try again shortly.';
+  if (e.code === 'unreachable') return 'Could not reach the Donexel API.';
+  if (e.code === 'bad_response') return 'The Donexel API sent a response this panel could not read.';
+  return 'The Donexel API returned an error.';
 }

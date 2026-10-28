@@ -25,7 +25,7 @@ interface Row {
 
 export async function UsersPage({ searchParams }: RouteCtx) {
   const p = params.parse(searchParams);
-  if (!tmsConfigured()) return <><PageHeader title="Users" description="Everyone who has an account." /><Card><EmptyState title="Team Management System is not connected" hint="Add DUOPLUS_API_URL and DUOPLUS_ADMIN_KEY to the environment and redeploy." /></Card></>;
+  if (!tmsConfigured()) return <><PageHeader title="Users" description="Everyone who has an account." /><Card><EmptyState title="Donexel is not connected" hint="Add DONEXEL_API_URL and DONEXEL_ADMIN_KEY to the environment and redeploy." /></Card></>;
 
   let rows: Row[] = [];
   let total = 0;

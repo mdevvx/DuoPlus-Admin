@@ -5,7 +5,7 @@ const KEY = 'super-secret-admin-key-123';
 beforeAll(() => {
   Object.assign(process.env, {
     NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'a'.repeat(30), SUPABASE_SERVICE_ROLE_KEY: 's'.repeat(30),
-    HUB_URL: 'http://localhost:3000', SESSION_SECRET: 'x'.repeat(40), DUOPLUS_API_URL: 'https://api.tms.test', DUOPLUS_ADMIN_KEY: KEY,
+    HUB_URL: 'http://localhost:3000', SESSION_SECRET: 'x'.repeat(40), DONEXEL_API_URL: 'https://api.tms.test', DONEXEL_ADMIN_KEY: KEY,
   });
 });
 afterEach(() => vi.unstubAllGlobals());

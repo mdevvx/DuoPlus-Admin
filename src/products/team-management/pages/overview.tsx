@@ -32,7 +32,7 @@ export async function OverviewPage(_ctx: RouteCtx) {
 
   return (
     <>
-      <PageHeader title="Overview" description="Accounts, subscriptions and estimated revenue for the Team Management System." updatedAt={updated}
+      <PageHeader title="Overview" description="Accounts, subscriptions and estimated revenue for Donexel." updatedAt={updated}
         actions={<>
           <RefreshButton className="btn" />
           <a className="btn" href={polarLink()} target="_blank" rel="noopener noreferrer">Billing in Polar <ExternalLink className="h-3.5 w-3.5" aria-hidden /></a>

@@ -25,6 +25,7 @@ export const PERMISSIONS = {
   'email.settings': 'owner',
   'bot.settings': 'owner',
   'tms.whitelist': 'admin',
+  'tms.email': 'admin',
   'product.branding': 'admin',
   'support.act': 'admin',
   'support.danger': 'admin',

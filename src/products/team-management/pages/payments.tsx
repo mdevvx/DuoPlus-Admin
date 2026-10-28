@@ -37,7 +37,7 @@ export async function PaymentsPage({ role, searchParams }: RouteCtx) {
     return (
       <>
         <PageHeader title="Payments" description="Orders for the Starter, Growth and Scale plans, read from Polar." />
-        <Card><EmptyState title="Polar is not connected for payments" hint="Add TMS_POLAR_ACCESS_TOKEN (a Polar token with order read access, from the same Polar environment as the Team Management System) and redeploy." /></Card>
+        <Card><EmptyState title="Polar is not connected for payments" hint="Add TMS_POLAR_ACCESS_TOKEN (a Polar token with order read access, from the same Polar environment as the Donexel) and redeploy." /></Card>
       </>
     );
   }
