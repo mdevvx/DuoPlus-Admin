@@ -17,5 +17,5 @@ const NOTICE = {
 
 /** A short message box inside a page, card or dialog. */
 export function Notice({ tone = 'info', children, role }: { tone?: keyof typeof NOTICE; children: ReactNode; role?: 'alert' | 'status' }) {
-  return <p role={role ?? (tone === 'danger' ? 'alert' : undefined)} className={clsx('rounded-lg px-3.5 py-2.5 text-sm', NOTICE[tone])}>{children}</p>;
+  return <p role={role ?? (tone === 'danger' ? 'alert' : undefined)} className={clsx('rounded-lg px-3.5 py-2.5 text-sm [overflow-wrap:anywhere]', NOTICE[tone])}>{children}</p>;
 }

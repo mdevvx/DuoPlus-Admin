@@ -163,7 +163,7 @@ export function ConfirmAction({
               </div>
             )}
 
-            {error && <p role="alert" className="rounded-lg bg-danger-soft px-3.5 py-2.5 text-[13px] text-danger">{error}</p>}
+            {error && <p role="alert" className="rounded-lg bg-danger-soft px-3.5 py-2.5 text-[13px] text-danger [overflow-wrap:anywhere]">{error}</p>}
           </div>
 
           <footer className="flex items-center justify-end gap-2 border-t border-line bg-subtle px-5 py-3.5">
