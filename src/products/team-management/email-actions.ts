@@ -244,9 +244,9 @@ export async function eraseAddressAction(fd: FormData): Promise<ActionResult> {
     const email = address.parse(fd.get('email'));
     if (address.parse(fd.get('confirm')) !== email) throw new UserError('The two addresses do not match.');
     const why = reason.parse(fd.get('reason'));
-    await call(() => eraseEmailAddress(email));
-    await audit(admin, 'email.contact.erase', maskEmail(email), undefined, why);
-    return 'The address was deleted everywhere';
+    const gone = await call(() => eraseEmailAddress(email));
+    await audit(admin, 'email.contact.erase', maskEmail(email), gone, why);
+    return `The address was deleted everywhere (${gone.contacts} contact${gone.contacts === 1 ? '' : 's'}, ${gone.emails} email${gone.emails === 1 ? '' : 's'} removed)`;
   });
 }
 

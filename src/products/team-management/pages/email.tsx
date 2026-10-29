@@ -212,12 +212,12 @@ export async function EmailOutboxPage({ searchParams, role }: RouteCtx) {
 }
 
 // ---------------------------------------------------------------- Contacts
-const contactParams = z.object({ page: z.coerce.number().int().min(1).max(100000).catch(1), q: z.string().trim().max(100).optional().catch(undefined) });
+const contactParams = z.object({ page: z.coerce.number().int().min(1).max(100000).catch(1), q: z.string().trim().max(100).optional().catch(undefined), reminders: z.enum(['on', 'off']).optional().catch(undefined) });
 
 export async function EmailContactsPage({ searchParams, role }: RouteCtx) {
   const p = contactParams.parse(searchParams);
   const path = `${root}/contacts`;
-  const r = await load(() => listEmailContacts({ search: p.q, page: p.page, pageSize: PER }), path);
+  const r = await load(() => listEmailContacts({ search: p.q, subscribed: p.reminders === 'on' ? 'true' : p.reminders === 'off' ? 'false' : undefined, page: p.page, pageSize: PER }), path);
   return (
     <>
       <PageHeader title="Email contacts" description="Every address we can email: accounts, plus addresses added by hand. Switching reminders off stops reminders only: account and billing emails are always sent." updatedAt={new Date()}
@@ -229,7 +229,10 @@ export async function EmailContactsPage({ searchParams, role }: RouteCtx) {
           <Card><Stat label="Unsubscribed" value={int(r.data.unsubscribed)} /></Card>
         </div>
       )}
-      <Filters action={path} fields={[{ type: 'search', key: 'q', label: 'Search', placeholder: 'Search by email or name' }]} />
+      <Filters action={path} fields={[
+        { type: 'search', key: 'q', label: 'Search', placeholder: 'Search by email or name' },
+        { type: 'select', key: 'reminders', label: 'Reminders', options: [['', 'All'], ['on', 'Subscribed'], ['off', 'Unsubscribed']] },
+      ]} />
       {!r.ok ? r.panel : r.data.items.length === 0 ? <div className="card"><EmptyState title={p.q ? 'No contacts match' : 'No contacts yet'} hint={p.q ? 'Check the spelling or clear the search.' : undefined} /></div> : (
         <>
           <Table label="Email contacts">
@@ -244,7 +247,7 @@ export async function EmailContactsPage({ searchParams, role }: RouteCtx) {
               </Tr>
             ))}</tbody>
           </Table>
-          <Pagination base={path} params={{ q: p.q }} page={r.data.page || p.page} pageSize={r.data.pageSize || PER} total={r.data.total} />
+          <Pagination base={path} params={{ q: p.q, reminders: p.reminders }} page={r.data.page || p.page} pageSize={r.data.pageSize || PER} total={r.data.total} />
         </>
       )}
       {can(role, 'tms.email') && (
@@ -287,8 +290,8 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
               <Card title="Layout and branding"><LayoutForm layout={layout} canEdit={edit} logoSrc={`/api/brand/${SLUG}/logo`} brandingHref={`${base}/settings`} previewKey={(tpls.find((t) => !t.sensitive) ?? tpls[0])?.key} /></Card>
               <div className="grid content-start gap-5">
                 <Card title="Sender">
-                  <KV items={[['Sender address', cfg.senderAddress || '—'], ['Reply-to', cfg.replyTo || 'None']]} />
-                  <p className="mt-4 text-xs text-muted">The sender address comes from <b>SMTP_FROM</b> on the Donexel server, and the sender name is shown before it. The mail server login is server configuration (environment variables) and is never shown or asked for here.</p>
+                  <KV items={[['Sender address', cfg.senderAddress || '—'], ['Support address', cfg.supportEmail || cfg.replyTo || 'Server default']]} />
+                  <p className="mt-4 text-xs text-muted">The sender address comes from <b>SMTP_FROM</b> on the Donexel server, and the sender name is shown before it. The support address is shown in every email&apos;s &quot;don&apos;t reply&quot; notice and used for replies. The mail server login is server configuration (environment variables) and is never shown or asked for here.</p>
                 </Card>
                 <Card title="Wording and reminders"><EmailSettingsForm settings={cfg} canEdit={edit} /></Card>
               </div>

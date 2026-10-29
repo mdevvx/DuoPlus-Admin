@@ -204,10 +204,10 @@ export function EmailSettingsForm({ settings: s, canEdit }: { settings: EmailSet
     }}>
       <label className="block"><span className={label}>Sender name</span><input className="input" value={v.fromName} maxLength={80} disabled={!canEdit} onChange={(e) => setV({ ...v, fromName: e.target.value })} />
         <span className={fieldHint}>Shown before the sender address{s.senderAddress ? ` (${s.senderAddress})` : ''}.</span></label>
-      <label className="block"><span className={label}>Reply-to address <span className="font-normal text-muted">· optional</span></span><input className="input" type="email" value={v.replyTo} disabled={!canEdit} onChange={(e) => setV({ ...v, replyTo: e.target.value })} aria-invalid={!replyOk} />
-        <span className={fieldHint}>Where replies go. Leave empty for none.</span></label>
+      <label className="block"><span className={label}>Support address <span className="font-normal text-muted">· optional</span></span><input className="input" type="email" value={v.replyTo} disabled={!canEdit} onChange={(e) => setV({ ...v, replyTo: e.target.value })} aria-invalid={!replyOk} />
+        <span className={fieldHint}>Shown in every email&apos;s &quot;don&apos;t reply&quot; notice and used for replies. Leave empty to use the server default.</span></label>
       <label className="block"><span className={label}>Footer</span><textarea className="input h-24 resize-y py-2" value={v.footer} maxLength={2000} disabled={!canEdit} onChange={(e) => setV({ ...v, footer: e.target.value })} />
-        <span className={fieldHint}>Shown at the bottom of every email.</span></label>
+        <span className={fieldHint}>Shown at the bottom of every email. Donexel adds the &quot;don&apos;t reply, contact support&quot; notice itself, so don&apos;t repeat it here.</span></label>
       <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="checkbox" checked={v.remindersEnabled} disabled={!canEdit} onChange={(e) => setV({ ...v, remindersEnabled: e.target.checked })} />
         <span><b>Send reminder emails.</b> <span className="text-muted">The master switch for trial, renewal, payment and access reminders. Account and billing emails are not affected.</span></span></label>
       {error && <Notice tone="danger">{error}</Notice>}
@@ -268,7 +268,7 @@ export function LayoutForm({ layout: l, canEdit, previewKey, logoSrc, brandingHr
         <span className={fieldHint}>The logo comes from the product branding and sits at the top of every email. Saving stores a copy as a public image so every email app can load it. <Link className="text-accent hover:underline" href={brandingHref}>Change it in Settings</Link>, then save the layout again.</span>
       </div>
       <label className="block"><span className={label}>Footer (HTML)</span><textarea className="input h-28 resize-y py-2 font-mono text-xs" value={v.footerHtml} maxLength={4000} disabled={!canEdit} onChange={(e) => setV({ ...v, footerHtml: e.target.value })} />
-        <span className={fieldHint}>Only bold, italic, line breaks and https or mailto links are kept; anything else shows as plain text. Put the postal address here if you need one.</span></label>
+        <span className={fieldHint}>Only bold, italic, line breaks and https or mailto links are kept; anything else shows as plain text. Donexel adds the &quot;don&apos;t reply&quot; notice itself, so don&apos;t repeat it. Put the postal address here if you need one.</span></label>
       <label className="block"><span className={label}>Footer (plain text)</span><textarea className="input h-24 resize-y py-2 font-mono text-xs" value={v.footerText} maxLength={2000} disabled={!canEdit} onChange={(e) => setV({ ...v, footerText: e.target.value })} /></label>
       {error && <Notice tone="danger">{error}</Notice>}
       {canEdit

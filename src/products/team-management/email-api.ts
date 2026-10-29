@@ -98,20 +98,22 @@ export const resendOutboxItem = async (id: string, sentBy: string) => { await re
 const contactSchema = z.object({ id: str, email: str, fullName: opt, createdAt: str, remindersOptedOut: bool, lastEmailAt: opt, kind: z.enum(['account', 'manual']).catch('account') });
 export type EmailContact = z.infer<typeof contactSchema>;
 const contactsSchema = z.object({ page: num, pageSize: num, total: num, subscribed: num, unsubscribed: num, items: z.array(contactSchema).catch([]) });
-export async function listEmailContacts(p: { search?: string; page: number; pageSize: number }) {
+export async function listEmailContacts(p: { search?: string; subscribed?: 'true' | 'false'; page: number; pageSize: number }) {
   const sp = new URLSearchParams({ page: String(p.page), pageSize: String(p.pageSize) });
   if (p.search) sp.set('search', p.search);
+  if (p.subscribed) sp.set('subscribed', p.subscribed);
   return parse(contactsSchema, await request('GET', `/email/contacts?${sp}`));
 }
 export const setContactOptOut = async (email: string, optedOut: boolean) => { await request('PUT', `/email/contacts/${encodeURIComponent(email)}/optout`, { optedOut }); };
 export const addEmailContact = async (email: string, name?: string) => { await request('POST', '/email/contacts', { email, ...(name ? { name } : {}) }); };
 export const removeEmailContact = async (id: string) => { await request('DELETE', `/email/contacts/${encodeURIComponent(id)}`); };
 /** Removes the address from contacts, the opt-out list and every outbox row. Refused (409) while it still has an account. */
-export const eraseEmailAddress = async (email: string) => { await request('POST', '/email/contacts/erase', { email }); };
+const erasedSchema = z.object({ erased: z.object({ contacts: num, optouts: num, emails: num }).catch({ contacts: 0, optouts: 0, emails: 0 }) });
+export const eraseEmailAddress = async (email: string) => parse(erasedSchema, (await request('POST', '/email/contacts/erase', { email })) ?? {}).erased;
 export const sendPasswordReset = async (contactId: string) => { await request('POST', `/email/contacts/${encodeURIComponent(contactId)}/password-reset`); };
 
 // ---- settings ----
-const settingsSchema = z.object({ fromName: str, replyTo: str, footer: str, remindersEnabled: bool, senderAddress: str, configured: bool });
+const settingsSchema = z.object({ fromName: str, replyTo: str, footer: str, remindersEnabled: bool, senderAddress: str, configured: bool, supportEmail: str });
 export type EmailSettings = z.infer<typeof settingsSchema>;
 export const getEmailSettings = async () => parse(settingsSchema, await request('GET', '/email/settings'));
 export const saveEmailSettings = async (s: { fromName: string; replyTo: string; footer: string; remindersEnabled: boolean }) => { await request('PUT', '/email/settings', { ...s }); };
