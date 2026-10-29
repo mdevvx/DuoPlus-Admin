@@ -219,29 +219,29 @@ export function EmailSettingsForm({ settings: s, canEdit }: { settings: EmailSet
 }
 
 /** Brand name, accent colour, logo and footer. Saved on the Donexel server; the preview on a template page shows them. */
-export function LayoutForm({ layout: l, canEdit, previewKey }: { layout: EmailLayout; canEdit: boolean; previewKey?: string }) {
+export function LayoutForm({ layout: l, canEdit, previewKey, logoSrc, brandingHref }: { layout: EmailLayout; canEdit: boolean; previewKey?: string; logoSrc: string; brandingHref: string }) {
   const [v, setV] = useState(l);
+  const [showLogo, setShowLogo] = useState(!!l.logoUrl);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const toast = useToast();
   const router = useRouter();
-  const dirty = JSON.stringify(v) !== JSON.stringify(l);
+  const dirty = JSON.stringify(v) !== JSON.stringify(l) || showLogo !== !!l.logoUrl;
   const colourOk = /^#[0-9a-f]{6}$/i.test(v.accentColor);
-  const logoOk = v.logoUrl === '' || /^https:\/\/\S+$/i.test(v.logoUrl.trim());
 
   // Donexel renders a sample email with the unsaved layout, so the preview matches what a save would produce.
   useEffect(() => {
-    if (!previewKey || !colourOk || !logoOk || !v.brandName.trim()) return;
-    const id = setTimeout(() => { void previewTemplateAction(previewKey, { layout: { ...v, logoUrl: v.logoUrl.trim() } }).then(setPreview); }, 450);
+    if (!previewKey || !colourOk || !v.brandName.trim()) return;
+    const id = setTimeout(() => { void previewTemplateAction(previewKey, { layout: { ...v, logoUrl: showLogo ? l.logoUrl : '' } }).then(setPreview); }, 450);
     return () => clearTimeout(id);
-  }, [previewKey, v, colourOk, logoOk]);
+  }, [previewKey, v, showLogo, l.logoUrl, colourOk]);
 
   return (
     <div className="space-y-6">
     <form className="max-w-xl space-y-5" onSubmit={(e) => {
       e.preventDefault(); setError(null);
-      start(async () => { const r = await saveLayoutAction({ ...v, logoUrl: v.logoUrl.trim() }); if (r.ok) { toast(true, r.message); router.refresh(); } else setError(r.error); });
+      start(async () => { const r = await saveLayoutAction({ brandName: v.brandName, accentColor: v.accentColor, footerHtml: v.footerHtml, footerText: v.footerText, showLogo }); if (r.ok) { toast(true, r.message); router.refresh(); } else setError(r.error); });
     }}>
       <label className="block"><span className={label}>Brand name</span><input className="input" value={v.brandName} maxLength={60} disabled={!canEdit} onChange={(e) => setV({ ...v, brandName: e.target.value })} />
         <span className={fieldHint}>Shown in the header of every email, and available as <code>{'{{app_name}}'}</code> in the wording.</span></label>
@@ -253,14 +253,26 @@ export function LayoutForm({ layout: l, canEdit, previewKey }: { layout: EmailLa
         </div>
         <span className={fieldHint}>Used on the button and the brand header.</span>
       </div>
-      <label className="block"><span className={label}>Logo address <span className="font-normal text-muted">· optional</span></span><input className="input" value={v.logoUrl} placeholder="https://" disabled={!canEdit} onChange={(e) => setV({ ...v, logoUrl: e.target.value })} aria-invalid={!logoOk} />
-        <span className={fieldHint}>A public https:// image. Leave empty to show the brand name as text.</span></label>
+      <div>
+        <span className={label}>Logo</span>
+        <div className="flex items-center gap-4 rounded-lg border border-line p-3">
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {showLogo ? <img src={logoSrc} alt={`${v.brandName} logo`} className="max-h-full max-w-full object-contain" /> : <span className="px-1 text-center text-xs font-semibold" style={{ color: v.accentColor }}>{v.brandName}</span>}
+          </span>
+          <div className="space-y-2 text-sm">
+            <label className="flex items-center gap-2"><input type="radio" name="logo" disabled={!canEdit} checked={showLogo} onChange={() => setShowLogo(true)} /> Show the product logo</label>
+            <label className="flex items-center gap-2"><input type="radio" name="logo" disabled={!canEdit} checked={!showLogo} onChange={() => setShowLogo(false)} /> Show the brand name only</label>
+          </div>
+        </div>
+        <span className={fieldHint}>The logo comes from the product branding and sits at the top of every email. Saving stores a copy as a public image so every email app can load it. <Link className="text-accent hover:underline" href={brandingHref}>Change it in Settings</Link>, then save the layout again.</span>
+      </div>
       <label className="block"><span className={label}>Footer (HTML)</span><textarea className="input h-28 resize-y py-2 font-mono text-xs" value={v.footerHtml} maxLength={4000} disabled={!canEdit} onChange={(e) => setV({ ...v, footerHtml: e.target.value })} />
         <span className={fieldHint}>Only bold, italic, line breaks and https or mailto links are kept; anything else shows as plain text. Put the postal address here if you need one.</span></label>
       <label className="block"><span className={label}>Footer (plain text)</span><textarea className="input h-24 resize-y py-2 font-mono text-xs" value={v.footerText} maxLength={2000} disabled={!canEdit} onChange={(e) => setV({ ...v, footerText: e.target.value })} /></label>
       {error && <Notice tone="danger">{error}</Notice>}
       {canEdit
-        ? <button className="btn btn-primary" disabled={pending || !dirty || !colourOk || !logoOk || !v.brandName.trim()}>{pending ? 'Saving…' : 'Save layout'}</button>
+        ? <button className="btn btn-primary" disabled={pending || !dirty || !colourOk || !v.brandName.trim()}>{pending ? 'Saving…' : 'Save layout'}</button>
         : <p className="text-muted">Only admins can change the layout.</p>}
     </form>
     {previewKey && (

@@ -9,7 +9,7 @@ import { Notice } from '@/components/form';
 import { int, maskEmail, relative } from '@/lib/format';
 import { can } from '@/lib/roles';
 import type { RouteCtx } from '@/products/types';
-import { describe } from '../api';
+import { SLUG, describe } from '../api';
 import { emailOverview, emailReminders, getEmailLayout, getEmailSettings, listEmailContacts, listEmailTemplates, listOutbox, listTemplateVersions } from '../email-api';
 import { ACCOUNT_CRITICAL, CATEGORY_LABEL, CATEGORY_ORDER, OUTBOX_SOURCES, OUTBOX_STATUSES } from '../email-meta';
 import { parseRecipients } from '../email-compose';
@@ -284,7 +284,7 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
               </Card>
             </div>
             <div className="grid gap-5 xl:grid-cols-2">
-              <Card title="Layout and branding"><LayoutForm layout={layout} canEdit={edit} previewKey={(tpls.find((t) => !t.sensitive) ?? tpls[0])?.key} /></Card>
+              <Card title="Layout and branding"><LayoutForm layout={layout} canEdit={edit} logoSrc={`/api/brand/${SLUG}/logo`} brandingHref={`${base}/settings`} previewKey={(tpls.find((t) => !t.sensitive) ?? tpls[0])?.key} /></Card>
               <div className="grid content-start gap-5">
                 <Card title="Sender">
                   <KV items={[['Sender address', cfg.senderAddress || '—'], ['Reply-to', cfg.replyTo || 'None']]} />

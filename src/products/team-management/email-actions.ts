@@ -7,6 +7,7 @@ import { writeAudit } from '@/lib/audit';
 import { maskEmail } from '@/lib/format';
 import { reason } from '@/lib/validation';
 import type { Permission } from '@/lib/roles';
+import { emailLogoUrl } from '@/products/disconotify/email/logo';
 import { SLUG, TmsError } from './api';
 import {
   addEmailContact, eraseEmailAddress, getOutboxItem, listEmailContacts, listEmailTemplates, previewEmailTemplate, removeEmailContact, resendOutboxItem, resetEmailTemplate,
@@ -274,11 +275,17 @@ export async function saveEmailSettingsAction(input: z.input<typeof settings>): 
   });
 }
 
-export async function saveLayoutAction(input: z.input<typeof layoutShape>): Promise<ActionResult> {
+export async function saveLayoutAction(input: Omit<z.input<typeof layoutShape>, 'logoUrl'> & { showLogo: boolean }): Promise<ActionResult> {
   return runAction(async () => {
     const admin = await gate('tms.email');
-    const l = layoutShape.parse(input);
+    const { showLogo, ...rest } = input;
+    const l = layoutShape.parse({ ...rest, logoUrl: '' });
     if (!l.brandName) throw new UserError('Brand name is required.');
+    if (showLogo) {
+      const logo = await emailLogoUrl(SLUG);
+      if (logo.url === null) throw new UserError(logo.reason); // never store an address email apps cannot load
+      l.logoUrl = logo.url;
+    }
     await call(() => saveEmailLayout(l, admin.email));
     await audit(admin, 'email.layout.save', 'layout', { brandName: l.brandName, accentColor: l.accentColor });
     return 'Layout saved';

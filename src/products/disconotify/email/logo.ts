@@ -34,16 +34,16 @@ export async function productLogo(slug: string = SLUG): Promise<LogoImage | null
  * Supabase storage bucket, so it works whether the panel runs locally or is deployed, and needs no login.
  * EMAIL_LOGO_URL overrides this with an address of your choice.
  */
-export async function emailLogoUrl(): Promise<{ url: string } | { url: null; reason: string }> {
+export async function emailLogoUrl(slug: string = SLUG): Promise<{ url: string } | { url: null; reason: string }> {
   const e = env();
   if (e.EMAIL_LOGO_URL) return { url: e.EMAIL_LOGO_URL };
 
-  const logo = await productLogo();
+  const logo = await productLogo(slug);
   if (!logo) return { url: null, reason: 'The product has no logo image. Upload one under Settings → Branding first.' };
 
   const base = e.NEXT_PUBLIC_SUPABASE_URL.replace(/\/$/, '');
   const auth = { apikey: e.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${e.SUPABASE_SERVICE_ROLE_KEY}` };
-  const name = `logos/${SLUG}-${createHash('sha1').update(logo.bytes).digest('hex').slice(0, 10)}.${EXT[logo.type] ?? 'png'}`;
+  const name = `logos/${slug}-${createHash('sha1').update(logo.bytes).digest('hex').slice(0, 10)}.${EXT[logo.type] ?? 'png'}`;
   try {
     // Create the public bucket on first use; an existing one answers with an error that we ignore.
     await fetch(`${base}/storage/v1/bucket`, {
