@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition, type ComponentType } from 'react';
 import clsx from 'clsx';
-import { Search, Sun, Moon, Monitor, ChevronsUpDown, LogOut, ShieldCheck, Keyboard, Check, ChevronRight, UserPen, X, Mail, Users, CreditCard, CornerDownLeft, CornerDownRight, Loader2, Server as ServerIcon } from 'lucide-react';
+import { Search, Sun, Moon, Monitor, ChevronsUpDown, LogOut, ShieldCheck, Keyboard, ChevronRight, UserPen, X, Mail, Users, CreditCard, CornerDownLeft, CornerDownRight, Loader2, Server as ServerIcon } from 'lucide-react';
 import { Icon, ProductMark } from './icons';
 import { setTheme } from '@/app/(hub)/actions';
 import { signOutAction, signOutEverywhereAction } from '@/app/(auth)/actions';
@@ -43,6 +43,11 @@ const navClass = (active: boolean) => clsx(
   'group relative flex h-10 items-center gap-3 rounded-xl px-3 text-[13.5px] transition-colors',
   active ? 'bg-side-active font-semibold text-side-accent' : 'text-side-muted hover:bg-white/5 hover:text-white',
 );
+/** A row in the product switcher: the selected one is highlighted like the active page in the sidebar. */
+const optionClass = (selected: boolean) => clsx(
+  'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors',
+  selected ? 'bg-side-active font-semibold text-side-accent' : 'text-side-ink hover:bg-white/10',
+);
 const ActiveBar = ({ show }: { show: boolean }) => show ? <span className="absolute -left-[11px] top-2 h-6 w-[3px] rounded bg-side-accent" aria-hidden /> : null;
 const sideLabel = 'px-3 pb-2 pt-5 text-[11px] font-semibold uppercase tracking-wider text-side-muted';
 
@@ -75,12 +80,11 @@ export function Sidebar({ products, user }: { products: ShellProduct[]; user: Sh
           </button>
           {open && (
             <ul role="listbox" className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 rounded-xl border border-side-line bg-side-bg2 p-1.5 shadow-pop">
-              <li><button className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-side-ink hover:bg-white/10" onClick={() => { setOpen(false); router.push('/'); }}><Logo size={20} /> <span className="flex-1 text-left">Home</span>{!current && <Check className="h-4 w-4 text-side-accent" aria-hidden />}</button></li>
+              <li><button role="option" aria-selected={!current} className={optionClass(!current)} onClick={() => { setOpen(false); router.push('/'); }}><Logo size={20} /> <span className="flex-1 text-left">Home</span></button></li>
               {products.map((p) => (
                 <li key={p.slug}>
-                  <button className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-side-ink hover:bg-white/10" onClick={() => { setOpen(false); router.push(`/p/${p.slug}`); }}>
+                  <button role="option" aria-selected={current?.slug === p.slug} className={optionClass(current?.slug === p.slug)} onClick={() => { setOpen(false); router.push(`/p/${p.slug}`); }}>
                     <ProductMark logo={p.logo} icon={p.icon} size={20} className="shrink-0 rounded" /> <span className="flex-1 text-left">{p.name}</span> <HealthDot health={p.health} />
-                    {current?.slug === p.slug && <Check className="h-4 w-4 text-side-accent" aria-hidden />}
                   </button>
                 </li>
               ))}
