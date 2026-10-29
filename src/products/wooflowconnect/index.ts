@@ -1,5 +1,5 @@
 import 'server-only';
-import { int } from '@/lib/format';
+import { int, sentence } from '@/lib/format';
 import type { Attention, ProductModule } from '../types';
 import { SLUG, cents, first, n, wfcConfigured, wfcExport, parseCsv, wfcGet, obj, s } from './api';
 import { OverviewPage, alertTone, getOverview } from './pages/overview';
@@ -54,7 +54,7 @@ const wooflowconnect: ProductModule = {
     return alerts.map((a): Attention => {
       const id = first(a, 'customer_id', 'user_id', 'id');
       return {
-        label: s(a, 'message', 'label', 'text', 'title') ?? 'Alert', detail: s(a, 'type', 'kind') ?? 'Alert',
+        label: s(a, 'message', 'label', 'text', 'title') ?? 'Alert', detail: sentence(s(a, 'type', 'kind') ?? 'Alert'),
         href: id !== undefined ? `${base}/customers/${encodeURIComponent(String(id))}` : base, tone: alertTone(a),
       };
     });

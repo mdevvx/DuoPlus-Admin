@@ -1,19 +1,20 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Loader2, Mail, UserCog } from 'lucide-react';
+import { Loader2, Mail, Maximize2, Minimize2, UserCog } from 'lucide-react';
+import clsx from 'clsx';
 import {
-  loadOutboxDetail, resendEmailAction, runRemindersAction, saveEmailSettingsAction, sendPasswordResetAction, setOptOutAction, toggleTemplateAction,
-  type OutboxDetailResult,
+  addContactAction, eraseAddressAction, loadOutboxDetail, previewTemplateAction, removeContactAction, resendEmailAction, restoreVersionAction, runRemindersAction, saveEmailSettingsAction, saveLayoutAction,
+  sendPasswordResetAction, setOptOutAction, toggleTemplateAction, type OutboxDetailResult, type PreviewResult,
 } from '@/products/team-management/email-actions';
-import type { EmailContact, EmailSettings } from '@/products/team-management/email-api';
+import type { EmailContact, EmailLayout, EmailSettings } from '@/products/team-management/email-api';
 import { ConfirmAction } from './confirm-action';
 import { fieldHint, fieldLabel as label, Notice } from './form';
 import { ModalHeader } from './modal-header';
 import { CopyBlock } from './small-client';
-import { DetailRow } from './ui';
+import { Badge, DetailRow, type Tone } from './ui';
 import { useToast } from './toast';
 
 /** Switch a template on or off. Turning one off asks first, and warns for the emails people need to get into their account. */
@@ -47,71 +48,116 @@ export function RunRemindersButton() {
 const breakdown = (c: Record<string, number>) => { const parts = Object.entries(c).filter(([, n]) => n > 0).map(([k, n]) => `${k.replace(/([A-Z])/g, ' $1').toLowerCase()} ${n}`); return parts.length ? ` (${parts.join(', ')})` : ''; };
 
 const STATUS_LABEL: Record<string, string> = { sent: 'Sent', failed: 'Failed', skipped: 'Skipped', queued: 'Queued' };
+const STATUS_TONE: Record<string, Tone> = { sent: 'success', failed: 'danger', queued: 'info', skipped: 'neutral' };
+const STATUS_MARK: Record<string, string> = { sent: '✓ ', failed: '✕ ', skipped: '– ' };
+
+/** Same status badge as the DiscoNotify outbox: a small mark before the word so it reads without colour. */
+export function OutboxStatus({ status }: { status: string }) {
+  return <Badge tone={STATUS_TONE[status] ?? 'neutral'}>{STATUS_MARK[status] ?? '… '}{STATUS_LABEL[status] ?? status}</Badge>;
+}
+
+/** The quick action beside Details: a failed email can be sent again without opening it. */
+export function OutboxRowActions({ id, canResend, canEdit, failed }: { id: string; canResend: boolean; canEdit: boolean; failed: boolean }) {
+  if (!canEdit || !canResend) return null;
+  return <ConfirmAction label="Resend" title="Resend this email" reasonRequired={false} compact action={resendEmailAction} hidden={{ id }}
+    description={failed ? 'Retries this email right away and counts as another attempt.' : 'Sends a new copy to the same address right away. The original stays in the outbox.'} />;
+}
 
 /** The full email behind an outbox row, loaded when opened: its text, the plain-language error and, when allowed, a Resend. */
-export function OutboxDetailButton({ id, canEdit }: { id: string; canEdit: boolean }) {
+export function OutboxDetailButton({ id, canEdit, templateName, base }: { id: string; canEdit: boolean; templateName?: string; base: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [state, setState] = useState<OutboxDetailResult | null>(null);
   const [pending, start] = useTransition();
-  const [sure, setSure] = useState(false);
-  const [resending, startResend] = useTransition();
-  const toast = useToast();
-  const router = useRouter();
+  const [wide, setWide] = useState(false);
 
   function open() {
     ref.current?.showModal();
-    setSure(false);
     start(async () => setState(await loadOutboxDetail(id)));
-  }
-  function resend() {
-    startResend(async () => {
-      const fd = new FormData(); fd.set('id', id);
-      const r = await resendEmailAction(fd);
-      toast(r.ok, r.ok ? r.message : r.error);
-      if (r.ok) { ref.current?.close(); router.refresh(); }
-      setSure(false);
-    });
   }
   const item = state?.ok ? state.item : null;
   return (
     <>
       <button type="button" className="btn h-7 px-2.5 text-xs" onClick={open}>Details</button>
-      <dialog ref={ref} className="w-[640px] max-w-[94vw] overflow-hidden rounded-xl border border-line bg-raised p-0 text-left text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px]" onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
-        <ModalHeader icon={Mail} title="Email details" description={item?.subject} onClose={() => ref.current?.close()} />
+      <dialog ref={ref} className={clsx('max-w-[96vw] overflow-hidden rounded-xl border border-line bg-raised p-0 text-left text-ink shadow-pop backdrop:bg-black/50 backdrop:backdrop-blur-[2px] transition-[width] duration-150', wide ? 'w-[1040px]' : 'w-[520px]')}
+        onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
+        <ModalHeader icon={Mail} title="Email details" onClose={() => ref.current?.close()}
+          actions={<button type="button" aria-label={wide ? 'Make narrower' : 'Make wider'} title={wide ? 'Make narrower' : 'Make wider'} onClick={() => setWide(!wide)}
+            className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-ink sm:flex">{wide ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</button>} />
         <div className="thin-scroll max-h-[65vh] overflow-y-auto overflow-x-hidden px-5 py-4">
           {pending && !state && <p className="flex items-center gap-2 text-muted" role="status"><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading…</p>}
           {state && !state.ok && <Notice tone="danger">{state.error}</Notice>}
           {item && (
             <>
+              <div className="mb-3"><OutboxStatus status={item.status} /></div>
               <dl className="divide-y divide-line text-sm">
                 <DetailRow label="To" copy={item.to}>{item.to}{item.toName ? ` · ${item.toName}` : ''}</DetailRow>
-                <DetailRow label="Subject" copy={item.subject}>{item.subject}</DetailRow>
-                <DetailRow label="Status">{STATUS_LABEL[item.status] ?? item.status}</DetailRow>
-                {item.error && <DetailRow label="Error" copy={item.error}>{item.error}</DetailRow>}
-                <DetailRow label="Source">{item.source}{item.templateKey ? ` · ${item.templateKey}` : ''}</DetailRow>
-                <DetailRow label="Sent by">{item.sentBy ?? 'Automatic'}</DetailRow>
+                <DetailRow label="Subject" copy={item.subject}>{item.subject || '—'}</DetailRow>
+                <DetailRow label="Template">{templateName ?? (item.templateKey ? humanizeKey(item.templateKey) : 'Custom')}</DetailRow>
+                <DetailRow label="Kind">{SOURCE_LABEL[item.source] ?? humanizeKey(item.source)}</DetailRow>
+                <DetailRow label="Workspace">{item.workspaceName ?? '—'}</DetailRow>
                 <DetailRow label="Created">{item.createdAt ? new Date(item.createdAt).toLocaleString() : '—'}</DetailRow>
+                <DetailRow label="Attempts">{item.attempts}</DetailRow>
+                <DetailRow label="Sent by">{item.sentBy ?? 'Automatic'}</DetailRow>
+                <DetailRow label="Detail" copy={item.status === 'sent' ? null : item.error}>{item.status === 'sent' ? 'Delivered to the mail server' : item.error ?? '—'}</DetailRow>
               </dl>
               <div className="mt-4">
                 <div className="mb-1.5 text-sm font-medium">Message</div>
                 {item.body ? <CopyBlock text={item.body} label="Copy text" /> : <p className="text-sm text-muted">No text was stored.</p>}
                 <p className="mt-2 text-xs text-muted">One-time links in account emails are never stored, so the text shows without the link.</p>
               </div>
+              <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
+                {canEdit && item.canResend && (
+                  <ConfirmAction label="Resend" title="Resend this email" description="Sends it again to the same address right away." reasonRequired={false} compact action={resendEmailAction} hidden={{ id }} />
+                )}
+                {canEdit && <Link className="text-accent hover:underline" href={`${base}/email/send?to=${encodeURIComponent(item.to)}`}>Send a new email to this address</Link>}
+              </div>
+              {!item.canResend && <p className="mt-2 text-xs text-muted">This email cannot be resent (it carried a one-time link, or was skipped).</p>}
             </>
           )}
         </div>
-        <footer className="flex items-center justify-between gap-2 border-t border-line bg-subtle px-5 py-3.5">
-          <span className="text-xs text-muted">{item && !item.canResend ? 'This email cannot be resent (it carried a one-time link, or was skipped).' : ''}</span>
-          <span className="flex gap-2">
-            {canEdit && item?.canResend && (sure
-              ? <><button type="button" className="btn" onClick={() => setSure(false)} disabled={resending}>Cancel</button><button type="button" className="btn btn-primary" onClick={resend} disabled={resending}>{resending ? 'Sending…' : 'Yes, resend it'}</button></>
-              : <button type="button" className="btn" onClick={() => setSure(true)}>Resend</button>)}
-            <button type="button" className="btn btn-primary" onClick={() => ref.current?.close()}>Close</button>
-          </span>
+        <footer className="flex justify-end border-t border-line bg-subtle px-5 py-3.5">
+          <button type="button" className="btn btn-primary" onClick={() => ref.current?.close()}>Close</button>
         </footer>
       </dialog>
     </>
   );
+}
+const SOURCE_LABEL: Record<string, string> = { system: 'Automatic', reminder: 'Reminder', manual: 'Manual' };
+const humanizeKey = (k: string) => { const t = k.replace(/[_-]+/g, ' ').trim(); return t.charAt(0).toUpperCase() + t.slice(1); };
+
+/** Reminders on/off beside Manage, like Unsubscribe / Re-subscribe in DiscoNotify. This stops reminders only. */
+/** Only addresses added by hand can be removed. Accounts are managed in Donexel itself. */
+export function ContactRemove({ id, canEdit }: { id: string; canEdit: boolean }) {
+  if (!canEdit) return null;
+  return <ConfirmAction label="Remove" title="Remove this contact" description="The address is removed from this list. Emails already sent stay in the outbox." reasonRequired={false} danger compact action={removeContactAction} hidden={{ id }} />;
+}
+
+export function AddContact() {
+  return (
+    <ConfirmAction label="Add contact" title="Add a contact" description="Adds an address by hand. It only receives emails you send to it." small={false} reasonRequired={false} action={addContactAction} hidden={{}}
+      fields={[{ name: 'email', label: 'Email address', placeholder: 'name@example.com' }, { name: 'name', label: 'Name', placeholder: 'Optional', optional: true }]} />
+  );
+}
+
+export function EraseAddress() {
+  return (
+    <ConfirmAction label="Delete an address everywhere" title="Delete this address everywhere" danger small={false} action={eraseAddressAction} hidden={{}}
+      description="Deletes the address from contacts, the reminder opt-out list and every email in the outbox. It is refused while the address still has an account. This cannot be undone."
+      fields={[{ name: 'email', label: 'Email address' }, { name: 'confirm', label: 'Type the address again to confirm' }]} />
+  );
+}
+
+export function RestoreVersion({ tplKey, version }: { tplKey: string; version: number }) {
+  return (
+    <ConfirmAction label="Restore" title={`Restore version ${version}`} description="Saves that version's wording as a new version. Nothing is deleted from the history." reasonRequired={false} compact action={restoreVersionAction} hidden={{ key: tplKey, version: String(version) }} />
+  );
+}
+
+export function ContactReminders({ email, optedOut, canEdit }: { email: string; optedOut: boolean; canEdit: boolean }) {
+  if (!canEdit) return null;
+  return optedOut
+    ? <ConfirmAction label="Switch on" title="Switch reminders back on" reasonRequired={false} compact action={setOptOutAction} hidden={{ email, optedOut: 'false' }} description="They will get reminders again." />
+    : <ConfirmAction label="Switch off" title="Switch reminders off" reasonRequired={false} compact action={setOptOutAction} hidden={{ email, optedOut: 'true' }} description="They stop getting reminder emails. Account and billing emails are always sent." />;
 }
 
 /** The things you can do for one contact: email them, see their history, switch reminders, send a password reset. */
@@ -129,14 +175,6 @@ export function ContactManage({ contact: c, base, canEdit }: { contact: EmailCon
           </div>
           {canEdit && (
             <div className="space-y-3 border-t border-line pt-4">
-              <div>
-                <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                  {c.remindersOptedOut
-                    ? <ConfirmAction label="Switch reminders back on" title="Switch reminders back on" reasonRequired={false} action={setOptOutAction} hidden={{ email: c.email, optedOut: 'false' }} description="They will get reminders again." />
-                    : <ConfirmAction label="Switch reminders off" title="Switch reminders off" reasonRequired={false} action={setOptOutAction} hidden={{ email: c.email, optedOut: 'true' }} description="They stop getting reminder emails." />}
-                </div>
-                <p className="text-xs text-muted">This stops <b>reminders only</b>. Account and billing emails are always sent.</p>
-              </div>
               <div>
                 <div className="mb-1.5"><ConfirmAction label="Send password reset" title="Send a password reset email" reasonRequired={false} action={sendPasswordResetAction} hidden={{ id: c.id }} description={`Sends ${c.email} a link to choose a new password.`} /></div>
                 <p className="text-xs text-muted">Use this when someone cannot get into their account, for example a lost one-time link.</p>
@@ -177,5 +215,62 @@ export function EmailSettingsForm({ settings: s, canEdit }: { settings: EmailSet
         ? <button className="btn btn-primary" disabled={pending || !dirty || !replyOk || !v.fromName.trim()}>{pending ? 'Saving…' : 'Save settings'}</button>
         : <p className="text-muted">Only admins can change email settings.</p>}
     </form>
+  );
+}
+
+/** Brand name, accent colour, logo and footer. Saved on the Donexel server; the preview on a template page shows them. */
+export function LayoutForm({ layout: l, canEdit, previewKey }: { layout: EmailLayout; canEdit: boolean; previewKey?: string }) {
+  const [v, setV] = useState(l);
+  const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const toast = useToast();
+  const router = useRouter();
+  const dirty = JSON.stringify(v) !== JSON.stringify(l);
+  const colourOk = /^#[0-9a-f]{6}$/i.test(v.accentColor);
+  const logoOk = v.logoUrl === '' || /^https:\/\/\S+$/i.test(v.logoUrl.trim());
+
+  // Donexel renders a sample email with the unsaved layout, so the preview matches what a save would produce.
+  useEffect(() => {
+    if (!previewKey || !colourOk || !logoOk || !v.brandName.trim()) return;
+    const id = setTimeout(() => { void previewTemplateAction(previewKey, { layout: { ...v, logoUrl: v.logoUrl.trim() } }).then(setPreview); }, 450);
+    return () => clearTimeout(id);
+  }, [previewKey, v, colourOk, logoOk]);
+
+  return (
+    <div className="space-y-6">
+    <form className="max-w-xl space-y-5" onSubmit={(e) => {
+      e.preventDefault(); setError(null);
+      start(async () => { const r = await saveLayoutAction({ ...v, logoUrl: v.logoUrl.trim() }); if (r.ok) { toast(true, r.message); router.refresh(); } else setError(r.error); });
+    }}>
+      <label className="block"><span className={label}>Brand name</span><input className="input" value={v.brandName} maxLength={60} disabled={!canEdit} onChange={(e) => setV({ ...v, brandName: e.target.value })} />
+        <span className={fieldHint}>Shown in the header of every email, and available as <code>{'{{app_name}}'}</code> in the wording.</span></label>
+      <div>
+        <span className={label}>Accent colour</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <input aria-label="Pick colour" type="color" className="h-9 w-12 rounded border border-line bg-surface" disabled={!canEdit} value={colourOk ? v.accentColor : '#5B6CF0'} onChange={(e) => setV({ ...v, accentColor: e.target.value })} />
+          <input className="input w-32 font-mono" value={v.accentColor} maxLength={7} disabled={!canEdit} onChange={(e) => setV({ ...v, accentColor: e.target.value })} aria-label="Accent colour hex" aria-invalid={!colourOk} />
+        </div>
+        <span className={fieldHint}>Used on the button and the brand header.</span>
+      </div>
+      <label className="block"><span className={label}>Logo address <span className="font-normal text-muted">· optional</span></span><input className="input" value={v.logoUrl} placeholder="https://" disabled={!canEdit} onChange={(e) => setV({ ...v, logoUrl: e.target.value })} aria-invalid={!logoOk} />
+        <span className={fieldHint}>A public https:// image. Leave empty to show the brand name as text.</span></label>
+      <label className="block"><span className={label}>Footer (HTML)</span><textarea className="input h-28 resize-y py-2 font-mono text-xs" value={v.footerHtml} maxLength={4000} disabled={!canEdit} onChange={(e) => setV({ ...v, footerHtml: e.target.value })} />
+        <span className={fieldHint}>Only bold, italic, line breaks and https or mailto links are kept; anything else shows as plain text. Put the postal address here if you need one.</span></label>
+      <label className="block"><span className={label}>Footer (plain text)</span><textarea className="input h-24 resize-y py-2 font-mono text-xs" value={v.footerText} maxLength={2000} disabled={!canEdit} onChange={(e) => setV({ ...v, footerText: e.target.value })} /></label>
+      {error && <Notice tone="danger">{error}</Notice>}
+      {canEdit
+        ? <button className="btn btn-primary" disabled={pending || !dirty || !colourOk || !logoOk || !v.brandName.trim()}>{pending ? 'Saving…' : 'Save layout'}</button>
+        : <p className="text-muted">Only admins can change the layout.</p>}
+    </form>
+    {previewKey && (
+      <div>
+        <div className="mb-1.5 text-sm font-medium">Preview</div>
+        {preview && !preview.ok && <p role="alert" className="mb-2 text-sm text-danger">{preview.error}</p>}
+        <iframe title="Layout preview" sandbox="" srcDoc={preview?.ok ? preview.preview.html : ''} className="block h-[480px] w-full rounded-xl border border-line bg-white" />
+        <p className="mt-2 text-xs text-muted">A sample email with your unsaved changes, in a sandboxed frame. Nothing is saved until you press Save layout.</p>
+      </div>
+    )}
+    </div>
   );
 }

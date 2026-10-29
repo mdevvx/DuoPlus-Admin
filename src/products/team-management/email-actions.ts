@@ -9,8 +9,8 @@ import { reason } from '@/lib/validation';
 import type { Permission } from '@/lib/roles';
 import { SLUG, TmsError } from './api';
 import {
-  getOutboxItem, listEmailContacts, listEmailTemplates, previewEmailTemplate, resendOutboxItem, resetEmailTemplate, runReminders, saveEmailSettings,
-  saveEmailTemplate, sendEmail, sendPasswordReset, setContactOptOut, testEmailTemplate,
+  addEmailContact, eraseEmailAddress, getOutboxItem, listEmailContacts, listEmailTemplates, previewEmailTemplate, removeEmailContact, resendOutboxItem, resetEmailTemplate,
+  restoreTemplateVersion, runReminders, saveEmailLayout, saveEmailSettings, saveEmailTemplate, sendEmail, sendPasswordReset, setContactOptOut, testEmailTemplate,
   type EmailContact, type OutboxDetail, type SendResult, type TemplatePreview,
 } from './email-api';
 
@@ -48,10 +48,15 @@ const template = z.object({ subject: oneLine(200), heading: oneLine(200), body: 
 export type PreviewResult = { ok: true; preview: TemplatePreview } | { ok: false; error: string };
 
 /** Rendered with sample values. The HTML goes into a sandboxed frame, never into the panel's own page. */
-export async function previewTemplateAction(templateKey: string, draft: { subject?: string; heading?: string; body?: string; buttonLabel?: string }): Promise<PreviewResult> {
+const layoutShape = z.object({ brandName: oneLine(60), accentColor: z.string().regex(/^#[0-9a-f]{6}$/i, 'Use a colour like #5B6CF0'), logoUrl: z.union([z.literal(''), z.string().trim().max(500).regex(/^https:\/\/\S+$/i, 'The logo link must start with https://')]), footerHtml: z.string().max(4_000), footerText: z.string().max(2_000) });
+
+export async function previewTemplateAction(templateKey: string, draft: { subject?: string; heading?: string; body?: string; buttonLabel?: string; dark?: boolean; sample?: 'short' | 'long'; layout?: Partial<z.input<typeof layoutShape>> }): Promise<PreviewResult> {
   try {
     await requireAdmin({ product: SLUG, permission: 'read' });
-    const d = z.object({ subject: z.string().max(400).optional(), heading: z.string().max(400).optional(), body: z.string().max(20_000).optional(), buttonLabel: z.string().max(120).optional() }).parse(draft);
+    const d = z.object({
+      subject: z.string().max(400).optional(), heading: z.string().max(400).optional(), body: z.string().max(20_000).optional(), buttonLabel: z.string().max(120).optional(),
+      dark: z.boolean().optional(), sample: z.enum(['short', 'long']).optional(), layout: layoutShape.partial().optional(),
+    }).parse(draft);
     return { ok: true, preview: await previewEmailTemplate(key.parse(templateKey), d) };
   } catch (e) {
     return { ok: false, error: e instanceof TmsError && e.status === 404 ? 'This template was not found.' : 'Could not render the preview.' };
@@ -86,7 +91,7 @@ export async function saveTemplateAction(input: { key: string; subject: string; 
     const t = template.parse(input);
     if (input.hasLink && !t.buttonLabel) throw new UserError('This email has a button, so the button label is required.');
     if (!t.subject || !t.heading || !t.body.trim()) throw new UserError('Subject, heading and body are required.');
-    await call(() => saveEmailTemplate(k, t));
+    await call(() => saveEmailTemplate(k, t, admin.email));
     await audit(admin, 'email.template.save', k, { enabled: t.enabled, subject: t.subject });
     return 'Template saved';
   });
@@ -100,7 +105,7 @@ export async function toggleTemplateAction(fd: FormData): Promise<ActionResult> 
     const enabled = z.enum(['true', 'false']).parse(fd.get('enabled')) === 'true';
     const current = (await call(() => listEmailTemplates())).find((t) => t.key === k);
     if (!current) throw new UserError('This template was not found.');
-    await call(() => saveEmailTemplate(k, { subject: current.subject, heading: current.heading, body: current.body, buttonLabel: current.buttonLabel, enabled }));
+    await call(() => saveEmailTemplate(k, { subject: current.subject, heading: current.heading, body: current.body, buttonLabel: current.buttonLabel, enabled }, admin.email));
     await audit(admin, 'email.template.toggle', k, { enabled });
     return enabled ? 'Template switched on' : 'Template switched off. It will be skipped instead of sent.';
   });
@@ -113,6 +118,18 @@ export async function resetTemplateAction(fd: FormData): Promise<ActionResult> {
     await call(() => resetEmailTemplate(k));
     await audit(admin, 'email.template.reset', k);
     return 'Template reset to its default wording';
+  });
+}
+
+/** Saves an earlier version as a new one; nothing is lost from the history. */
+export async function restoreVersionAction(fd: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    const admin = await gate('tms.email');
+    const k = key.parse(fd.get('key'));
+    const version = z.coerce.number().int().min(1).parse(fd.get('version'));
+    await call(() => restoreTemplateVersion(k, version, admin.email));
+    await audit(admin, 'email.template.restore', k, { version });
+    return `Version ${version} restored as a new version`;
   });
 }
 
@@ -193,6 +210,42 @@ export async function sendPasswordResetAction(fd: FormData): Promise<ActionResul
   });
 }
 
+/** Adds an address by hand. Accounts are created elsewhere, so these only ever receive what an admin sends them. */
+export async function addContactAction(fd: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    const admin = await gate('tms.email');
+    const email = address.parse(fd.get('email'));
+    const name = oneLine(120).parse(String(fd.get('name') ?? ''));
+    await call(() => addEmailContact(email, name || undefined));
+    await audit(admin, 'email.contact.add', maskEmail(email));
+    return 'Contact added';
+  });
+}
+
+/** Only contacts added by hand can be removed; the API refuses accounts. */
+export async function removeContactAction(fd: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    const admin = await gate('tms.email');
+    const id = z.string().regex(/^[\w-]{1,64}$/).parse(fd.get('id'));
+    await call(() => removeEmailContact(id));
+    await audit(admin, 'email.contact.remove', id);
+    return 'Contact removed';
+  });
+}
+
+/** Privacy request: removes the address from contacts, the opt-out list and every email in the outbox. Cannot be undone. */
+export async function eraseAddressAction(fd: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    const admin = await gate('tms.email');
+    const email = address.parse(fd.get('email'));
+    if (address.parse(fd.get('confirm')) !== email) throw new UserError('The two addresses do not match.');
+    const why = reason.parse(fd.get('reason'));
+    await call(() => eraseEmailAddress(email));
+    await audit(admin, 'email.contact.erase', maskEmail(email), undefined, why);
+    return 'The address was deleted everywhere';
+  });
+}
+
 // ================= reminders and settings =================
 export type RunOutcome = ActionResult & { counts?: Record<string, number> };
 export async function runRemindersAction(): Promise<RunOutcome> {
@@ -215,5 +268,16 @@ export async function saveEmailSettingsAction(input: z.input<typeof settings>): 
     await call(() => saveEmailSettings(s));
     await audit(admin, 'email.settings.save', 'settings', { remindersEnabled: s.remindersEnabled, fromName: s.fromName, replyTo: s.replyTo ? maskEmail(s.replyTo) : '' });
     return 'Email settings saved';
+  });
+}
+
+export async function saveLayoutAction(input: z.input<typeof layoutShape>): Promise<ActionResult> {
+  return runAction(async () => {
+    const admin = await gate('tms.email');
+    const l = layoutShape.parse(input);
+    if (!l.brandName) throw new UserError('Brand name is required.');
+    await call(() => saveEmailLayout(l, admin.email));
+    await audit(admin, 'email.layout.save', 'layout', { brandName: l.brandName, accentColor: l.accentColor });
+    return 'Layout saved';
   });
 }
