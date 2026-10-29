@@ -59,7 +59,10 @@ export async function previewTemplateAction(templateKey: string, draft: { subjec
     }).parse(draft);
     return { ok: true, preview: await previewEmailTemplate(key.parse(templateKey), d) };
   } catch (e) {
-    return { ok: false, error: e instanceof TmsError && e.status === 404 ? 'This template was not found.' : 'Could not render the preview.' };
+    if (e instanceof TmsError && e.status === 404) return { ok: false, error: 'This template was not found.' };
+    // The request id lets whoever runs Donexel find the failure in its logs.
+    const id = e instanceof TmsError ? (e.body as { error?: { details?: { requestId?: unknown } } } | null)?.error?.details?.requestId : undefined;
+    return { ok: false, error: `Could not render the preview${e instanceof TmsError && e.status ? ` (Donexel answered ${e.status})` : ''}.${typeof id === 'string' ? ` Request ${id}.` : ''}` };
   }
 }
 
