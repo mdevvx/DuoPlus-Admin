@@ -121,7 +121,7 @@ body {
 
 @layer components {
   .card { @apply rounded-xl border border-line bg-surface shadow-soft; }
-  .btn { @apply inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-line bg-surface px-3.5 text-sm font-medium text-ink transition-colors hover:bg-subtle disabled:pointer-events-none disabled:opacity-50; }
+  .btn { @apply inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-line bg-surface px-3.5 text-sm font-medium text-ink transition duration-150 hover:bg-subtle active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50; }
   .btn-primary { @apply border-transparent bg-accent text-accent-ink shadow-soft hover:opacity-90; }
   .btn-danger { @apply border-transparent bg-danger text-canvas hover:opacity-90; }
   .input { @apply h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink placeholder:text-muted; }
@@ -153,6 +153,30 @@ dialog[open]::backdrop { animation: fade-in 0.18s ease-out; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .rise { animation: rise 0.35s ease-out both; }
 .toast-in { animation: sheet-in 0.22s ease-out both; }
-@media (prefers-reduced-motion: reduce) { .rise, .toast-in, .skeleton, .dialog-in, dialog[open], dialog[open]::backdrop, .sheet-in[open] { animation: none; } }
-@keyframes pulse-soft { 50% { opacity: 0.5; } }
-.skeleton { background: var(--raised); border-radius: 4px; animation: pulse-soft 1.6s ease-in-out infinite; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes row-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+/* Menus and popups grow out of the control that opened them. */
+.pop-in { animation: pop-in 0.14s ease-out both; transform-origin: top; }
+/* A new page eases in; rows of a list follow one after another (first ten only, so long lists stay quick). */
+.page-in { animation: rise 0.25s ease-out both; }
+table[data-keynav] tbody tr { animation: row-in 0.26s ease-out both; }
+table[data-keynav] tbody tr:nth-child(2) { animation-delay: 20ms; }
+table[data-keynav] tbody tr:nth-child(3) { animation-delay: 40ms; }
+table[data-keynav] tbody tr:nth-child(4) { animation-delay: 60ms; }
+table[data-keynav] tbody tr:nth-child(5) { animation-delay: 80ms; }
+table[data-keynav] tbody tr:nth-child(6) { animation-delay: 100ms; }
+table[data-keynav] tbody tr:nth-child(7) { animation-delay: 120ms; }
+table[data-keynav] tbody tr:nth-child(8) { animation-delay: 140ms; }
+table[data-keynav] tbody tr:nth-child(9) { animation-delay: 160ms; }
+table[data-keynav] tbody tr:nth-child(10) { animation-delay: 180ms; }
+/* The preview beside an editor dims while a new render is on its way, so it never looks stale without saying so. */
+.preview-busy { opacity: 0.55; transition: opacity 0.15s ease-out; }
+.preview-ready { opacity: 1; transition: opacity 0.2s ease-out; }
+/* Skeletons shimmer, and the groups of rows in them fade in one after another. */
+.skeleton { background: linear-gradient(90deg, var(--raised) 25%, var(--subtle) 50%, var(--raised) 75%); background-size: 300% 100%; border-radius: 6px; animation: shimmer 1.8s linear infinite; }
+.skeleton-in { animation: row-in 0.4s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .rise, .page-in, .pop-in, .toast-in, .skeleton, .skeleton-in, .dialog-in, dialog[open], dialog[open]::backdrop, .sheet-in[open], table[data-keynav] tbody tr, .preview-busy, .preview-ready { animation: none; transition: none; }
+  .btn:active { transform: none; }
+}

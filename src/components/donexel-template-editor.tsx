@@ -26,6 +26,7 @@ export function DonexelTemplateEditor({ template: t, adminEmail, canEdit }: { te
   const [sample, setSample] = useState<'short' | 'long'>('short');
   const [draft, setDraft] = useState<typeof initial | null>(null);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [rendering, setRendering] = useState(true);
   const [testTo, setTestTo] = useState(adminEmail);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -65,7 +66,8 @@ export function DonexelTemplateEditor({ template: t, adminEmail, canEdit }: { te
 
   // Debounced: Donexel renders the draft, so the preview matches what is really sent.
   useEffect(() => {
-    const id = setTimeout(() => { void previewTemplateAction(t.key, { subject: v.subject, heading: v.heading, body: v.body, buttonLabel: v.buttonLabel, dark, sample }).then(setPreview); }, 450);
+    setRendering(true);
+    const id = setTimeout(() => { void previewTemplateAction(t.key, { subject: v.subject, heading: v.heading, body: v.body, buttonLabel: v.buttonLabel, dark, sample }).then((r) => { setPreview(r); setRendering(false); }); }, 450);
     return () => clearTimeout(id);
   }, [t.key, v.subject, v.heading, v.body, v.buttonLabel, dark, sample]);
 
@@ -193,7 +195,7 @@ export function DonexelTemplateEditor({ template: t, adminEmail, canEdit }: { te
         </div>
         {preview && !preview.ok && <p role="alert" className="text-sm text-danger">{preview.error}</p>}
         {tab === 'html'
-          ? <iframe title="Email preview" sandbox="" srcDoc={preview?.ok ? preview.preview.html : ''} className="mx-auto block h-[640px] w-full rounded-xl border border-line bg-white transition-[max-width]" style={{ maxWidth: device === 'mobile' ? 375 : '100%' }} />
+          ? <iframe title="Email preview" sandbox="" srcDoc={preview?.ok ? preview.preview.html : ''} className={clsx('mx-auto block h-[640px] w-full rounded-xl border border-line bg-white transition-[max-width]', rendering ? 'preview-busy' : 'preview-ready')} style={{ maxWidth: device === 'mobile' ? 375 : '100%' }} />
           : <pre className="card h-[640px] overflow-auto whitespace-pre-wrap p-4 text-sm" aria-label="Plain-text preview">{preview?.ok ? preview.preview.text : ''}</pre>}
         <p className="text-xs text-muted">Shown with sample values, in a sandboxed frame.</p>
       </div>

@@ -79,7 +79,7 @@ export function Sidebar({ products, user }: { products: ShellProduct[]; user: Sh
             <ChevronsUpDown className="h-4 w-4 shrink-0 text-side-muted" aria-hidden />
           </button>
           {open && (
-            <ul role="listbox" className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 rounded-xl border border-side-line bg-side-bg2 p-1.5 shadow-pop">
+            <ul role="listbox" className="pop-in absolute left-0 right-0 top-[calc(100%+6px)] z-30 rounded-xl border border-side-line bg-side-bg2 p-1.5 shadow-pop">
               <li><button role="option" aria-selected={!current} className={optionClass(!current)} onClick={() => { setOpen(false); router.push('/'); }}><Logo size={20} /> <span className="flex-1 text-left">Home</span></button></li>
               {products.map((p) => (
                 <li key={p.slug}>
@@ -235,7 +235,7 @@ export function Topbar({ products, email, name, theme, role, showAdmins }: { pro
             <span className="flex items-center gap-2 text-left"><span className="text-[13px] font-medium leading-tight">{display}</span><RoleTag role={role} /></span>
           </button>
           {menu && (
-            <div role="menu" className="absolute right-0 top-[calc(100%+8px)] z-30 w-72 rounded-xl border border-line bg-raised p-1.5 shadow-pop">
+            <div role="menu" className="pop-in absolute right-0 top-[calc(100%+8px)] z-30 w-72 rounded-xl border border-line bg-raised p-1.5 shadow-pop">
               <div className="px-3 py-2"><div className="flex items-center gap-2 font-medium">{display} <RoleTag role={role} /></div><div className="text-xs text-muted">{email}</div></div>
               <Link href="/settings" className="flex items-center gap-2.5 rounded-lg px-3 py-2 hover:bg-subtle" onClick={() => setMenu(false)}><UserPen className="h-4 w-4 text-muted" aria-hidden /> Edit nickname</Link>
               <div className="mx-1 my-1 flex items-center gap-2 rounded-lg bg-success-soft px-3 py-2 text-xs text-success"><ShieldCheck className="h-4 w-4" aria-hidden /> Two-factor verified for this session</div>

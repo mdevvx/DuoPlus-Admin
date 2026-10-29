@@ -142,7 +142,7 @@ export function Filters({ action, fields }: { action: string; fields: FilterFiel
       </div>
 
       {open && (
-        <div ref={pop} role="dialog" aria-label={field ? `Filter by ${field.label}` : 'Add a filter'} className="absolute left-2.5 top-[calc(100%+6px)] z-40 w-[312px] max-w-[calc(100vw-24px)] rounded-xl border border-line bg-raised shadow-pop">
+        <div ref={pop} role="dialog" aria-label={field ? `Filter by ${field.label}` : 'Add a filter'} className="pop-in absolute left-2.5 top-[calc(100%+6px)] z-40 w-[312px] max-w-[calc(100vw-24px)] rounded-xl border border-line bg-raised shadow-pop">
           {!field ? (
             <div className="p-1.5">
               <div className="relative p-1.5">

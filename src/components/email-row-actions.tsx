@@ -115,7 +115,7 @@ export function ExportMenu({ items }: { items: { label: string; hint: string; hr
         <Download className="h-4 w-4" aria-hidden /> Export <ChevronDown className="h-4 w-4 text-muted" aria-hidden />
       </button>
       {open && (
-        <div ref={list} role="menu" className="absolute right-0 top-[calc(100%+4px)] z-30 w-72 rounded-xl border border-line bg-surface p-1.5 shadow-pop">
+        <div ref={list} role="menu" className="pop-in absolute right-0 top-[calc(100%+4px)] z-30 w-72 rounded-xl border border-line bg-surface p-1.5 shadow-pop">
           {items.map((i) => (
             <a key={i.href} role="menuitem" href={i.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2 hover:bg-subtle">
               <span className="block text-sm font-medium">{i.label}</span>

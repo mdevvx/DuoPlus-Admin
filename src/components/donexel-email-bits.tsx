@@ -223,6 +223,7 @@ export function LayoutForm({ layout: l, canEdit, previewKey, logoSrc, brandingHr
   const [v, setV] = useState(l);
   const [showLogo, setShowLogo] = useState(!!l.logoUrl);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [rendering, setRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const toast = useToast();
@@ -232,8 +233,9 @@ export function LayoutForm({ layout: l, canEdit, previewKey, logoSrc, brandingHr
 
   // Donexel renders a sample email with the unsaved layout, so the preview matches what a save would produce.
   useEffect(() => {
-    if (!previewKey || !colourOk || !v.brandName.trim()) return;
-    const id = setTimeout(() => { void previewTemplateAction(previewKey, { layout: { ...v, logoUrl: showLogo ? l.logoUrl : '' } }).then(setPreview); }, 450);
+    if (!previewKey || !colourOk || !v.brandName.trim()) { setRendering(false); return; }
+    setRendering(true);
+    const id = setTimeout(() => { void previewTemplateAction(previewKey, { layout: { ...v, logoUrl: showLogo ? l.logoUrl : '' } }).then((r) => { setPreview(r); setRendering(false); }); }, 450);
     return () => clearTimeout(id);
   }, [previewKey, v, showLogo, l.logoUrl, colourOk]);
 
@@ -279,7 +281,7 @@ export function LayoutForm({ layout: l, canEdit, previewKey, logoSrc, brandingHr
       <div>
         <div className="mb-1.5 text-sm font-medium">Preview</div>
         {preview && !preview.ok && <p role="alert" className="mb-2 text-sm text-danger">{preview.error}</p>}
-        <iframe title="Layout preview" sandbox="" srcDoc={preview?.ok ? preview.preview.html : ''} className="block h-[480px] w-full rounded-xl border border-line bg-white" />
+        <iframe title="Layout preview" sandbox="" srcDoc={preview?.ok ? preview.preview.html : ''} className={clsx('block h-[480px] w-full rounded-xl border border-line bg-white', rendering ? 'preview-busy' : 'preview-ready')} />
         <p className="mt-2 text-xs text-muted">A sample email with your unsaved changes, in a sandboxed frame. Nothing is saved until you press Save layout.</p>
       </div>
     )}

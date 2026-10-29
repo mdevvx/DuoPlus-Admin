@@ -17,5 +17,7 @@ export default async function ProductPage({ params, searchParams }: {
   const match = matchRoute(p.module, path);
   if (!match) notFound();
   if (!can(role, match.route.permission)) redirect('/?denied=1');
-  return match.route.render({ admin, role, slug: product, params: match.params, searchParams: flatParams(await searchParams) });
+  const page = await match.route.render({ admin, role, slug: product, params: match.params, searchParams: flatParams(await searchParams) });
+  // Keyed by the route, so opening another page eases in again; changing a filter on the same page does not.
+  return <div key={path.join('/')} className="page-in">{page}</div>;
 }
