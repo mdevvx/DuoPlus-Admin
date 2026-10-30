@@ -38,7 +38,7 @@ export async function getBotDashboard() {
   const accounts = mine(accountRows);
   // Live states may not carry a server ID; keep them all in that case rather than hide them.
   const liveAll = (liveRows.data ?? []) as Row[];
-  const live = liveAll.length > 0 && !('guild_id' in liveAll[0]) ? liveAll : liveAll.filter((r) => installed.has(String(r.guild_id)));
+  const live = liveAll.length > 0 && !('guild_id' in (liveAll[0] ?? {})) ? liveAll : liveAll.filter((r) => installed.has(String(r.guild_id)));
   return {
     present, removed, accounts: accounts.length, channels: mine(channelRows).length, alerts: mine(alertRows).length,
     live: live.length, events24h: mine(eventRows).length,
