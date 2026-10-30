@@ -111,7 +111,7 @@ export function OutboxDetailButton({ id, canEdit, templateName, base }: { id: st
                 )}
                 {canEdit && <Link className="text-accent hover:underline" href={`${base}/email/send?to=${encodeURIComponent(item.to)}`}>Send a new email to this address</Link>}
               </div>
-              {!item.canResend && <p className="mt-2 text-xs text-muted">This email cannot be resent (it carried a one-time link, or was skipped).</p>}
+              {!item.canResend && <p className="mt-2 text-xs text-muted">This email cannot be resent (it carried a one-time link or sign-in code, or was skipped).</p>}
             </>
           )}
         </div>
