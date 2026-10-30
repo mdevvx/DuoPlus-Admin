@@ -12,7 +12,6 @@ import { WorkspaceDetailPage } from './pages/workspace';
 import { filterPayments, filtersFromParams, REASON_LABEL, STATUS_LABEL } from './payments';
 import { listPayments } from './polar';
 import { peopleInWorkspaces } from './people';
-import { SupportPage } from './pages/support';
 import { SettingsPage } from './pages/settings';
 import { EmailContactsPage, EmailOutboxPage, EmailRemindersPage, EmailSendPage, EmailSettingsPage, EmailTemplatePage, EmailTemplatesPage } from './pages/email';
 
@@ -26,7 +25,6 @@ const teamManagement: ProductModule = {
     { label: 'Users', path: 'users', icon: 'customers', shortcut: 'u' },
     { label: 'Payments', path: 'payments', icon: 'payments', shortcut: 'p' },
     { label: 'Whitelist', path: 'whitelist', icon: 'whitelist', shortcut: 'l' },
-    { label: 'Support', path: 'support', icon: 'support', shortcut: 's' },
     { label: 'Reminders & email', path: 'email', icon: 'reminders', shortcut: 'r' },
     { label: 'Email templates', path: 'email/templates', icon: 'template', shortcut: 't' },
     { label: 'Send email', path: 'email/send', icon: 'outbox', shortcut: 'm' },
@@ -43,7 +41,6 @@ const teamManagement: ProductModule = {
     users: { permission: 'read', render: UsersPage },
     payments: { permission: 'read', render: PaymentsPage },
     whitelist: { permission: 'read', render: WhitelistPage },
-    support: { permission: 'read', render: SupportPage },
     email: { permission: 'read', render: EmailRemindersPage },
     'email/templates': { permission: 'read', render: EmailTemplatesPage },
     'email/templates/:key': { permission: 'read', render: EmailTemplatePage },

@@ -9,7 +9,7 @@ const LABEL: Record<string, string> = {
   'email.outbox.retry': 'Email retried', 'email.outbox.cancel': 'Email cancelled', 'email.contact.add': 'Email contact added',
   'email.contact.remove': 'Email contact removed', 'email.contact.resubscribe': 'Contact re-subscribed', 'email.contact.unsubscribe': 'Contact unsubscribed',
   'email.contact.erase': 'Email address erased', 'email.contact.reveal': 'Email address revealed', 'email.outbox.reveal': 'Email recipient revealed', 'export.csv': 'CSV export', 'view.workspace_members': 'Workspace people viewed',
-  'email.template.reset': 'Email template reset', 'email.template.test': 'Test email sent', 'email.resend': 'Email resent', 'support.reply': 'Support reply sent', 'support.close': 'Support ticket closed', 'email.optout': 'Reminder opt-out changed',
+  'email.template.reset': 'Email template reset', 'email.template.test': 'Test email sent', 'email.resend': 'Email resent', 'email.optout': 'Reminder opt-out changed',
   'email.password_reset': 'Password reset email sent', 'email.reminders.run': 'Reminders run', 'email.settings.save': 'Email settings saved', 'whitelist.add': 'Whitelist entry added', 'whitelist.remove': 'Whitelist entry removed',
 };
 const label = (a: string) => LABEL[a] ?? sentence(a.replace('.', ': '));
