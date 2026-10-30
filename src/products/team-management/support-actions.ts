@@ -5,7 +5,16 @@ import { requireAdmin } from '@/lib/auth';
 import { runAction, UserError, type ActionResult } from '@/lib/action';
 import { writeAudit } from '@/lib/audit';
 import { SLUG, TmsError } from './api';
-import { replySupportTicket } from './support-api';
+import { getSupportTicket, replySupportTicket, type SupportTicketDetail } from './support-api';
+
+export type TicketResult = { ok: true; ticket: SupportTicketDetail } | { ok: false; error: string };
+/** The whole conversation, loaded when a ticket is opened. Attachment links expire after 10 minutes, so they are never loaded earlier. */
+export async function loadTicketAction(id: string): Promise<TicketResult> {
+  try {
+    await requireAdmin({ product: SLUG, permission: 'read' });
+    return { ok: true, ticket: await getSupportTicket(z.string().regex(/^[\w-]{1,64}$/).parse(id)) };
+  } catch { return { ok: false, error: 'Could not load this request. Close it and try again.' }; }
+}
 
 const input = z.object({
   id: z.string().regex(/^[\w-]{1,64}$/),
