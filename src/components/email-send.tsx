@@ -13,6 +13,7 @@ import { EmailButtonList, EmailButtonPicker } from './email-button';
 import { BatchProgress } from './email-row-actions';
 import { fieldLabel as label } from './form';
 import { useToast } from './toast';
+import { RichTextarea } from './rich-textarea';
 
 export interface TemplateOption { key: string; name: string; category: string; subject: string; preheader: string; html: string; text: string }
 interface Prefill { guildId?: string; templateKey?: string; subject?: string; html?: string; text?: string; marketing?: boolean }
@@ -193,7 +194,7 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
                 <span className="text-xs text-muted">Buttons are added at the end of the body. Use the list below to move them.</span>
               </div>
               <EmailButtonList html={custom.html} accent={accent} onChange={(html) => setCustom((c) => ({ ...c, html }))} />
-              <label className="block"><span className={label}>HTML body</span><textarea className="input h-48 resize-y py-2 font-mono text-xs" value={custom.html} onChange={(e) => setCustom({ ...custom, html: e.target.value })} /></label>
+              <label className="block"><span className={label}>HTML body</span><RichTextarea mode="html" className="h-48 font-mono text-xs" value={custom.html} onChange={(e) => setCustom({ ...custom, html: e.target.value })} /></label>
               <label className="block"><span className={label}>Plain text <button type="button" className="ml-2 text-accent hover:underline" onClick={() => setCustom({ ...custom, text: htmlToText(custom.html) })}>Generate from HTML</button></span>
                 <textarea className="input h-28 resize-y py-2 font-mono text-xs" value={custom.text} onChange={(e) => setCustom({ ...custom, text: e.target.value })} /></label>
               <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="checkbox" checked={custom.marketing} onChange={(e) => setCustom({ ...custom, marketing: e.target.checked })} />

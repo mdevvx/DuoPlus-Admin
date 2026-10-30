@@ -10,6 +10,7 @@ import { composePreview, MAX_RECIPIENTS, parseRecipients } from '@/products/team
 import { Card } from './ui';
 import { fieldError, fieldHint, fieldLabel as label, Notice } from './form';
 import { useToast } from './toast';
+import { RichTextarea } from './rich-textarea';
 
 const statusTone = (s: string) => (s === 'sent' ? 'text-success' : s === 'failed' ? 'text-danger' : 'text-muted');
 
@@ -136,7 +137,7 @@ export function DonexelSend({ prefill, basePath }: { prefill: string[]; basePath
             <label className="block"><span className={label}>Subject <span className="text-danger">*</span></span><input className="input" value={subject} maxLength={200} onChange={(e) => setSubject(e.target.value)} /></label>
             <label className="block"><span className={label}>Heading <span className="font-normal text-muted">· optional</span></span><input className="input" value={heading} maxLength={200} onChange={(e) => setHeading(e.target.value)} /></label>
             <label className="block"><span className={label}>Message <span className="text-danger">*</span></span>
-              <textarea className="input h-48 resize-y py-2" value={body} onChange={(e) => setBody(e.target.value)} />
+              <RichTextarea mode="markdown" className="h-48" value={body} onChange={(e) => setBody(e.target.value)} />
               <span className={fieldHint}>Plain text. Separate paragraphs with a blank line. No attachments.</span></label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={withButton} onChange={(e) => setWithButton(e.target.checked)} /> Add a button</label>
             {withButton && (

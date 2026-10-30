@@ -16,6 +16,7 @@ import { ModalHeader } from './modal-header';
 import { CopyBlock } from './small-client';
 import { Badge, DetailRow, type Tone } from './ui';
 import { useToast } from './toast';
+import { RichTextarea } from './rich-textarea';
 
 /** Switch a template on or off. Turning one off asks first, and warns for the emails people need to get into their account. */
 export function TemplateSwitch({ tplKey, enabled, critical, canEdit }: { tplKey: string; enabled: boolean; critical: boolean; canEdit: boolean }) {
@@ -269,7 +270,7 @@ export function LayoutForm({ layout: l, canEdit, previewKey, logoSrc, brandingHr
         </div>
         <span className={fieldHint}>The logo comes from the product branding and sits at the top of every email. Saving stores a copy as a public image so every email app can load it. <Link className="text-accent hover:underline" href={brandingHref}>Change it in Settings</Link>, then save the layout again.</span>
       </div>
-      <label className="block"><span className={label}>Footer (HTML)</span><textarea className="input h-28 resize-y py-2 font-mono text-xs" value={v.footerHtml} maxLength={4000} disabled={!canEdit} onChange={(e) => setV({ ...v, footerHtml: e.target.value })} />
+      <label className="block"><span className={label}>Footer (HTML)</span><RichTextarea mode="html" className="h-28 font-mono text-xs" value={v.footerHtml} maxLength={4000} disabled={!canEdit} onChange={(e) => setV({ ...v, footerHtml: e.target.value })} />
         <span className={fieldHint}>Only bold, italic, line breaks and https or mailto links are kept; anything else shows as plain text. Donexel adds the &quot;don&apos;t reply&quot; notice itself, so don&apos;t repeat it. Put the postal address here if you need one.</span></label>
       <label className="block"><span className={label}>Footer (plain text)</span><textarea className="input h-24 resize-y py-2 font-mono text-xs" value={v.footerText} maxLength={2000} disabled={!canEdit} onChange={(e) => setV({ ...v, footerText: e.target.value })} /></label>
       {error && <Notice tone="danger">{error}</Notice>}

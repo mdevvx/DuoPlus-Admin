@@ -46,7 +46,7 @@ const templateSchema = z.object({
 export type EmailTemplate = z.infer<typeof templateSchema>;
 export const listEmailTemplates = async () => parse(z.array(templateSchema).catch([]), await request('GET', '/email/templates'));
 
-export interface TemplateInput { subject: string; heading: string; body: string; buttonLabel: string; enabled: boolean }
+export interface TemplateInput { subject: string; heading: string; body: string; buttonLabel?: string; enabled: boolean }
 export const saveEmailTemplate = async (key: string, t: TemplateInput, updatedBy?: string) =>
   parse(templateSchema, await request('PUT', `/email/templates/${encodeURIComponent(key)}`, { ...t, ...(updatedBy ? { updatedBy } : {}) }));
 

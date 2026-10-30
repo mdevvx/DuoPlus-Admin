@@ -63,7 +63,7 @@ export async function previewTemplateAction(templateKey: string, draft: { subjec
     if (e instanceof TmsError && e.status === 404) return { ok: false, error: 'This template was not found.' };
     // The request id lets whoever runs Donexel find the failure in its logs.
     const id = e instanceof TmsError ? (e.body as { error?: { details?: { requestId?: unknown } } } | null)?.error?.details?.requestId : undefined;
-    return { ok: false, error: `Could not render the preview${e instanceof TmsError && e.status ? ` (Donexel answered ${e.status})` : ''}.${typeof id === 'string' ? ` Request ${id}.` : ''}` };
+    return { ok: false, error: `Could not render the preview${e instanceof TmsError && e.status ? ` (Donexel answered ${e.status}${e.status === 400 && e.message && !/^http_/.test(e.message) ? `: ${e.message.slice(0, 160)}` : ''})` : ''}.${typeof id === 'string' ? ` Request ${id}.` : ''}` };
   }
 }
 
@@ -95,7 +95,9 @@ export async function saveTemplateAction(input: { key: string; subject: string; 
     const t = template.parse(input);
     if (input.hasLink && !t.buttonLabel) throw new UserError('This email has a button, so the button label is required.');
     if (!t.subject || !t.heading || !t.body.trim()) throw new UserError('Subject, heading and body are required.');
-    await call(() => saveEmailTemplate(k, t, admin.email));
+    // An email without a button has no label to send; an empty one is what Donexel rejects.
+    const { buttonLabel, ...rest } = t;
+    await call(() => saveEmailTemplate(k, input.hasLink ? t : rest, admin.email));
     await audit(admin, 'email.template.save', k, { enabled: t.enabled, subject: t.subject });
     return 'Template saved';
   });

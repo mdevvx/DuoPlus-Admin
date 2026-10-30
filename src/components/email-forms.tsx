@@ -9,6 +9,7 @@ import type { EmailLayout, EmailSchedule } from '@/products/disconotify/email/va
 import { ConfirmAction } from './confirm-action';
 import { fieldHint, fieldLabel as label, Notice } from './form';
 import { useToast } from './toast';
+import { RichTextarea } from './rich-textarea';
 
 
 /** Turning automatic emails off asks first; turning them back on does not. */
@@ -79,7 +80,7 @@ export function LayoutForm({ initial, logoSrc, brandingHref }: { initial: EmailL
         </div>
       </div>
       <label className="block"><span className={label}>Footer (HTML)</span>
-        <textarea className="input h-28 resize-y py-2 font-mono" value={v.footer_html} onChange={(e) => setV({ ...v, footer_html: e.target.value })} />
+        <RichTextarea mode="html" className="h-28 font-mono" value={v.footer_html} onChange={(e) => setV({ ...v, footer_html: e.target.value })} />
         <span className={fieldHint}>Put the company&apos;s postal address here (required in several countries). Variables allowed: support_email, brand_name. The unsubscribe link is added automatically to marketing emails.</span></label>
       <label className="block"><span className={label}>Footer (plain text)</span>
         <textarea className="input h-24 resize-y py-2 font-mono" value={v.footer_text} onChange={(e) => setV({ ...v, footer_text: e.target.value })} /></label>

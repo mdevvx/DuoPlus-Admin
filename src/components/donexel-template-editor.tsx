@@ -10,6 +10,7 @@ import { ACCOUNT_CRITICAL } from '@/products/team-management/email-meta';
 import { ConfirmAction } from './confirm-action';
 import { fieldHint, fieldLabel as label, Notice } from './form';
 import { useToast } from './toast';
+import { RichTextarea } from './rich-textarea';
 
 type Field = 'subject' | 'heading' | 'body';
 const SUBJECT_MAX = 150;
@@ -67,9 +68,9 @@ export function DonexelTemplateEditor({ template: t, adminEmail, canEdit }: { te
   // Debounced: Donexel renders the draft, so the preview matches what is really sent.
   useEffect(() => {
     setRendering(true);
-    const id = setTimeout(() => { void previewTemplateAction(t.key, { subject: v.subject, heading: v.heading, body: v.body, buttonLabel: v.buttonLabel, dark, sample }).then((r) => { setPreview(r); setRendering(false); }); }, 450);
+    const id = setTimeout(() => { void previewTemplateAction(t.key, { subject: v.subject, heading: v.heading, body: v.body, ...(t.hasLink && v.buttonLabel.trim() ? { buttonLabel: v.buttonLabel } : {}), dark, sample }).then((r) => { setPreview(r); setRendering(false); }); }, 450);
     return () => clearTimeout(id);
-  }, [t.key, v.subject, v.heading, v.body, v.buttonLabel, dark, sample]);
+  }, [t.key, t.hasLink, v.subject, v.heading, v.body, v.buttonLabel, dark, sample]);
 
   const insert = (name: string) => {
     const f = focus.current;
@@ -123,7 +124,7 @@ export function DonexelTemplateEditor({ template: t, adminEmail, canEdit }: { te
         <label className="block"><span className={label}>Heading</span>
           <input ref={refs.heading} className="input" value={v.heading} disabled={!canEdit} onFocus={() => (focus.current = 'heading')} onChange={(e) => setV({ ...v, heading: e.target.value })} /></label>
         <label className="block"><span className={label}>Body</span>
-          <textarea ref={refs.body} className="input h-56 resize-y py-2" value={v.body} disabled={!canEdit} onFocus={() => (focus.current = 'body')} onChange={(e) => setV({ ...v, body: e.target.value })} />
+          <RichTextarea mode="markdown" ref={refs.body} className="h-56" value={v.body} disabled={!canEdit} onFocus={() => (focus.current = 'body')} onChange={(e) => setV({ ...v, body: e.target.value })} />
           <span className={fieldHint}>Separate paragraphs with a blank line.</span></label>
         {t.hasLink ? (
           <label className="block"><span className={label}>Button label</span>

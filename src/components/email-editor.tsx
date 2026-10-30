@@ -11,6 +11,7 @@ import { PREHEADER_MAX, SAMPLES, SUBJECT_MAX, VARIABLES } from '@/products/disco
 import { EmailButtonList, EmailButtonPicker } from './email-button';
 import { fieldLabel as label } from './form';
 import { useToast } from './toast';
+import { RichTextarea } from './rich-textarea';
 
 type Field = 'subject' | 'preheader' | 'html' | 'text';
 interface Props {
@@ -151,7 +152,7 @@ export function EmailEditor({ accent, adminEmail, tplKey, version, category, can
             </div>
             {tab === 'text' && canEdit && <button type="button" className="btn h-7 px-2.5 text-xs" onClick={() => set('text', htmlToText(v.html))}>Generate from HTML</button>}
           </div>
-          <textarea ref={refs.html} hidden={tab !== 'html'} className="input h-80 resize-y py-2 font-mono text-xs leading-5" spellCheck={false} value={v.html} disabled={!canEdit}
+          <RichTextarea mode="html" ref={refs.html} hidden={tab !== 'html'} className="h-80 font-mono text-xs leading-5" spellCheck={false} value={v.html} disabled={!canEdit}
             onFocus={() => (focus.current = 'html')} onChange={(e) => set('html', e.target.value)} aria-label="HTML body" />
           <textarea ref={refs.text} hidden={tab !== 'text'} className="input h-80 resize-y py-2 font-mono text-xs leading-5" spellCheck={false} value={v.text} disabled={!canEdit}
             onFocus={() => (focus.current = 'text')} onChange={(e) => set('text', e.target.value)} aria-label="Plain-text body" />
