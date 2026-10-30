@@ -21,18 +21,28 @@ const tally = (rows: Row[], key: string) => {
 
 export async function getBotDashboard() {
   const db = pn();
-  const head = (t: string) => db.from(t).select('*', { count: 'exact', head: true });
-  const [present, removed, accounts, channels, alerts, live, events24h, accountRows, health] = await Promise.all([
+  const [present, removed, guildRows, accountRows, channelRows, alertRows, liveRows, eventRows, health] = await Promise.all([
     count(db.from(T.guilds).select('guild_id', { count: 'exact', head: true }).eq('bot_present', true)),
     count(db.from(T.guilds).select('guild_id', { count: 'exact', head: true }).eq('bot_present', false)),
-    count(head(T.accounts)), count(head(T.channels)), count(head(T.alerts)), count(db.from(T.live).select('*', { count: 'exact', head: true }).eq('is_live', true)),
-    count(db.from(T.events).select('*', { count: 'exact', head: true }).gte('detected_at', iso(daysFrom(-1)))),
-    db.from(T.accounts).select('platform').limit(20000),
+    db.from(T.guilds).select('guild_id').eq('bot_present', true).limit(50000),
+    db.from(T.accounts).select('guild_id,platform').limit(50000),
+    db.from(T.channels).select('guild_id').limit(50000),
+    db.from(T.alerts).select('guild_id').limit(50000),
+    db.from(T.live).select('*').eq('is_live', true).limit(50000),
+    db.from(T.events).select('guild_id').gte('detected_at', iso(daysFrom(-1))).limit(50000),
     db.from(T.health).select('*').limit(20),
   ]);
+  // Only count what belongs to servers where the bot is currently installed.
+  const installed = new Set(((guildRows.data ?? []) as Row[]).map((g) => String(g.guild_id)));
+  const mine = (rows: { data: unknown }) => ((rows.data ?? []) as Row[]).filter((r) => installed.has(String(r.guild_id)));
+  const accounts = mine(accountRows);
+  // Live states may not carry a server ID; keep them all in that case rather than hide them.
+  const liveAll = (liveRows.data ?? []) as Row[];
+  const live = liveAll.length > 0 && !('guild_id' in liveAll[0]) ? liveAll : liveAll.filter((r) => installed.has(String(r.guild_id)));
   return {
-    present, removed, accounts, channels, alerts, live, events24h,
-    byPlatform: tally((accountRows.data ?? []) as Row[], 'platform'),
+    present, removed, accounts: accounts.length, channels: mine(channelRows).length, alerts: mine(alertRows).length,
+    live: live.length, events24h: mine(eventRows).length,
+    byPlatform: tally(accounts, 'platform'),
     health: (health.data ?? []) as Row[],
   };
 }
@@ -67,6 +77,8 @@ export async function listBotServers(p: BotParams): Promise<{ rows: BotServerRow
     total: res.count ?? guilds.length,
     rows: guilds.map((g) => {
       const id = String(g.guild_id);
+      // Alerts only apply while the bot is in the server.
+      if (g.bot_present === false) return { guild_id: id, name: pick(g, 'name'), bot_present: false, created_at: pick(g, 'created_at'), platforms: tally(accBy.get(id) ?? [], 'platform'), channels: chBy.get(id)?.length ?? 0, alerts: 0 };
       return {
         guild_id: id, name: pick(g, 'name'), bot_present: (g.bot_present as boolean | null) ?? null, created_at: pick(g, 'created_at'),
         platforms: tally(accBy.get(id) ?? [], 'platform'), channels: chBy.get(id)?.length ?? 0, alerts: alBy.get(id)?.length ?? 0,
