@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { Loader2, LifeBuoy, Paperclip } from 'lucide-react';
-import { loadTicketAction, replyTicketAction, type TicketResult } from '@/products/team-management/support-actions';
+import { closeTicketAction, loadTicketAction, replyTicketAction, type TicketResult } from '@/products/team-management/support-actions';
 import type { SupportTicket } from '@/products/team-management/support-api';
 import { SUPPORT_CATEGORY_LABEL, SUPPORT_SEVERITY_LABEL } from '@/products/team-management/support-meta';
 import { fieldHint, fieldLabel as label, Notice } from './form';
@@ -39,6 +39,13 @@ export function SupportTicketButton({ ticket: t, canEdit }: { ticket: SupportTic
     start(async () => {
       const r = await replyTicketAction({ id: t.id, reply, status });
       if (r.ok) { toast(true, r.message); setReply(''); ref.current?.close(); router.refresh(); } else setError(r.error);
+    });
+  }
+  function close() {
+    setError(null);
+    start(async () => {
+      const r = await closeTicketAction(t.id);
+      if (r.ok) { toast(true, r.message); ref.current?.close(); router.refresh(); } else setError(r.error);
     });
   }
   const context = d?.context ? Object.entries(d.context).filter(([, v]) => typeof v === 'string' && v) as [string, string][] : [];
@@ -109,8 +116,9 @@ export function SupportTicketButton({ ticket: t, canEdit }: { ticket: SupportTic
             </div>
           )}
         </div>
-        <footer className="flex justify-end gap-2 border-t border-line bg-subtle px-5 py-3.5">
-          <button type="button" className="btn" onClick={() => ref.current?.close()}>Close</button>
+        <footer className="flex items-center gap-2 border-t border-line bg-subtle px-5 py-3.5">
+          {canReply && <button type="button" className="btn mr-auto" disabled={pending} onClick={close}>Close ticket without reply</button>}
+          <button type="button" className="btn ml-auto" onClick={() => ref.current?.close()}>Dismiss</button>
           {canReply && <button type="button" className="btn btn-primary" disabled={pending || !reply.trim()} onClick={send}>{pending ? 'Sending…' : 'Send reply'}</button>}
         </footer>
       </dialog>

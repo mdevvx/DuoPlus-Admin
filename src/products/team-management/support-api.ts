@@ -42,6 +42,8 @@ export async function getSupportTicket(id: string) {
   return r.data;
 }
 
+export const closeSupportTicket = async (id: string) => { await request('POST', `/support/tickets/${encodeURIComponent(id)}/close`); };
+
 export const replySupportTicket = async (id: string, reply: string, status: 'answered' | 'closed') => {
   await request('POST', `/support/tickets/${encodeURIComponent(id)}/reply`, { reply, status });
 };
