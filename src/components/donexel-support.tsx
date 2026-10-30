@@ -8,6 +8,7 @@ import { closeTicketAction, loadTicketAction, replyTicketAction, type TicketResu
 import type { SupportTicket } from '@/products/team-management/support-api';
 import { SUPPORT_CATEGORY_LABEL, SUPPORT_SEVERITY_LABEL } from '@/products/team-management/support-meta';
 import { fieldHint, fieldLabel as label, Notice } from './form';
+import { RichTextarea } from './rich-textarea';
 import { ModalHeader } from './modal-header';
 import { useToast } from './toast';
 import { DetailRow } from './ui';
@@ -105,8 +106,8 @@ export function SupportTicketButton({ ticket: t, canEdit }: { ticket: SupportTic
           {canReply && (
             <div className="mt-4 space-y-3">
               <label className="block"><span className={label}>{d && d.messages.some((m) => m.fromSupport) ? 'Another reply' : 'Your reply'}</span>
-                <textarea className="input h-32 resize-y py-2" value={reply} maxLength={5000} onChange={(e) => setReply(e.target.value)} />
-                <span className={fieldHint}>The requester gets this as an in-app notification and an email.</span></label>
+                <RichTextarea mode="markdown" className="h-32" value={reply} maxLength={5000} onChange={(e) => setReply(e.target.value)} />
+                <span className={fieldHint}>The requester gets this as an in-app notification and an email. Bold and italic show up in both.</span></label>
               <label className="block"><span className={label}>After sending</span>
                 <select className="input w-auto" value={status} onChange={(e) => setStatus(e.target.value as 'answered' | 'closed')}>
                   <option value="answered">Mark as answered</option>

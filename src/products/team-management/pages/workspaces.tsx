@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Badge, Cell, EmptyState, ErrorPanel, PageHeader, Pagination, Table, Tr, When } from '@/components/ui';
 import { Filters } from '@/components/filters';
-import { WorkspaceMark } from '@/components/workspace-mark';
+import { BrandSwatch, WorkspaceMark } from '@/components/workspace-mark';
 import { WorkspacePeople } from '@/components/workspace-people';
 import { int } from '@/lib/format';
 import type { RouteCtx } from '@/products/types';
@@ -57,7 +57,7 @@ export async function WorkspacesPage({ searchParams }: RouteCtx) {
                   <td className="td">
                     <div className="flex min-w-0 items-center gap-3">
                       <WorkspaceMark name={w.name} logoUrl={w.logoUrl} />
-                      <Cell text={w.name} sub={w.onboardingCompleted ? undefined : 'Setting up'} max={220} href={`${base}/workspaces/${encodeURIComponent(w.id)}`} />
+                      <Cell text={w.name} sub={w.onboardingCompleted && !w.brandColor ? undefined : <span className="inline-flex items-center gap-2">{!w.onboardingCompleted && 'Setting up'}<BrandSwatch color={w.brandColor} /></span>} max={220} href={`${base}/workspaces/${encodeURIComponent(w.id)}`} />
                     </div>
                   </td>
                   <td className="td"><Cell text={w.owner?.email || '—'} sub={w.owner?.fullName ?? undefined} max={230} /></td>

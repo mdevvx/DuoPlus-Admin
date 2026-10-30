@@ -75,6 +75,7 @@ const workspaceSchema = z.object({
   id: str,
   name: z.string().catch('Untitled workspace'),
   logoUrl: z.string().nullable().catch(null),
+  brandColor: z.string().nullable().catch(null), // an accent id (gold…), a #rrggbb hex, or null for the default look
   createdAt: str,
   onboardingCompleted: z.boolean().catch(false),
   owner: z.object({ id: str, email: str, fullName: z.string().nullable().catch(null) }).nullable().catch(null),

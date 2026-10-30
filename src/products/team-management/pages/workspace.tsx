@@ -4,7 +4,7 @@ import { Badge, Card, Cell, EmptyState, ErrorPanel, KV, PageHeader, Stat, Table,
 import { ProgressBar } from '@/components/charts';
 import { Notice } from '@/components/form';
 import { CopyId } from '@/components/small-client';
-import { WorkspaceMark } from '@/components/workspace-mark';
+import { BrandSwatch, WorkspaceMark } from '@/components/workspace-mark';
 import { int } from '@/lib/format';
 import type { RouteCtx } from '@/products/types';
 import { describe, tmsConfigured, type Member } from '../api';
@@ -40,6 +40,7 @@ export async function WorkspaceDetailPage({ params }: RouteCtx) {
         <StatusBadge status={ws.status} />
         {ws.whitelisted && <Badge tone="info">Whitelisted</Badge>}
         {!ws.onboardingCompleted && <Badge tone="warning">Still setting up</Badge>}
+        <BrandSwatch color={ws.brandColor} />
       </div>
 
       <div className="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
