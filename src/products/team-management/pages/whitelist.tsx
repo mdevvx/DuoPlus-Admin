@@ -34,11 +34,12 @@ export async function WhitelistPage({ role, searchParams }: RouteCtx) {
           <Filters action={`${base}/whitelist`} fields={[{ type: 'search', key: 'q', label: 'Search', placeholder: 'Search by email or note' }]} />
           {rows.length === 0 ? <div className="card"><EmptyState title={p.q ? 'No emails match' : 'The whitelist is empty'} hint={p.q ? 'Clear the search to see everyone.' : 'Add an email above. It is matched exactly, so domains and wildcards are not supported.'} /></div> : (
             <Table label="Whitelisted emails">
-              <thead><tr>{['Email', 'Plan', 'Note', 'Added', ''].map((h, i) => <th key={i} className="th">{h}</th>)}</tr></thead>
+              <thead><tr>{['Email', 'Plan', 'People limit', 'Note', 'Added', ''].map((h, i) => <th key={i} className="th">{h}</th>)}</tr></thead>
               <tbody>{rows.map((e) => (
                 <Tr key={e.email}>
                   <td className="td"><Cell text={e.email} max={300} /></td>
                   <td className="td whitespace-nowrap"><PlanText plan={e.plan} /></td>
+                  <td className="td whitespace-nowrap">{e.seats ? e.seats.toLocaleString('en-US') : <span className="text-muted">Plan default</span>}</td>
                   <td className="td"><Cell text={e.note} max={320} /></td>
                   <td className="td whitespace-nowrap"><When value={e.createdAt || null} /></td>
                   <td className="td whitespace-nowrap text-right">

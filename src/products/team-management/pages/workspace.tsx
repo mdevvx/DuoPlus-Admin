@@ -10,7 +10,7 @@ import type { RouteCtx } from '@/products/types';
 import { describe, tmsConfigured, type Member } from '../api';
 import { loadWorkspaceMembers } from '../actions';
 import { allWorkspaces } from '../people';
-import { humanize } from '../labels';
+import { humanize, termLabel } from '../labels';
 import { PlanText, StatusBadge, base } from './shared';
 
 const ROLE_ORDER = ['admin', 'manager', 'member', 'guest'];
@@ -40,11 +40,12 @@ export async function WorkspaceDetailPage({ params }: RouteCtx) {
         <StatusBadge status={ws.status} />
         {ws.whitelisted && <Badge tone="info">Whitelisted</Badge>}
         {!ws.onboardingCompleted && <Badge tone="warning">Still setting up</Badge>}
+        {ws.ownEmail && <Badge tone={ws.ownEmail.verified ? 'neutral' : 'warning'}>{ws.ownEmail.verified ? `Own email: ${ws.ownEmail.fromEmail}` : `Own email not verified: ${ws.ownEmail.fromEmail}`}</Badge>}
         <BrandSwatch color={ws.brandColor} />
       </div>
 
       <div className="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <Card><Stat label="Plan" value={<span className="text-[22px]"><PlanText plan={ws.plan} /></span>} hint={ws.whitelisted ? 'Set from the whitelist' : undefined} /></Card>
+        <Card><Stat label="Plan" value={<span className="text-[22px]"><PlanText plan={ws.plan} /></span>} hint={ws.whitelisted ? 'Set from the whitelist' : termLabel(ws.billingTerm) ?? undefined} /></Card>
         <Card>
           <Stat label="People" value={<>{int(ws.members)}{ws.seatLimit > 0 && <span className="text-base font-medium text-muted"> / {int(ws.seatLimit)}</span>}</>} hint="Seats in use" />
           {ws.seatLimit > 0 && <div className="mt-3"><ProgressBar value={pct} color={pct >= 90 ? 'var(--chart-4)' : 'var(--chart-1)'} /></div>}

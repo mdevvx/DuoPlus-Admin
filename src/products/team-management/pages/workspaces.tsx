@@ -10,6 +10,7 @@ import { describe, getOverview, listWorkspaces, tmsConfigured } from '../api';
 import { allUsers, peopleInWorkspaces } from '../people';
 import { Notice } from '@/components/form';
 import Link from 'next/link';
+import { termLabel } from '../labels';
 import { PlanText, StatusBadge, base } from './shared';
 
 const PER = 25;
@@ -61,11 +62,12 @@ export async function WorkspacesPage({ searchParams }: RouteCtx) {
                     </div>
                   </td>
                   <td className="td"><Cell text={w.owner?.email || '—'} sub={w.owner?.fullName ?? undefined} max={230} /></td>
-                  <td className="td whitespace-nowrap"><PlanText plan={w.plan} /></td>
+                  <td className="td whitespace-nowrap"><PlanText plan={w.plan} />{termLabel(w.billingTerm) && <div className="text-xs text-muted">{termLabel(w.billingTerm)}</div>}</td>
                   <td className="td whitespace-nowrap">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <StatusBadge status={w.status} />
                       {w.whitelisted && <Badge tone="info">Whitelisted</Badge>}
+                      {w.ownEmail && <Badge tone={w.ownEmail.verified ? 'neutral' : 'warning'}>{w.ownEmail.verified ? 'Own email' : 'Own email not verified'}</Badge>}
                     </div>
                   </td>
                   <td className="td whitespace-nowrap text-right"><WorkspacePeople id={w.id} name={w.name} members={w.members} seatLimit={w.seatLimit} /></td>

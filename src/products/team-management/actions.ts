@@ -10,7 +10,9 @@ import { allUsers } from './people';
 
 const email = z.string().trim().toLowerCase().pipe(z.email('Enter a valid email address').max(254));
 const common = z.object({ reason, code: z.string().optional() });
-const addInput = common.extend({ email, plan: z.enum(PLANS), note: z.string().trim().max(300).optional() });
+const addInput = common.extend({ email, plan: z.enum(PLANS), note: z.string().trim().max(300).optional(),
+  // The agreed number of people (for example an Enterprise customer on the Scale plan). Empty keeps the plan's default.
+  seats: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.coerce.number().int('Use a whole number.').min(1, 'The people limit must be at least 1.').max(100_000, 'That people limit is too high.').optional()) });
 const removeInput = common.extend({ email, confirm: z.string().optional() });
 
 const flat = (fd: FormData) => Object.fromEntries([...fd].map(([k, v]) => [k, typeof v === 'string' ? v : '']));
@@ -37,11 +39,11 @@ export async function addWhitelistEntry(fd: FormData): Promise<AddWhitelistResul
     const d = addInput.parse(flat(fd));
     const { admin } = await requireAdmin({ product: SLUG, permission: 'tms.whitelist' });
     await ensureStepUp(admin, 'tms.whitelist', d.code?.trim() || undefined);
-    try { result = await addWhitelist({ email: d.email, plan: d.plan, ...(d.note ? { note: d.note } : {}) }); } catch (e) { explain(e); }
+    try { result = await addWhitelist({ email: d.email, plan: d.plan, ...(d.note ? { note: d.note } : {}), ...(d.seats ? { seats: d.seats } : {}) }); } catch (e) { explain(e); }
     // The change lives in another system, so its audit row is written here after it succeeded.
     await writeAudit({
       admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'whitelist.add', target_type: 'whitelist', target_id: d.email, reason: d.reason,
-      after: { plan: d.plan, note: d.note ?? null, workspaces: result?.workspaces, activeSubscription: result?.activeSubscription },
+      after: { plan: d.plan, note: d.note ?? null, seats: d.seats ?? null, workspaces: result?.workspaces, activeSubscription: result?.activeSubscription },
     });
     return 'Added to the whitelist';
   });

@@ -20,6 +20,7 @@ export function WhitelistAdd({ polarUrl }: { polarUrl: string }) {
   const [email, setEmail] = useState('');
   const [plan, setPlan] = useState('scale');
   const [note, setNote] = useState('');
+  const [seats, setSeats] = useState('');
   const [reason, setReason] = useState('');
   const [code, setCode] = useState('');
   const [needsCode, setNeedsCode] = useState(false);
@@ -32,19 +33,20 @@ export function WhitelistAdd({ polarUrl }: { polarUrl: string }) {
 
   const emailOk = EMAIL_RE.test(email.trim());
   const reasonOk = reason.trim().length >= 5;
+  const seatsOk = seats === '' || (/^\d+$/.test(seats) && Number(seats) >= 1 && Number(seats) <= 100000);
 
   function submit() {
     setTouched(true); setError(null);
-    if (!emailOk || !reasonOk) return;
+    if (!emailOk || !reasonOk || !seatsOk) return;
     const fd = new FormData();
-    fd.set('email', email.trim()); fd.set('plan', plan); fd.set('note', note); fd.set('reason', reason);
+    fd.set('email', email.trim()); fd.set('plan', plan); fd.set('note', note); fd.set('seats', seats); fd.set('reason', reason);
     if (code) fd.set('code', code);
     start(async () => {
       const res = await addWhitelistEntry(fd);
       if (res.ok && res.result) {
         toast(true, res.message);
         setDone({ email: res.result.email || email.trim().toLowerCase(), plan: res.result.plan || plan, workspaces: res.result.workspaces, activeSubscription: res.result.activeSubscription });
-        setEmail(''); setNote(''); setReason(''); setCode(''); setNeedsCode(false); setTouched(false);
+        setEmail(''); setNote(''); setSeats(''); setReason(''); setCode(''); setNeedsCode(false); setTouched(false);
         router.refresh(); // soft refresh: the table below picks up the new entry
       } else if (!res.ok && res.needsStepUp) {
         setNeedsCode(true);
@@ -73,6 +75,11 @@ export function WhitelistAdd({ polarUrl }: { polarUrl: string }) {
           <span className={label}>Reason <span className="text-danger">*</span> <span className="font-normal text-muted">· saved in the audit log</span></span>
           <input className={clsx('input', touched && !reasonOk && 'border-danger')} value={reason} maxLength={500} placeholder="Why is this person exempt from billing?" onChange={(e) => setReason(e.target.value)} aria-invalid={touched && !reasonOk} />
           {touched && !reasonOk && <span role="alert" className={fieldError}>Give a short reason (at least 5 characters).</span>}
+        </label>
+        <label className="block">
+          <span className={label}>People limit <span className="font-normal text-muted">· optional</span></span>
+          <input className={clsx('input', !seatsOk && 'border-danger')} inputMode="numeric" value={seats} maxLength={6} placeholder="Plan default" onChange={(e) => setSeats(e.target.value.replace(/\D/g, ''))} aria-invalid={!seatsOk} />
+          {!seatsOk ? <span role="alert" className={fieldError}>Enter a whole number from 1 to 100,000.</span> : <span className="mt-1.5 block text-xs text-muted">For Enterprise, pick Scale and enter the agreed number.</span>}
         </label>
         {needsCode && (
           <label className="block">

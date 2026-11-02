@@ -15,6 +15,9 @@ export const STATUS_COLOR: Record<string, string> = {
   incomplete: 'var(--chart-grid)', canceled: 'var(--chart-4)', unpaid: 'var(--chart-4)',
 };
 
+/** "1y" → "1 year"; anything unexpected is shown as it came. */
+export const termLabel = (t: string | null | undefined) => (!t ? null : t === 'monthly' ? 'Monthly' : /^[1-5]y$/.test(t) ? `${t[0]} ${t[0] === '1' ? 'year' : 'years'} prepaid` : humanize(t));
+
 /** "past_due" → "Past due" for values this panel does not know about. */
 export const humanize = (v: string) => (v ? v.charAt(0).toUpperCase() + v.slice(1).replace(/[_-]/g, ' ') : '—');
 export const statusLabel = (s: string) => STATUS_LABEL[s] ?? humanize(s);

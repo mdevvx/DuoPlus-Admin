@@ -75,6 +75,10 @@ const workspaceSchema = z.object({
   id: str,
   name: z.string().catch('Untitled workspace'),
   logoUrl: z.string().nullable().catch(null),
+  // What is being paid for: monthly or a prepaid 1 to 5 years. null when nothing is being paid (complimentary, no subscription yet, or cancelled).
+  billingTerm: z.string().nullable().catch(null),
+  // The workspace's own email account, never with credentials. verified is false until a test email has gone through.
+  ownEmail: z.object({ host: str, fromEmail: str, verified: z.boolean().catch(false) }).nullable().catch(null),
   brandColor: z.string().nullable().catch(null), // an accent id (gold…), a #rrggbb hex, or null for the default look
   createdAt: str,
   onboardingCompleted: z.boolean().catch(false),
@@ -88,7 +92,7 @@ const workspaceSchema = z.object({
 export type Workspace = z.infer<typeof workspaceSchema>;
 
 const workspacesSchema = z.object({ page: num, pageSize: num, total: num, items: z.array(workspaceSchema).catch([]) });
-const whitelistEntrySchema = z.object({ email: str, plan: str, note: z.string().nullable().catch(null), createdAt: str });
+const whitelistEntrySchema = z.object({ email: str, plan: str, note: z.string().nullable().catch(null), seats: z.coerce.number().int().positive().nullable().catch(null), createdAt: str });
 export type WhitelistEntry = z.infer<typeof whitelistEntrySchema>;
 const addResultSchema = z.object({ email: str, plan: str, workspaces: num, activeSubscription: z.boolean().catch(false) });
 export type AddResult = z.infer<typeof addResultSchema>;
@@ -175,7 +179,7 @@ export function ownersOf(workspaces: Workspace[]): { key: string; email: string;
 
 export const listWhitelist = async () => parse(z.array(whitelistEntrySchema).catch([]), await request('GET', '/whitelist'));
 
-export const addWhitelist = async (body: { email: string; plan: string; note?: string }) => parse(addResultSchema, await request('POST', '/whitelist', body));
+export const addWhitelist = async (body: { email: string; plan: string; note?: string; seats?: number }) => parse(addResultSchema, await request('POST', '/whitelist', body));
 
 /** Resolves when removed; throws TmsError with status 404 when the email is not on the list. */
 export async function removeWhitelist(email: string): Promise<void> {
