@@ -3,7 +3,7 @@ import { unstable_cache } from 'next/cache';
 import { env } from '@/lib/env';
 import { polarSandbox } from '@/lib/polar-env';
 import { polarApiBase } from '@/lib/polar-hosts';
-import { parseOrders, type PaymentRow } from './payments';
+import { parseOrders, productIdsFrom, type PaymentRow } from './payments';
 
 const LIMIT = 100;
 const MAX_PAGES = 5; // the latest 500 orders; plenty for a monthly SaaS, and it keeps each load fast
@@ -55,7 +55,7 @@ const latestOrders = unstable_cache(async (productIds: string): Promise<PaymentR
 }, ['tms-polar-orders'], { revalidate: 60 });
 
 export async function listPayments(): Promise<{ rows: PaymentRow[]; byProductIds: boolean }> {
-  const ids = env().DONEXEL_POLAR_PRODUCT_IDS?.split(',').map((s) => s.trim()).filter((s) => /^[\w-]{8,64}$/.test(s)).join(',') ?? '';
+  const ids = [...new Set([...productIdsFrom(env().DONEXEL_POLAR_PRODUCT_IDS), ...productIdsFrom(env().DONEXEL_POLAR_PRODUCTS)])].join(",");
   return { rows: await latestOrders(ids), byProductIds: ids !== '' };
 }
 

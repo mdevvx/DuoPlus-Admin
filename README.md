@@ -43,6 +43,20 @@ Everything lives in your **existing Supabase project** and database, in two sche
 | `DISCONOTIFY_POLAR_ORG_SLUG` | Optional; builds Polar deep links (the slug differs between sandbox and live) |
 | `DISCORD_BOT_TOKEN` | Optional; server only. Lets the panel show server names and icons (looked up read-only from Discord, cached 6 hours). Without it servers show by ID |
 
+### Setting up payments (Donexel, Polar)
+
+The Payments page reads orders from Polar. It is a separate app from the Donexel API, so it has its own variables (the API's `POLAR_*` names are not read here):
+
+| Variable | What to put |
+|---|---|
+| `DONEXEL_POLAR_ACCESS_TOKEN` | A Polar token with order read access, from the same Polar environment as below |
+| `DONEXEL_POLAR_ENV` | `sandbox` or `production`. Must equal the API's `POLAR_SERVER`, or the panel shows no real orders |
+| `DONEXEL_POLAR_ORG_SLUG` | Optional; builds Polar links |
+| `DONEXEL_POLAR_PRODUCT_IDS` | Comma-separated product ids: the 3 monthly ids, plus the yearly ones if you do not use the variable below. Yearly orders are missing from the page if their ids are not listed |
+| `DONEXEL_POLAR_PRODUCTS` | Optional; the API's `POLAR_PRODUCTS` JSON pasted as-is, wrapped in single quotes in a `.env` file. Its ids are added to the list above |
+
+Name the Polar products so the plan appears as a whole word, for example "Growth plan (2 years)". The panel works out the plan from the name, and the billing term from the product's recurring interval (or the name when Polar does not send it).
+
 ## Scripts
 
 | Command | What it does |

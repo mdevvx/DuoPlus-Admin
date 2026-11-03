@@ -9,7 +9,7 @@ import { money, int } from '@/lib/format';
 import { PAGE_SIZE, csvEnum, splitCsv } from '@/lib/validation';
 import type { RouteCtx } from '@/products/types';
 import { PLAN_LABEL, polarLink } from '../api';
-import { PLAN_NAMES, REASON_LABEL, STATUS_LABEL, filterPayments, totals, type PaymentRow } from '../payments';
+import { PLAN_NAMES, REASON_LABEL, STATUS_LABEL, TERM_LABEL, filterPayments, totals, type PaymentRow } from '../payments';
 import { PolarModeBadge } from '@/components/polar-mode';
 import { describePolar, listPayments, polarEnv, polarPaymentsConfigured } from '../polar';
 import { base } from './shared';
@@ -75,7 +75,7 @@ export async function PaymentsPage({ role, searchParams }: RouteCtx) {
         <Card><Stat label="Net" value={money(t.net / 100)} /></Card>
         <Card><Stat label="Orders" value={int(t.orders)} /></Card>
       </div>
-      {!all.byProductIds && <div className="mb-4"><Notice tone="info">Plans are recognised by product name (Starter, Growth, Scale). Set DONEXEL_POLAR_PRODUCT_IDS to match them exactly.</Notice></div>}
+      {!all.byProductIds && <div className="mb-4"><Notice tone="info">Plans are recognised by product name (Starter, Growth, Scale). Set DONEXEL_POLAR_PRODUCT_IDS to the monthly and every yearly product id to match them exactly.</Notice></div>}
       {all.rows.length >= 500 && <p className="mb-3 text-xs text-muted">Showing the latest 500 orders from Polar. Use Polar for older history.</p>}
 
       {rows.length === 0 ? <div className="card"><EmptyState title={all.rows.length === 0 ? 'No orders yet' : 'No payments match'} hint={all.rows.length === 0 ? `Nothing in Polar ${polarEnv() === 'sandbox' ? 'sandbox' : 'live'} for these plans.` : 'Change or reset the filters.'} /></div> : (
@@ -86,7 +86,7 @@ export async function PaymentsPage({ role, searchParams }: RouteCtx) {
               <Tr key={r.id}>
                 <td className="td whitespace-nowrap"><When value={r.createdAt || null} /></td>
                 <td className="td"><Cell text={r.email || '—'} sub={r.name || undefined} max={240} /></td>
-                <td className="td"><Cell text={r.plan ? PLAN_LABEL[r.plan] : r.productName || '—'} sub={REASON_LABEL[r.reason] ?? undefined} max={180} /></td>
+                <td className="td"><Cell text={r.plan ? PLAN_LABEL[r.plan] : r.productName || '—'} sub={[r.term ? TERM_LABEL[r.term] : '', REASON_LABEL[r.reason] ?? ''].filter(Boolean).join(' · ') || undefined} max={180} /></td>
                 <td className="td num whitespace-nowrap text-right"><div>{amountOf(r)}</div>{r.refunded > 0 && <div className="text-xs text-muted">refunded {amountOf(r, r.refunded)}</div>}</td>
                 <td className="td whitespace-nowrap"><Badge tone={TONE[r.status] ?? 'neutral'}>{STATUS_LABEL[r.status] ?? r.status}</Badge></td>
                 <td className="td whitespace-nowrap text-right">
@@ -94,6 +94,7 @@ export async function PaymentsPage({ role, searchParams }: RouteCtx) {
                     <dl className="divide-y divide-line text-sm">
                       <DetailRow label="Customer">{r.email || '—'}{r.name ? ` · ${r.name}` : ''}</DetailRow>
                       <DetailRow label="Plan">{r.plan ? PLAN_LABEL[r.plan] : r.productName || '—'}</DetailRow>
+                      <DetailRow label="Billing term">{r.term ? TERM_LABEL[r.term] : '—'}</DetailRow>
                       <DetailRow label="Reason">{REASON_LABEL[r.reason] ?? (r.reason || '—')}</DetailRow>
                       <DetailRow label="Amount">{amountOf(r)}</DetailRow>
                       <DetailRow label="Refunded">{r.refunded > 0 ? amountOf(r, r.refunded) : '—'}</DetailRow>

@@ -107,13 +107,19 @@ describe('payments from Polar orders', () => {
   });
 
   it('reads an order and recognises the plan from its product name', async () => {
-    const { parseOrder, planOf } = await import('@/products/team-management/payments');
+    const { parseOrder, planOf, termOf, productIdsFrom } = await import('@/products/team-management/payments');
     const r = parseOrder(order())!;
     expect(r).toMatchObject({ id: 'ord_1', status: 'paid', amount: 14900, plan: 'growth', email: 'ada@acme.com', externalId: 'user-uuid', reason: 'subscription_cycle' });
     expect(planOf('Starter plan (monthly)')).toBe('starter');
     expect(planOf('Scale')).toBe('scale');
     expect(planOf('DiscoNotify Pro')).toBeNull();
     expect(planOf('Scalable widgets')).toBeNull();
+    expect(termOf('Growth plan (2 years)')).toBe('2y');
+    expect(termOf('Starter yearly')).toBe('1y');
+    expect(termOf('Scale plan (monthly)')).toBe('monthly');
+    expect(termOf('Scale', 'year', 3)).toBe('3y');
+    expect(termOf('Scale', 'month', 1)).toBe('monthly');
+    expect(termOf('Scale')).toBeNull();
   });
 
   it('survives missing and odd fields', async () => {

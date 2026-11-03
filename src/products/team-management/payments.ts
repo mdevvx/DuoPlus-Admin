@@ -18,11 +18,29 @@ export function planOf(productName: string): PlanName | null {
   return PLAN_NAMES.find((p) => new RegExp(`\\b${p}\\b`).test(n)) ?? null;
 }
 
+/** Billing term of the product: "monthly", or 1 to 5 years prepaid. Null when it cannot be told. */
+export type Term = 'monthly' | '1y' | '2y' | '3y' | '4y' | '5y';
+export const TERM_LABEL: Record<Term, string> = { monthly: 'Monthly', '1y': '1 year', '2y': '2 years', '3y': '3 years', '4y': '4 years', '5y': '5 years' };
+
+/** Prefers Polar's recurring interval; falls back to the product name ("Growth plan (2 years)", "Starter yearly"). */
+export function termOf(productName: string, interval?: string, count?: number): Term | null {
+  const years = (n: number): Term | null => (Number.isInteger(n) && n >= 1 && n <= 5 ? (`${n}y` as Term) : null);
+  if (interval === 'month' && (count ?? 1) === 1) return 'monthly';
+  if (interval === 'year') return years(count ?? 1);
+  if (interval === 'month' && count && count % 12 === 0) return years(count / 12);
+  const n = productName.toLowerCase();
+  const m = /\b([1-5])[\s-]*(?:year|yr)s?\b/.exec(n);
+  if (m) return years(Number(m[1]));
+  if (/\b(?:yearly|annual|annually)\b/.test(n)) return '1y';
+  if (/\bmonthly\b/.test(n)) return 'monthly';
+  return null;
+}
+
 export interface PaymentRow {
   id: string; createdAt: string; status: string;
   /** What the customer paid in the smallest currency unit, tax included when Polar reports it. */
   amount: number; refunded: number; currency: string;
-  reason: string; productId: string; productName: string; plan: PlanName | null;
+  reason: string; productId: string; productName: string; plan: PlanName | null; term: Term | null;
   email: string; name: string; externalId: string; customerId: string; subscriptionId: string; invoice: string;
 }
 
@@ -41,6 +59,7 @@ export function parseOrder(raw: unknown): PaymentRow | null {
     amount: cents(total), refunded: cents(first(o, 'refunded_amount')), currency: (text(o.currency) || 'usd').toLowerCase(),
     reason: text(first(o, 'billing_reason')),
     productId: text(first(o, 'product_id') ?? first(product, 'id')), productName, plan: planOf(productName),
+    term: termOf(productName, text(first(product, 'recurring_interval')), Number(first(product, 'recurring_interval_count')) || undefined),
     email: text(first(customer, 'email')), name: text(first(customer, 'name')),
     externalId: text(first(customer, 'external_id')), customerId: text(first(o, 'customer_id') ?? first(customer, 'id')),
     subscriptionId: text(first(o, 'subscription_id')), invoice: text(first(o, 'invoice_number')),
@@ -99,4 +118,19 @@ export function filtersFromParams(sp: Record<string, string | undefined>): Payme
     status: csv(sp.status).filter((x) => x in STATUS_LABEL),
     from: day(sp.from), to: day(sp.to), min: amount(sp.min), max: amount(sp.max),
   };
+}
+
+/** Product ids from either a comma list ("a,b") or the API's JSON shape ({"starter":{"1y":"id"}, ...}); invalid or blank ids are dropped. */
+export function productIdsFrom(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const out: string[] = [];
+  const walk = (v: unknown) => {
+    if (typeof v === 'string') out.push(...v.split(','));
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (isObj(v)) Object.values(v).forEach(walk);
+  };
+  const t = raw.trim();
+  if (t.startsWith('{') || t.startsWith('[')) { try { walk(JSON.parse(t)); } catch { /* not JSON: treated as no ids */ } }
+  else walk(t);
+  return [...new Set(out.map((s) => s.trim()).filter((s) => /^[\w-]{8,64}$/.test(s)))];
 }

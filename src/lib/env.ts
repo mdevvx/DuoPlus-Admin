@@ -34,16 +34,13 @@ const schema = z.object({
   DONEXEL_POLAR_ACCESS_TOKEN: blankToUndefined(z.string().optional()),
   // Optional comma-separated Polar product IDs of the Starter, Growth and Scale products. Without them plans are matched by name.
   DONEXEL_POLAR_PRODUCT_IDS: blankToUndefined(z.string().optional()),
+  // Optional: the Donexel API's POLAR_PRODUCTS JSON ({"starter":{"1y":"id"},...}) pasted as-is. Its ids are added to the ones above.
+  DONEXEL_POLAR_PRODUCTS: blankToUndefined(z.string().optional()),
   // The earlier unprefixed POLAR_* names (DiscoNotify's Polar) still work as a fallback.
   POLAR_DASHBOARD_ORG_SLUG: z.string().optional(),
   POLAR_ACCESS_TOKEN: blankToUndefined(z.string().optional()),
   POLAR_SANDBOX: blankToUndefined(z.enum(['true', 'false']).optional()),
   POLAR_ENV: blankToUndefined(z.enum(['production', 'sandbox']).optional()),
-  // The earlier TMS_POLAR_* names (Donexel's Polar) still work as a fallback.
-  TMS_POLAR_ENV: blankToUndefined(z.enum(['production', 'sandbox']).optional()),
-  TMS_POLAR_ORG_SLUG: blankToUndefined(z.string().optional()),
-  TMS_POLAR_ACCESS_TOKEN: blankToUndefined(z.string().optional()),
-  TMS_POLAR_PRODUCT_IDS: blankToUndefined(z.string().optional()),
 });
 
 let cached: z.infer<typeof schema> | undefined;
@@ -63,10 +60,10 @@ export function env() {
       DISCONOTIFY_POLAR_ACCESS_TOKEN: d.DISCONOTIFY_POLAR_ACCESS_TOKEN ?? d.POLAR_ACCESS_TOKEN,
       DISCONOTIFY_POLAR_SANDBOX: d.DISCONOTIFY_POLAR_SANDBOX ?? d.POLAR_SANDBOX,
       DISCONOTIFY_POLAR_ENV: d.DISCONOTIFY_POLAR_ENV ?? d.POLAR_ENV,
-      DONEXEL_POLAR_ENV: d.DONEXEL_POLAR_ENV ?? d.TMS_POLAR_ENV,
-      DONEXEL_POLAR_ORG_SLUG: d.DONEXEL_POLAR_ORG_SLUG ?? d.TMS_POLAR_ORG_SLUG,
-      DONEXEL_POLAR_ACCESS_TOKEN: d.DONEXEL_POLAR_ACCESS_TOKEN ?? d.TMS_POLAR_ACCESS_TOKEN,
-      DONEXEL_POLAR_PRODUCT_IDS: d.DONEXEL_POLAR_PRODUCT_IDS ?? d.TMS_POLAR_PRODUCT_IDS,
+      DONEXEL_POLAR_ENV: d.DONEXEL_POLAR_ENV,
+      DONEXEL_POLAR_ORG_SLUG: d.DONEXEL_POLAR_ORG_SLUG,
+      DONEXEL_POLAR_ACCESS_TOKEN: d.DONEXEL_POLAR_ACCESS_TOKEN,
+      DONEXEL_POLAR_PRODUCT_IDS: d.DONEXEL_POLAR_PRODUCT_IDS,
     };
   }
   return cached;
