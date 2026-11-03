@@ -1,6 +1,8 @@
 import 'server-only';
 import { z } from 'zod';
 import { env } from '@/lib/env';
+import { polarSandbox } from '@/lib/polar-env';
+import { polarDashboardUrl } from '@/lib/polar-hosts';
 
 export const SLUG = 'team-management';
 
@@ -193,9 +195,8 @@ export const PLANS = ['starter', 'growth', 'scale'] as const;
 /** Polar dashboard link. DuoPlus uses Polar sandbox or production by its own setting, so the two are never mixed. */
 export function polarLink(): string {
   const e = env();
-  const host = e.TMS_POLAR_ENV === 'sandbox' ? 'https://sandbox.polar.sh' : 'https://polar.sh';
-  const org = e.TMS_POLAR_ORG_SLUG ?? e.POLAR_DASHBOARD_ORG_SLUG;
-  return org && /^[\w-]+$/.test(org) ? `${host}/dashboard/${org}/sales` : `${host}/dashboard`;
+  const org = e.DONEXEL_POLAR_ORG_SLUG ?? e.DISCONOTIFY_POLAR_ORG_SLUG;
+  return polarDashboardUrl(polarSandbox('donexel'), org, org ? '/sales' : '');
 }
 
 /** Plain-language reason for a failed call, safe to show to an admin. */

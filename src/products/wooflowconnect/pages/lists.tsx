@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { Download, ExternalLink } from 'lucide-react';
 import { Badge, Card, Cell, EmptyState, PageHeader, Pagination, Stat, Table, Tr, When } from '@/components/ui';
 import { AuditTable } from '@/components/audit-table';
+import { polarDashboardUrl } from '@/lib/polar-hosts';
 import { env } from '@/lib/env';
 import { int, sentence } from '@/lib/format';
 import { PAGE_SIZE, listParams } from '@/lib/validation';
@@ -61,12 +62,12 @@ export async function PaymentsPage({ searchParams }: RouteCtx) {
   const p = listParams.extend({ status: z.enum(['paid', 'failed']).optional().catch(undefined) }).parse(searchParams);
   const path = `${base}/payments`;
   const r = await load(() => wfcGet('payments', { status: p.status, q: p.q, page: p.page, per: PER }), path);
-  const org = env().WFC_POLAR_ORG_SLUG ?? env().POLAR_DASHBOARD_ORG_SLUG;
+  const org = env().WFC_POLAR_ORG_SLUG ?? env().DISCONOTIFY_POLAR_ORG_SLUG;
   return (
     <>
       <PageHeader title="Payments" description="Payments recorded by the licence server. Billing runs through Polar." updatedAt={new Date()}
         actions={<>
-          <a className="btn" href={org ? `https://polar.sh/dashboard/${org}/sales` : 'https://polar.sh/dashboard'} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" aria-hidden /> Open Polar</a>
+          <a className="btn" href={polarDashboardUrl(false, org, '/sales')} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" aria-hidden /> Open Polar</a>
           {exportBtn('payments')}
         </>} />
       <Filters action={path} fields={[

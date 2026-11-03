@@ -1,6 +1,7 @@
 import 'server-only';
 import { auditFilters, orTerm, queryAudit } from '@/lib/audit-query';
 import { PAGE_SIZE, splitCsv } from '@/lib/validation';
+import { polarSandbox } from '@/lib/polar-env';
 import { parseFlag } from '../state';
 import { botSettingsSchema, type BotSettings } from '../bot-settings';
 import { pn, T, daysFrom, iso, must, pick, type Row } from '../db';
@@ -40,7 +41,9 @@ export async function getSubscriptionHealth(): Promise<WorkList[]> {
     { key: 'pending', title: 'Crypto pending over 1 hour', hint: 'Possibly underpaid or abandoned.', rows: (pending.data ?? []) as Row[] },
     { key: 'failed', title: 'Failed payments (30 days)', hint: 'For example underpaid crypto.', rows: (failed.data ?? []) as Row[] },
     { key: 'dupes', title: 'Possible duplicate card subscriptions', hint: 'Two distinct Polar charges within 35 days.', rows: dupes },
-    { key: 'sandbox', title: 'Sandbox leftovers', hint: 'Card fields set but no live Polar payment on record.', rows: sandbox },
+    polarSandbox()
+      ? { key: 'sandbox', title: 'Card fields without a payment', hint: 'Card fields set but no paid Polar payment on record.', rows: sandbox }
+      : { key: 'sandbox', title: 'Sandbox leftovers', hint: 'Card fields set but no live Polar payment on record.', rows: sandbox },
   ];
 }
 

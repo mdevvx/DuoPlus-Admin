@@ -2,6 +2,7 @@ import { Badge, Card, KV, PageHeader } from '@/components/ui';
 import { BrandingCard } from '@/components/branding-card';
 import type { ProductModule, RouteCtx } from '@/products/types';
 import { SLUG, TmsError, adminBase, connection, getOverview, polarLink, tmsConfigured } from '../api';
+import { PolarModeBadge } from '@/components/polar-mode';
 import { polarEnv, polarPaymentsConfigured } from '../polar';
 
 async function checkConnection() {
@@ -23,7 +24,7 @@ export async function SettingsPage({ role, manifest }: { role: RouteCtx['role'];
             ['Status', c.state === 'ok' ? <Badge key="s" tone="success">Connected</Badge> : c.state === 'missing' ? <Badge key="s" tone="warning">Not set up</Badge> : <Badge key="s" tone="danger">Failed ({c.code})</Badge>],
             ['API host', host ?? '—'],
             ['Admin key', connection().key ? 'Set (never shown)' : 'Not set'],
-            ['Payments', `Polar ${polarEnv() === 'sandbox' ? 'sandbox' : 'live'}`],
+            ['Polar environment', <PolarModeBadge key="m" sandbox={polarEnv() === 'sandbox'} />],
             ['Payments access', polarPaymentsConfigured() ? <Badge key="p" tone="success">Token set</Badge> : <Badge key="p" tone="warning">No Polar token</Badge>],
           ]} />
           <p className="mt-4 text-muted">The connection details are kept safely on the server and are never shown in the browser. You can only view payments here: refunds, receipts and tax invoices are handled in <a className="text-accent hover:underline" href={polarLink()} target="_blank" rel="noopener noreferrer">Polar</a>.</p>

@@ -19,7 +19,7 @@ async function connection() {
 export async function SettingsPage({ role, manifest }: { role: RouteCtx['role']; manifest: ProductModule['manifest'] }) {
   const c = await connection();
   const base = env().WFC_API_BASE ?? 'https://wooflowconnect.duoplus.org/api/ext/v1';
-  const org = env().WFC_POLAR_ORG_SLUG ?? env().POLAR_DASHBOARD_ORG_SLUG;
+  const org = env().WFC_POLAR_ORG_SLUG ?? env().DISCONOTIFY_POLAR_ORG_SLUG;
   return (
     <>
       <PageHeader title="Settings" description="Product branding and the connection to the WooFlowConnect licence server." updatedAt={new Date()} />

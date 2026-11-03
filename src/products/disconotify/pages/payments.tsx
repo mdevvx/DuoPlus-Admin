@@ -5,6 +5,9 @@ import { DetailModal, CopyId } from '@/components/small-client';
 import { money, providerLabel } from '@/lib/format';
 import { can } from '@/lib/roles';
 import { env } from '@/lib/env';
+import { PolarModeBadge } from '@/components/polar-mode';
+import { polarSandbox } from '@/lib/polar-env';
+import { polarModeName } from '@/lib/polar-hosts';
 import { PAGE_SIZE } from '@/lib/validation';
 import { listPayments, paymentParams } from '../queries/payments';
 import { polarLink } from '../state';
@@ -22,22 +25,27 @@ export async function PaymentsPage({ searchParams, role }: RouteCtx) {
   const infos = await guildInfoMap(data.rows.map((r) => str(r.guild_id)).filter((g): g is string => !!g));
   const keep = Object.fromEntries(Object.entries(p).filter(([k, v]) => k !== 'page' && v !== undefined).map(([k, v]) => [k, String(v)]));
   const qs = new URLSearchParams(keep).toString();
-  const org = env().POLAR_DASHBOARD_ORG_SLUG;
+  const org = env().DISCONOTIFY_POLAR_ORG_SLUG;
+  // The panel follows one Polar environment; the other one's payments are kept apart and never count toward this mode's totals.
+  const sandbox = polarSandbox();
+  const here = polarModeName(sandbox);
+  const other = polarModeName(!sandbox);
   return (
+
     <>
       <PageHeader title="Payments" description="Ledger across Polar (card) and NOWPayments (crypto). Read only: refunds happen in the provider." updatedAt={new Date()}
-        actions={can(role, 'export.csv') && <a className="btn" href={`/api/export/disconotify/payments${qs ? `?${qs}` : ''}`}>Export CSV</a>} />
+        actions={<>{<PolarModeBadge sandbox={sandbox} />}{can(role, 'export.csv') && <a className="btn" href={`/api/export/disconotify/payments${qs ? `?${qs}` : ''}`}>Export CSV</a>}</>} />
       <Filters action={path} fields={[
         { type: 'multi', key: 'provider', label: 'Provider', options: [['', 'All'], ['polar', 'Polar (card)'], ['nowpayments', 'NOWPayments']] },
-        { type: 'select', key: 'mode', label: 'Mode', options: [['live', 'Live'], ['test', 'Sandbox'], ['all', 'Live and test']], default: 'live' },
+        { type: 'select', key: 'mode', label: 'Mode', options: [['live', here], ['test', other], ['all', 'Both']], default: 'live' },
         { type: 'multi', key: 'status', label: 'Status', options: [['', 'All'], ['paid', 'Paid'], ['pending', 'Pending'], ['failed', 'Failed'], ['expired', 'Expired']] },
         { type: 'daterange', key: 'date', label: 'Date', fromKey: 'from', toKey: 'to' },
         { type: 'numrange', key: 'amount', label: 'Amount', minKey: 'min', maxKey: 'max', prefix: '$' },
       ]} />
-      {p.mode === 'test' && <p className="mb-3 rounded-lg bg-warning-soft px-4 py-3 text-warning" role="status">Sandbox payments (Polar test mode). They are not real revenue and are left out of the Overview, MRR and live totals.</p>}
-      {p.mode === 'live' && data.testCount > 0 && <p className="mb-3 text-muted">{data.testCount} sandbox payment{data.testCount === 1 ? '' : 's'} are hidden from this live view. <Link className="font-medium text-accent hover:underline" href={`${path}?mode=test`}>View sandbox payments</Link></p>}
-      <p className="mb-3 text-muted">{p.mode === 'test' ? 'Sandbox' : 'Live'} paid total for this filter: <span className="num font-semibold text-ink">{money(p.mode === 'test' ? data.testPaidTotal : data.paidTotal)}</span>
-        {p.mode === 'all' && data.testPaidTotal > 0 && <> · Sandbox paid: <span className="num font-semibold text-ink">{money(data.testPaidTotal)}</span>, not real revenue</>} · {data.total.toLocaleString('en-US')} rows</p>
+      {p.mode === 'test' && <p className="mb-3 rounded-lg bg-warning-soft px-4 py-3 text-warning" role="status">{other} payments. This panel follows Polar {here.toLowerCase()}, so these are not {here.toLowerCase()} revenue and are left out of the Overview, MRR and {here.toLowerCase()} totals.</p>}
+      {p.mode === 'live' && data.testCount > 0 && <p className="mb-3 text-muted">{data.testCount} {other.toLowerCase()} payment{data.testCount === 1 ? '' : 's'} {data.testCount === 1 ? 'is' : 'are'} hidden from this {here.toLowerCase()} view. <Link className="font-medium text-accent hover:underline" href={`${path}?mode=test`}>View {other.toLowerCase()} payments</Link></p>}
+      <p className="mb-3 text-muted">{p.mode === 'test' ? other : here} paid total for this filter: <span className="num font-semibold text-ink">{money(p.mode === 'test' ? data.testPaidTotal : data.paidTotal)}</span>
+        {p.mode === 'all' && data.testPaidTotal > 0 && <> · {other} paid: <span className="num font-semibold text-ink">{money(data.testPaidTotal)}</span>, not {here.toLowerCase()} revenue</>} · {data.total.toLocaleString('en-US')} rows</p>
       {data.rows.length === 0 ? <div className="card"><EmptyState title="No payments match" /></div> : (
         <Table label="Payments">
           <thead><tr><th className="th">Created</th><th className="th">Provider</th><th className="th">Server</th><th className="th">Months</th><th className="th text-right">Amount</th><th className="th">Status</th><th className="th">Paid</th><th className="th" /></tr></thead>
@@ -45,7 +53,7 @@ export async function PaymentsPage({ searchParams, role }: RouteCtx) {
             const gid = str(r.guild_id);
             const sub = gid ? data.subByGuild[gid] : null;
             const test = data.test.has(String(r.id));
-            const polar = r.provider === 'polar' ? polarLink(sub, org, test) : null;
+            const polar = r.provider === 'polar' ? polarLink(sub, org, test ? !sandbox : sandbox) : null;
             return (
               <Tr key={i}>
                 <td className="td"><When value={str(r.created_at)} /></td><td className="td">{providerLabel(str(r.provider))}</td>
@@ -54,7 +62,7 @@ export async function PaymentsPage({ searchParams, role }: RouteCtx) {
                 <td className="td"><div className="flex flex-wrap items-center gap-1"><PaymentStatus status={r.status} /><TestBadge test={test} /></div></td><td className="td"><When value={str(r.paid_at)} /></td>
                 <td className="td text-right">
                   <span className="inline-flex items-center gap-2">
-                    {polar && <a className="inline-flex items-center gap-1 text-xs text-accent" href={polar} target="_blank" rel="noopener noreferrer">{test ? 'Polar sandbox' : 'Polar'} <ExternalLink className="h-3 w-3" aria-hidden /></a>}
+                    {polar && <a className="inline-flex items-center gap-1 text-xs text-accent" href={polar} target="_blank" rel="noopener noreferrer">{test ? `Polar ${other.toLowerCase()}` : sandbox ? 'Polar sandbox' : 'Polar'} <ExternalLink className="h-3 w-3" aria-hidden /></a>}
                     <DetailModal trigger="Quick view" title="Payment details">
                       <div className="mb-4 flex items-center justify-between rounded-lg bg-subtle px-4 py-3">
                         <div>

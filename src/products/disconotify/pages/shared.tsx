@@ -8,6 +8,8 @@ import { dateTime, money, platformLabel, providerLabel, sentence, statusTone } f
 import { STATE_LABEL, subscriptionState } from '../state';
 import { pick, str, type Row } from '../db';
 import { testPaymentIds } from '../polar';
+import { polarSandbox } from '@/lib/polar-env';
+import { polarModeName } from '@/lib/polar-hosts';
 import { SLUG } from '../db';
 
 export const base = `/p/${SLUG}`;
@@ -21,9 +23,9 @@ export function StateBadge({ billing, botPresent }: { billing: Row; botPresent: 
   return <Badge tone={STATE_LABEL[s].tone}>{STATE_LABEL[s].label}</Badge>;
 }
 
-/** Marks a payment made in Polar's sandbox so it is never mistaken for live revenue. */
+/** Marks a payment from the other Polar environment than the one the panel follows (Sandbox on a live panel, Live on a sandbox one), so it is never mistaken for this mode's revenue. */
 export function TestBadge({ test }: { test: boolean }) {
-  return test ? <Badge tone="warning">Sandbox</Badge> : null;
+  return test ? <Badge tone="warning">{polarModeName(!polarSandbox())}</Badge> : null;
 }
 
 /** A platform's name with its brand colour as a dot, in the same badge as every other status in the panel. */

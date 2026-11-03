@@ -102,7 +102,7 @@ export async function middleware(req: NextRequest) {
     return pathname === '/login' ? finish(res) : redirect('/mfa');
   }
 
-  // aal2 from here: enforce absolute (8h) and idle (30 min) lifetimes with signed cookies.
+  // aal2 from here: enforce absolute (8h) and idle (3 h) lifetimes with signed cookies.
   const startedAt = await readStamp(secret, 'started', user.id, req.cookies.get(COOKIE.started)?.value);
   const activeAt = await readStamp(secret, 'active', user.id, req.cookies.get(COOKIE.active)?.value);
   const state = sessionState(Date.now(), startedAt, activeAt);

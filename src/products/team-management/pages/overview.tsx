@@ -56,7 +56,7 @@ export async function OverviewPage({ admin }: RouteCtx) {
   const plans: Segment[] = Object.entries(byPlan).map(([k, v], i) => ({ label: PLAN_LABEL[k] ?? humanize(k), value: v, color: PLAN_COLOR[i % PLAN_COLOR.length] }));
   const totalWs = r.ok ? o.workspaces.total : 0;
   const covered = status('active') + status('trialing') + status('comped') + status('past_due');
-  const payLabel = polarEnv() === 'sandbox' ? 'Payments via Polar (sandbox)' : 'Payments via Polar';
+  const payLabel = polarEnv() === 'sandbox' ? 'Payments via Polar (sandbox)' : 'Payments via Polar (live)';
   const dash = (v: string) => (r.ok ? v : '—');
 
   return (
@@ -134,7 +134,7 @@ export async function OverviewPage({ admin }: RouteCtx) {
 
       <div className="mb-6 grid grid-cols-3 gap-5">
         <Card title="Paid revenue, last 30 days" className="col-span-2" action={pay ? <span className="num text-xs text-muted">Total {money(rev.cur)}</span> : undefined}>
-          {pay ? <BarChart data={revSeries} format={money} label="Paid revenue" /> : <EmptyState compact title="Revenue is not connected" hint="Add TMS_POLAR_ACCESS_TOKEN to read orders from Polar." />}
+          {pay ? <BarChart data={revSeries} format={money} label="Paid revenue" /> : <EmptyState compact title="Revenue is not connected" hint="Add DONEXEL_POLAR_ACCESS_TOKEN to read orders from Polar." />}
         </Card>
         <Card title="Workspaces by plan">
           {plans.length === 0 || plans.every((s) => s.value === 0) ? <EmptyState compact title="No plan data yet" /> : <Donut centerLabel="workspaces" segments={plans} />}
@@ -166,7 +166,7 @@ export async function OverviewPage({ admin }: RouteCtx) {
           )}
         </Card>
         <Card title="Latest payments" action={<Link className="text-xs font-medium text-accent" href={`${base}/payments`}>All payments</Link>}>
-          {!pay ? <EmptyState compact title="Payments are not connected" hint="Add TMS_POLAR_ACCESS_TOKEN to read orders from Polar." /> : payments.length === 0 ? <EmptyState compact title="No payments yet" /> : (
+          {!pay ? <EmptyState compact title="Payments are not connected" hint="Add DONEXEL_POLAR_ACCESS_TOKEN to read orders from Polar." /> : payments.length === 0 ? <EmptyState compact title="No payments yet" /> : (
             <Table label="Latest payments" bare>
               <thead><tr>{['Customer', 'Amount', 'Status'].map((h, i) => <th key={h} className={i === 1 ? 'th text-right' : 'th'}>{h}</th>)}</tr></thead>
               <tbody>{payments.slice(0, 6).map((p) => (

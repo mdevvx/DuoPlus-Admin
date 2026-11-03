@@ -2,6 +2,7 @@ import { Badge, Card, DetailRow, EmptyState, ErrorPanel, KV, PageHeader, Paginat
 import { ConfirmAction } from '@/components/confirm-action';
 import { AuditTable } from '@/components/audit-table';
 import { can } from '@/lib/roles';
+import { env } from '@/lib/env';
 import { BrandingCard } from '@/components/branding-card';
 import { dateTime, int, platformLabel, relative, sentence, statusTone } from '@/lib/format';
 import { PAGE_SIZE } from '@/lib/validation';
@@ -18,6 +19,8 @@ import { SLUG, num, str, type Row } from '../db';
 import { writeAudit } from '@/lib/audit';
 import { CopyId } from '@/components/small-client';
 import { DmStatus, PaymentStatus, dmKindLabel } from './shared';
+import { PolarModeBadge } from '@/components/polar-mode';
+import { polarSandbox } from '@/lib/polar-env';
 import { Filters } from '@/components/filters';
 import { ClampText, DetailModal } from '@/components/small-client';
 
@@ -27,7 +30,7 @@ export async function SubscriptionsPage() {
   const infos = await guildInfoMap(lists.flatMap((l) => l.rows.map((r) => String(r.guild_id))));
   return (
     <>
-      <PageHeader title="Subscriptions health" description="Things that may need a human." updatedAt={new Date()} />
+      <PageHeader title="Subscriptions health" description="Things that may need a human." updatedAt={new Date()} actions={<PolarModeBadge sandbox={polarSandbox()} />} />
       <div className="grid gap-4">
         {lists.map((l) => (
           <Card key={l.key} title={`${l.title} (${l.rows.length})`} action={<span className="text-xs text-muted">{l.hint}</span>}>
@@ -335,6 +338,12 @@ export async function SettingsPage({ role, manifest }: { role: RouteCtx['role'];
     <>
       <PageHeader title="Settings" description="Product branding, pricing and trial settings, and how the bot currently runs." updatedAt={new Date()} />
       <div className="mb-4"><BrandingCard slug={SLUG} role={role} manifest={manifest} /></div>
+      <div className="mb-4">
+        <Card title="Payments">
+          <KV items={[['Polar environment', <PolarModeBadge key="m" sandbox={polarSandbox()} />], ['Polar token', env().DISCONOTIFY_POLAR_ACCESS_TOKEN ? <Badge key="t" tone="success">Set</Badge> : <Badge key="t" tone="warning">Not set</Badge>]]} />
+          <p className="mt-4 text-xs text-muted">Set by DISCONOTIFY_POLAR_SANDBOX on the server. It must equal the bot&apos;s own POLAR_SANDBOX and the token must come from the same Polar environment. Payments from the other environment are kept out of this mode&apos;s totals.</p>
+        </Card>
+      </div>
       {platformHealth && (
         <div className="mb-4">
           <Card title="Platforms" action={<Link className="text-sm text-accent hover:underline" href={`${base}/health`}>Platform health</Link>}>

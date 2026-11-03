@@ -32,7 +32,7 @@ export default async function SettingsPage() {
         </Card>
         <Card title="Session policy (read only)">
           <KV items={[
-            ['Absolute lifetime', `${ABSOLUTE_MS / 3600000} hours`], ['Idle timeout', min(IDLE_MS)],
+            ['Absolute lifetime', `${ABSOLUTE_MS / 3600000} hours`], ['Idle timeout', `${IDLE_MS / 3600000} hours`],
             ['Step-up window', `${min(STEPUP_MS)} for dangerous actions`], ['Sign-in lockout', `${MAX_FAILURES} failures, ${min(LOCK_MS)}`],
           ]} />
         </Card>

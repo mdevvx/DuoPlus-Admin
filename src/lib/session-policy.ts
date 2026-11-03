@@ -1,5 +1,5 @@
 export const ABSOLUTE_MS = 8 * 60 * 60 * 1000;
-export const IDLE_MS = 30 * 60 * 1000;
+export const IDLE_MS = 3 * 60 * 60 * 1000;
 export const STEPUP_MS = 10 * 60 * 1000;
 export const LOCK_MS = 15 * 60 * 1000;
 export const MAX_FAILURES = 5;

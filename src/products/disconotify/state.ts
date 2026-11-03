@@ -1,3 +1,5 @@
+import { polarDashboardUrl } from '@/lib/polar-hosts';
+
 export type SubState = 'whitelisted' | 'card_past_due' | 'active_card' | 'active_crypto' | 'trial' | 'lapsed' | 'bot_removed' | 'new' | 'not_activated';
 
 export interface BillingLike {
@@ -47,9 +49,6 @@ export function parseFlag(v: unknown): boolean {
 
 /** Link to a Polar subscription, built only from the stored id. */
 export function polarLink(subscriptionId: string | null | undefined, orgSlug: string | undefined, sandbox = false): string | null {
-  const host = sandbox ? 'https://sandbox.polar.sh' : 'https://polar.sh';
   if (!subscriptionId || !/^[\w-]{6,64}$/.test(subscriptionId)) return null;
-  return orgSlug && /^[\w-]+$/.test(orgSlug)
-    ? `${host}/dashboard/${orgSlug}/sales/subscriptions/${subscriptionId}`
-    : `${host}/dashboard`;
+  return polarDashboardUrl(sandbox, orgSlug, `/sales/subscriptions/${subscriptionId}`);
 }

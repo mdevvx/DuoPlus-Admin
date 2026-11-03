@@ -10,6 +10,7 @@ import { PAGE_SIZE, csvEnum, splitCsv } from '@/lib/validation';
 import type { RouteCtx } from '@/products/types';
 import { PLAN_LABEL, polarLink } from '../api';
 import { PLAN_NAMES, REASON_LABEL, STATUS_LABEL, filterPayments, totals, type PaymentRow } from '../payments';
+import { PolarModeBadge } from '@/components/polar-mode';
 import { describePolar, listPayments, polarEnv, polarPaymentsConfigured } from '../polar';
 import { base } from './shared';
 
@@ -36,7 +37,7 @@ export async function PaymentsPage({ role, searchParams }: RouteCtx) {
     return (
       <>
         <PageHeader title="Payments" description="Orders for the Starter, Growth and Scale plans, read from Polar." />
-        <Card><EmptyState title="Polar is not connected for payments" hint="Add TMS_POLAR_ACCESS_TOKEN (a Polar token with order read access, from the same Polar environment as the Donexel) and redeploy." /></Card>
+        <Card><EmptyState title="Polar is not connected for payments" hint="Add DONEXEL_POLAR_ACCESS_TOKEN (a Polar token with order read access, from the same Polar environment as the Donexel) and redeploy." /></Card>
       </>
     );
   }
@@ -55,7 +56,7 @@ export async function PaymentsPage({ role, searchParams }: RouteCtx) {
     <>
       <PageHeader title="Payments" description="Orders for the Starter, Growth and Scale plans, read from Polar. Refunds and receipts happen in Polar." updatedAt={new Date()}
         actions={<>
-          
+          <PolarModeBadge sandbox={polarEnv() === 'sandbox'} />
           {can(role, 'export.csv') && <a className="btn" href={`/api/export/team-management/payments${qs ? `?${qs}` : ''}`}>Export CSV</a>}
           <a className="btn" href={org} target="_blank" rel="noopener noreferrer">Open Polar <ExternalLink className="h-3.5 w-3.5" aria-hidden /></a>
         </>} />
@@ -74,7 +75,7 @@ export async function PaymentsPage({ role, searchParams }: RouteCtx) {
         <Card><Stat label="Net" value={money(t.net / 100)} /></Card>
         <Card><Stat label="Orders" value={int(t.orders)} /></Card>
       </div>
-      {!all.byProductIds && <div className="mb-4"><Notice tone="info">Plans are recognised by product name (Starter, Growth, Scale). Set TMS_POLAR_PRODUCT_IDS to match them exactly.</Notice></div>}
+      {!all.byProductIds && <div className="mb-4"><Notice tone="info">Plans are recognised by product name (Starter, Growth, Scale). Set DONEXEL_POLAR_PRODUCT_IDS to match them exactly.</Notice></div>}
       {all.rows.length >= 500 && <p className="mb-3 text-xs text-muted">Showing the latest 500 orders from Polar. Use Polar for older history.</p>}
 
       {rows.length === 0 ? <div className="card"><EmptyState title={all.rows.length === 0 ? 'No orders yet' : 'No payments match'} hint={all.rows.length === 0 ? `Nothing in Polar ${polarEnv() === 'sandbox' ? 'sandbox' : 'live'} for these plans.` : 'Change or reset the filters.'} /></div> : (

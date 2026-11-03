@@ -22,7 +22,7 @@ Admins only. Nobody else can sign in, ever.
 1. **Allowlist only.** Table `hub_admins` (see data model). Signing in is possible only for an email that is in it and `active = true`. Public sign-up is **disabled** in Supabase Auth. An unknown email gets the same neutral message as a known one ("If this address is allowed, a sign-in link is on its way") so the allowlist can't be probed.
 2. **Passwordless email link or code** through Supabase Auth, for allowlisted emails only (check the allowlist *before* asking Supabase to send anything — use a server action with the service key).
 3. **Second factor required**: TOTP (Supabase MFA). First login forces enrolment; every session needs `aal2`. Offer 8 one-time recovery codes at enrolment.
-4. **Sessions**: HttpOnly, Secure, SameSite=Lax cookies; 8-hour absolute lifetime, 30-minute idle timeout; "sign out everywhere" button. Re-ask MFA for dangerous actions older than 10 minutes (see "step-up").
+4. **Sessions**: HttpOnly, Secure, SameSite=Lax cookies; 8-hour absolute lifetime, 3-hour idle timeout; "sign out everywhere" button. Re-ask MFA for dangerous actions older than 10 minutes (see "step-up").
 5. **Every request is authorised on the server** — middleware plus a check inside each loader/action (`requireAdmin(role)`); never rely on hiding buttons. Deny by default.
 6. **Roles** per admin, optionally per product: `owner` (manage admins, everything), `admin` (all actions in assigned products), `support` (read + limited actions), `viewer` (read only). Admins see only the products they are assigned.
 7. Rate limit sign-in attempts (per IP and per email), lock for 15 minutes after 5 failures, and log every sign-in, failure and sign-out.

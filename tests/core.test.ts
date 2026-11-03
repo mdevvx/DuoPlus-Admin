@@ -32,11 +32,11 @@ describe('sessions', () => {
     expect(await readStamp('x'.repeat(32), 'started', 'user-1', s)).toBeNull();
     expect(await readStamp('x'.repeat(32), 'active', 'user-1', undefined)).toBeNull();
   });
-  it('enforces 8h absolute and 30m idle', () => {
+  it('enforces 8h absolute and 3h idle', () => {
     const t = 1e12;
     expect(sessionState(t, t - 1000, t - 1000)).toBe('ok');
     expect(sessionState(t, t - ABSOLUTE_MS - 1, t - 1000)).toBe('expired');
-    expect(sessionState(t, t - 3600_000, t - IDLE_MS - 1)).toBe('idle');
+    expect(sessionState(t, t - 4 * 3600_000, t - IDLE_MS - 1)).toBe('idle');
     expect(sessionState(t, null, t)).toBe('missing');
   });
 });

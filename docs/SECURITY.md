@@ -19,7 +19,7 @@ authenticator check younger than 10 minutes, a reason of at least 5 characters, 
 | Stranger signs in / probes the allowlist | Email + password through Supabase Auth, then the allowlist (`hub_admins.active`) is checked; wrong password, unknown email and non-allowlisted email all return the same message; public sign-up disabled in Supabase. |
 | Stolen or guessed password | TOTP (Supabase MFA) required for every session (`aal2`); recovery codes are HMAC-stored and single use. |
 | Brute force | Failures per email-hash and per IP counted in `hub_login_attempts`; lock for 15 minutes after 5 failures (fail closed). Applies to code, MFA and recovery attempts. |
-| Session theft / forgotten tab | HttpOnly, Secure, SameSite=Lax cookies; 8-hour absolute and 30-minute idle limits enforced in middleware with signed cookies; "sign out everywhere". |
+| Session theft / forgotten tab | HttpOnly, Secure, SameSite=Lax cookies; 8-hour absolute and 3-hour idle limits enforced in middleware with signed cookies; "sign out everywhere". |
 | Broken access control | Middleware plus `requireAdmin()` in every page, route and action; product access derived from assignments; deny by default. |
 | CSRF | Same-origin check on every non-GET request in middleware, Next.js Server Action origin check, SameSite=Lax. |
 | XSS / clickjacking | Per-request nonce CSP, no `dangerouslySetInnerHTML` (lint rule), `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`, HSTS, minimal Permissions-Policy. Inline styles are allowed; inline scripts are not. |

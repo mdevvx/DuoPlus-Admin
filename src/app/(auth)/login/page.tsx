@@ -5,7 +5,7 @@ import { LoginForm } from './login-form';
 export const metadata: Metadata = { title: 'Sign in' };
 
 const REASONS: Record<string, string> = {
-  idle: 'You were signed out after 30 minutes of inactivity.',
+  idle: 'You were signed out after 3 hours of inactivity.',
   expired: 'Your 8-hour session ended. Please sign in again.',
 };
 

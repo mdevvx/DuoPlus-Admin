@@ -39,7 +39,8 @@ Everything lives in your **existing Supabase project** and database, in two sche
 | `HUB_URL` | Public origin of the panel (same-origin check, email redirects) |
 | `SESSION_SECRET` | 32+ random characters; signs session-timing and step-up cookies |
 | `INITIAL_OWNER_EMAIL` | The first password login with this email creates the first owner (only while no admin exists) |
-| `POLAR_DASHBOARD_ORG_SLUG` | Optional; builds Polar deep links |
+| `DISCONOTIFY_POLAR_SANDBOX` | `true` = Polar sandbox, `false` or unset = live. Must equal the bot's own `POLAR_SANDBOX`; the token below must come from the same environment |
+| `DISCONOTIFY_POLAR_ORG_SLUG` | Optional; builds Polar deep links (the slug differs between sandbox and live) |
 | `DISCORD_BOT_TOKEN` | Optional; server only. Lets the panel show server names and icons (looked up read-only from Discord, cached 6 hours). Without it servers show by ID |
 
 ## Scripts
