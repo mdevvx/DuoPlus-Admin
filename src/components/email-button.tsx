@@ -10,9 +10,8 @@ import { fieldLabel as label } from './form';
 import { ModalHeader } from './modal-header';
 
 const LINKS: [string, string][] = [
-  ['subscribe_url', 'Subscribe page'],
-  ['activate_url', 'Trial activation page'],
-  ['manage_url', 'Manage or cancel page'],
+  ['subscribe_url', 'Billing page (subscribe)'],
+  ['manage_url', 'Billing page (manage or cancel)'],
 ];
 
 /**

@@ -5,7 +5,7 @@
 | Role | Can do |
 |---|---|
 | `owner` | Everything, in every product. Invite, edit and deactivate admins. Cannot demote or deactivate themselves; the last active owner cannot be removed. |
-| `admin` | Everything inside the products they are assigned: view, trial/paid-day changes, whitelist, bot-removed, reminders, contacts, maintenance, CSV export, audit. Cannot manage admins. |
+| `admin` | Everything inside the products they are assigned: view, grant/remove paid time, pause/resume/remove accounts, whitelist, bot-removed, reminders, contacts, maintenance, CSV export, audit. Cannot manage admins. |
 
 Anyone else cannot sign in at all. There are no read-only or support accounts.
 

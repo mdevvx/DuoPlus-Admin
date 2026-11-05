@@ -1,110 +1,87 @@
 import 'server-only';
 import { z } from 'zod';
-import { PAGE_SIZE, csvEnum, snowflake, splitCsv } from '@/lib/validation';
+import { PAGE_SIZE, csvEnum, likeTerm, snowflake, splitCsv } from '@/lib/validation';
+import { hubDb } from '@/lib/supabase-server';
 import { pn, T, daysFrom, iso, must, pick, type Row } from '../db';
 
-export const SERVER_STATES = ['trial', 'active', 'lapsed', 'whitelisted', 'card_past_due', 'bot_removed', 'new', 'not_activated'] as const;
-export const SORTS = ['guild_id', 'paid_until', 'trial_ends_at'] as const;
+export const PLAN_FILTERS = ['free', 'paid', 'grace', 'whitelisted'] as const;
+export const SERVER_FLAGS = ['was_paid', 'over_limit', 'card_past_due', 'card_cancelling', 'bot_removed', 'bot_off'] as const;
+export const SORTS = ['name', 'guild_id', 'paid_until'] as const;
 
 export const serverParams = z.object({
   page: z.coerce.number().int().min(1).max(100000).catch(1),
   q: z.string().trim().max(100).optional().catch(undefined),
-  state: csvEnum(SERVER_STATES), // one or more states, comma-separated (matches any)
-  sort: z.enum(SORTS).catch('guild_id'),
-  dir: z.enum(['asc', 'desc']).catch('desc'),
+  plan: csvEnum(PLAN_FILTERS), // one or more plans, comma-separated (matches any)
+  flag: csvEnum(SERVER_FLAGS), // extra conditions, comma-separated (all must hold)
+  sort: z.enum(SORTS).catch('name'),
+  dir: z.enum(['asc', 'desc']).catch('asc'),
 });
 export type ServerParams = z.infer<typeof serverParams>;
 
-export interface ServerRow { guild_id: string; name: string | null; bot_present: boolean | null; billing: Row }
+/** Accounts of one server, counted from notify_platform_accounts. */
+export interface AccountStats { total: number; paused: number; perPlatform: Record<string, number>; maxPerPlatform: number }
 
-/** Server-side filtered + paginated list. State filters mirror subscriptionState() in ../state.ts. */
+export async function accountStatsByGuild(): Promise<Map<string, AccountStats>> {
+  const res = await pn().from(T.accounts).select('guild_id,platform,paused_by_plan').limit(50000);
+  const out = new Map<string, AccountStats>();
+  if (res.error) return out;
+  for (const r of (res.data ?? []) as Row[]) {
+    const id = String(r.guild_id);
+    const s = out.get(id) ?? { total: 0, paused: 0, perPlatform: {}, maxPerPlatform: 0 };
+    const p = String(r.platform ?? '').toLowerCase();
+    s.total++;
+    if (r.paused_by_plan === true) s.paused++;
+    s.perPlatform[p] = (s.perPlatform[p] ?? 0) + 1;
+    s.maxPerPlatform = Math.max(s.maxPerPlatform, s.perPlatform[p]!);
+    out.set(id, s);
+  }
+  return out;
+}
+
+export interface ServerRow { guild_id: string; name: string | null; icon_url: string | null; bot_present: boolean | null; enabled: boolean | null; plan: Row; stats: AccountStats }
+const NO_ACCOUNTS: AccountStats = { total: 0, paused: 0, perPlatform: {}, maxPerPlatform: 0 };
+
+/** Server-side filtered + paginated list, read from the notify_guild_plans view (the bot's own plan rule). */
 export async function listServers(p: ServerParams): Promise<{ rows: ServerRow[]; total: number }> {
   const db = pn();
   const now = iso(new Date());
-  let ids: string[] | null = null; // restrict to guild ids found via the guilds table
+  const plans = splitCsv(p.plan);
+  const flags = new Set(splitCsv(p.flag));
+  const stats = await accountStatsByGuild();
 
+  let q = db.from(T.plans).select('*', { count: 'exact' });
   if (p.q) {
-    if (snowflake.safeParse(p.q).success) ids = [p.q];
-    else {
-      return { rows: [], total: 0 }; // guilds have no name column: search is by server ID
-    }
+    if (snowflake.safeParse(p.q).success) q = q.eq('guild_id', p.q);
+    else q = q.ilike('name', `%${likeTerm(p.q)}%`);
   }
-  const states = splitCsv(p.state);
-  const removedOnly = states.length === 1 && states[0] === 'bot_removed';
-  let removed: string[] = [];
-  if (states.includes('bot_removed')) {
-    const g = must(await db.from(T.guilds).select('guild_id').eq('bot_present', false).limit(2000), 'removed guilds') as Row[];
-    removed = g.map((r) => String(r.guild_id));
-    if (removedOnly) ids = ids ? ids.filter((i) => removed.includes(i)) : removed;
+  if (plans.length) q = q.in('plan', plans);
+  if (flags.has('was_paid')) q = q.eq('plan', 'free').not('paid_until', 'is', null);
+  if (flags.has('over_limit')) {
+    const over = [...stats].filter(([, s]) => s.maxPerPlatform > 1).map(([id]) => id).slice(0, 500);
+    if (over.length === 0) return { rows: [], total: 0 };
+    q = q.eq('plan', 'free').in('guild_id', over);
   }
-  if (ids && ids.length === 0) return { rows: [], total: 0 };
-
-  // Servers the bot knows but that have no billing row yet (e.g. added today) are listed after the billed ones.
-  const [allGuilds, billed] = await Promise.all([
-    db.from(T.guilds).select('guild_id').limit(20000),
-    db.from(T.billing).select('guild_id').limit(20000),
-  ]);
-  const billedIds = new Set(((billed.data ?? []) as Row[]).map((r) => String(r.guild_id)));
-  const missingAll = ((allGuilds.data ?? []) as Row[]).map((r) => String(r.guild_id)).filter((g) => !billedIds.has(g) && (!ids || ids.includes(g)));
-  const missing = states.length === 0 ? missingAll
-    : missingAll.filter((g) => states.includes('new') || (states.includes('bot_removed') && removed.includes(g)));
-  // With only "new" selected there is nothing to read from the billing table.
-  const billingStates = states.filter((s) => s !== 'new');
-  const skipBilling = states.length > 0 && billingStates.length === 0;
+  if (flags.has('card_past_due')) q = q.eq('card_status', 'past_due');
+  if (flags.has('card_cancelling')) q = q.not('card_cancels_at', 'is', null).gt('paid_until', now);
+  if (flags.has('bot_removed')) q = q.eq('bot_present', false);
+  if (flags.has('bot_off')) q = q.eq('bot_present', true).eq('enabled', false);
 
   const from = (p.page - 1) * PAGE_SIZE;
-  const buildBilling = (head: boolean) => {
-    let q = head ? db.from(T.billing).select('guild_id', { count: 'exact', head: true }) : db.from(T.billing).select('*');
-    if (ids) q = q.in('guild_id', ids);
-    return filterByState(q);
-  };
-
-  // Several states match any of them: each state is one clause of a single OR.
-  const unpaid = `or(paid_until.is.null,paid_until.lte.${now})`;
-  const clause: Record<string, string> = {
-    trial: `and(whitelisted.eq.false,${unpaid},trial_ends_at.gt.${now})`,
-    active: `and(whitelisted.eq.false,paid_until.gt.${now})`,
-    lapsed: `and(whitelisted.eq.false,${unpaid},or(trial_ends_at.lte.${now},and(trial_ends_at.is.null,activation_required.eq.false)))`,
-    not_activated: `and(activation_required.eq.true,trial_ends_at.is.null)`,
-    whitelisted: 'whitelisted.eq.true',
-    card_past_due: 'card_status.eq.past_due',
-  };
-  // Supabase's builder types are too deep to thread through a generic helper.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function filterByState(q: any): any {
-    if (removedOnly || billingStates.length === 0) return q;
-    const parts = billingStates.filter((s) => clause[s]).map((s) => clause[s]!);
-    if (removed.length) parts.push(`guild_id.in.(${removed.join(',')})`);
-    return parts.length ? q.or(parts.join(',')) : q;
-  }
-
-  let billingTotal = 0;
-  let billing: Row[] = [];
-  if (!skipBilling) {
-    const head = await buildBilling(true);
-    billingTotal = head.error ? 0 : (head.count ?? 0);
-    if (from < billingTotal) {
-      const res = await buildBilling(false).order(p.sort, { ascending: p.dir === 'asc', nullsFirst: false }).range(from, from + PAGE_SIZE - 1);
-      billing = must(res, 'servers') as Row[];
-    }
-  }
-  const missingSlice = missing.slice(Math.max(0, from - billingTotal), Math.max(0, from + PAGE_SIZE - billingTotal));
-  const gids = [...billing.map((b) => String(b.guild_id)), ...missingSlice];
-  const guilds = gids.length ? (must(await db.from(T.guilds).select('guild_id,bot_present').in('guild_id', gids), 'guild names') as Row[]) : [];
-  const byId = new Map(guilds.map((g) => [String(g.guild_id), g]));
-  const row = (id: string, b: Row): ServerRow => {
-    const g = byId.get(id);
-    return { guild_id: id, name: pick(g, 'name'), bot_present: (g?.bot_present as boolean | null) ?? null, billing: b };
-  };
+  const res = await q.order(p.sort, { ascending: p.dir === 'asc', nullsFirst: false }).range(from, from + PAGE_SIZE - 1);
+  const rows = must(res, 'servers') as Row[];
   return {
-    total: billingTotal + missing.length,
-    rows: [...billing.map((b) => row(String(b.guild_id), b)), ...missingSlice.map((id) => row(id, { guild_id: id, no_billing: true }))],
+    total: res.count ?? rows.length,
+    rows: rows.map((r) => ({
+      guild_id: String(r.guild_id), name: pick(r, 'name'), icon_url: pick(r, 'icon_url'),
+      bot_present: (r.bot_present as boolean | null) ?? null, enabled: (r.enabled as boolean | null) ?? null,
+      plan: r, stats: stats.get(String(r.guild_id)) ?? NO_ACCOUNTS,
+    })),
   };
 }
 
 export async function getServer(id: string) {
   const db = pn();
-  const [guild, billing, payments, accounts, channels, events, audit, memberEmails, dmLog, emailContacts, emailTimeline] = await Promise.all([
+  const [guild, billing, payments, accounts, channels, events, audit, memberEmails, dmLog, emailContacts, emailTimeline, plan, configs, jobs, grants] = await Promise.all([
     db.from(T.guilds).select('*').eq('guild_id', id).maybeSingle(),
     db.from(T.billing).select('*').eq('guild_id', id).maybeSingle(),
     db.from(T.payments).select('*').eq('guild_id', id).order('created_at', { ascending: false }).limit(50),
@@ -116,6 +93,10 @@ export async function getServer(id: string) {
     db.from(T.dmLog).select('id,discord_user_id,kind,status,error,created_at').eq('guild_id', id).order('created_at', { ascending: false }).limit(100),
     db.from(T.emailContacts).select('*').eq('guild_id', id).order('created_at', { ascending: false }).limit(100),
     db.from(T.emailOutbox).select('*').eq('guild_id', id).order('created_at', { ascending: false }).limit(20),
+    db.from(T.plans).select('*').eq('guild_id', id).maybeSingle(),
+    db.from(T.alerts).select('*').eq('guild_id', id).limit(500),
+    db.from(T.jobs).select('id,kind,status,result,requested_by,created_at,finished_at').eq('guild_id', id).gte('created_at', iso(daysFrom(-1))).order('created_at', { ascending: false }).limit(20),
+    hubDb().from('hub_audit_log').select('at,admin_email,after,reason').eq('action', 'billing.grant_days').eq('target_id', id).order('at', { ascending: false }).limit(10),
   ]);
   if (!guild.data && !billing.data) return null;
   const g = (guild.data ?? {}) as Row;
@@ -124,6 +105,10 @@ export async function getServer(id: string) {
   const payerRow = ((payments.data ?? []) as Row[]).find((p) => p.requested_by);
   const ownerId = pick(g, 'owner_id', 'owner_discord_id', 'owner_user_id') ?? pick(payerRow, 'requested_by');
   return {
+    plan: (plan.data ?? null) as Row | null,
+    configs: configs.error ? [] : ((configs.data ?? []) as Row[]),
+    jobs: jobs.error ? [] : ((jobs.data ?? []) as Row[]),
+    grants: grants.error ? [] : ((grants.data ?? []) as Row[]),
     guild: safeGuild as Row, billing: (billing.data ?? null) as Row | null, ownerId,
     payments: (payments.data ?? []) as Row[], accounts: (accounts.data ?? []) as Row[], channels: (channels.data ?? []) as Row[],
     events: (events.data ?? []) as Row[], audit: (audit.data ?? []) as Row[], memberEmails: (memberEmails.data ?? []) as Row[],
@@ -137,10 +122,10 @@ export async function getServer(id: string) {
 
 export async function searchServers(q: string) {
   const db = pn();
-  const rows = snowflake.safeParse(q).success
-    ? must(await db.from(T.guilds).select('guild_id').eq('guild_id', q).limit(5), 'search')
-    : [];
-  return rows as Row[];
+  const res = snowflake.safeParse(q).success
+    ? await db.from(T.plans).select('guild_id,name').eq('guild_id', q).limit(5)
+    : await db.from(T.plans).select('guild_id,name').ilike('name', `%${likeTerm(q)}%`).limit(5);
+  return (res.data ?? []) as Row[];
 }
 
 export const soon = (days: number) => iso(daysFrom(days));

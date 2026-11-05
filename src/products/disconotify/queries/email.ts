@@ -2,7 +2,6 @@ import 'server-only';
 import { z } from 'zod';
 import { PAGE_SIZE, csvEnum, splitCsv } from '@/lib/validation';
 import { pn, T, daysFrom, iso, must, num, pick, str, type Row } from '../db';
-import { subscriptionState } from '../state';
 import { DEFAULT_LAYOUT, SCHEDULE_DEFAULTS, layoutSchema, scheduleSchema, type EmailLayout, type EmailSchedule } from '../email/vars';
 
 // ---- bot_state JSON (layout, schedule) ----
@@ -179,7 +178,7 @@ export const sentCount = (rows: Row[]) => rows.reduce((a, r) => a + num(r.sent30
 
 // ---- manual send: recipients ----
 
-export const SEND_STATES = ['trial', 'active', 'lapsed', 'card_past_due'] as const;
+export const SEND_STATES = ['paid', 'grace', 'free', 'card_past_due'] as const;
 export const recipientSchema = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('server'), guildId: z.string().regex(/^\d{5,25}$/, 'Enter a server ID') }),
   z.object({ mode: z.literal('filter'), states: z.array(z.enum(SEND_STATES)).min(1, 'Pick at least one state') }),
@@ -232,15 +231,13 @@ export async function resolveRecipients(r: RecipientInput, marketing: boolean): 
   let guildIds: string[];
   if (r.mode === 'server') guildIds = [r.guildId];
   else {
-    const [billing, guilds] = await Promise.all([
-      pn().from(T.billing).select('guild_id,trial_ends_at,paid_until,whitelisted,card_subscription_id,card_status').limit(20000),
-      pn().from(T.guilds).select('guild_id,bot_present').limit(20000),
-    ]);
-    const present = new Map(((guilds.data ?? []) as Row[]).map((g) => [String(g.guild_id), g.bot_present as boolean | null]));
+    // The plan comes from the bot's own view; the state names match the filter options in the send form.
+    const plans = await pn().from(T.plans).select('guild_id,plan,card_status').limit(20000);
     const want = new Set<string>(r.states);
-    guildIds = ((billing.data ?? []) as Row[]).filter((b) => {
-      const s = subscriptionState({ trial_ends_at: str(b.trial_ends_at), paid_until: str(b.paid_until), whitelisted: b.whitelisted as boolean, card_subscription_id: str(b.card_subscription_id), card_status: str(b.card_status) }, present.get(String(b.guild_id)));
-      return s === 'active_card' || s === 'active_crypto' ? want.has('active') : want.has(s);
+    guildIds = ((plans.data ?? []) as Row[]).filter((b) => {
+      if (b.plan === 'whitelisted') return false;
+      if (b.card_status === 'past_due' && want.has('card_past_due')) return true;
+      return want.has(String(b.plan));
     }).map((b) => String(b.guild_id));
   }
 

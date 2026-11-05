@@ -4,7 +4,9 @@ import { PAGE_SIZE, splitCsv } from '@/lib/validation';
 import { polarSandbox } from '@/lib/polar-env';
 import { parseFlag } from '../state';
 import { botSettingsSchema, type BotSettings } from '../bot-settings';
-import { pn, T, daysFrom, iso, must, pick, type Row } from '../db';
+import { hubDb } from '@/lib/supabase-server';
+import { accountStatsByGuild } from './servers';
+import { pn, T, daysFrom, iso, must, type Row } from '../db';
 import { SLUG } from '../db';
 
 // ---------------------------------------------------------------- subscriptions health
@@ -13,13 +15,17 @@ export interface WorkList { key: string; title: string; hint: string; rows: Row[
 export async function getSubscriptionHealth(): Promise<WorkList[]> {
   const db = pn();
   const now = iso(new Date());
-  const [pastDue, cancelling, pending, failed, polarPaid, cardRows] = await Promise.all([
+  const [pastDue, cancelling, pending, failed, polarPaid, cardRows, freePlans, cardButFree, grants, stats] = await Promise.all([
     db.from(T.billing).select('guild_id,card_status,paid_until').eq('card_status', 'past_due').limit(50),
     db.from(T.billing).select('guild_id,card_status,card_cancels_at,paid_until').not('card_cancels_at', 'is', null).gt('paid_until', now).limit(50),
     db.from(T.payments).select('*').eq('status', 'pending').eq('provider', 'nowpayments').lt('created_at', iso(new Date(Date.now() - 3600_000))).order('created_at').limit(50),
     db.from(T.payments).select('*').eq('status', 'failed').gte('created_at', iso(daysFrom(-30))).order('created_at', { ascending: false }).limit(50),
     db.from(T.payments).select('guild_id,external_id,created_at').eq('provider', 'polar').eq('status', 'paid').limit(20000),
     db.from(T.billing).select('guild_id,card_subscription_id,card_status').not('card_subscription_id', 'is', null).limit(5000),
+    db.from(T.plans).select('guild_id,paid_until').eq('plan', 'free').eq('bot_present', true).limit(50000),
+    db.from(T.plans).select('guild_id,card_status,paid_until').eq('plan', 'free').eq('has_card_subscription', true).limit(50),
+    hubDb().from('hub_audit_log').select('target_id,at,admin_email,after').eq('action', 'billing.grant_days').order('at', { ascending: false }).limit(200),
+    accountStatsByGuild(),
   ]);
 
   // Heuristic: two distinct Polar charges for one server within 35 days suggests two live subscriptions.
@@ -35,7 +41,21 @@ export async function getSubscriptionHealth(): Promise<WorkList[]> {
   const hasLive = new Set(((polarPaid.data ?? []) as Row[]).map((r) => String(r.guild_id)));
   const sandbox = ((cardRows.data ?? []) as Row[]).filter((r) => !hasLive.has(String(r.guild_id))).slice(0, 50);
 
+  // Free servers with more than one account on a platform: their extras are paused. Lapsed customers first (best upsell leads).
+  const overLimit = ((freePlans.data ?? []) as Row[])
+    .map((r) => ({ guild_id: String(r.guild_id), accounts_on_busiest_platform: stats.get(String(r.guild_id))?.maxPerPlatform ?? 0, paused: stats.get(String(r.guild_id))?.paused ?? 0, was_paid_until: r.paid_until }))
+    .filter((r) => r.accounts_on_busiest_platform > 1)
+    .sort((a, b) => Number(!!b.was_paid_until) - Number(!!a.was_paid_until) || b.accounts_on_busiest_platform - a.accounts_on_busiest_platform)
+    .slice(0, 50);
+  // One row per server: its latest admin grant.
+  const seenGrant = new Set<string>();
+  const granted = ((grants.data ?? []) as Row[]).filter((g) => { const k = String(g.target_id); if (seenGrant.has(k)) return false; seenGrant.add(k); return true; }).slice(0, 50)
+    .map((g) => ({ guild_id: String(g.target_id), granted_at: g.at, days: (g.after as Record<string, unknown> | null)?.days ?? null, granted_by: g.admin_email }));
+
   return [
+    { key: 'over_limit', title: 'Free servers over the limit', hint: 'Upsell leads: servers that were paid before come first. Their extra accounts are paused.', rows: overLimit },
+    { key: 'card_but_free', title: 'Card subscription but still on Free', hint: 'Payment confirmed but not applied. This is a bot problem.', rows: (cardButFree.data ?? []) as Row[] },
+    { key: 'granted', title: 'Paid time granted by an admin', hint: 'Not revenue. Review these now and then.', rows: granted },
     { key: 'past_due', title: 'Card past due', hint: 'Polar could not charge the card.', rows: (pastDue.data ?? []) as Row[] },
     { key: 'cancelling', title: 'Cancelled, still active', hint: 'Will end on the date shown.', rows: (cancelling.data ?? []) as Row[] },
     { key: 'pending', title: 'Crypto pending over 1 hour', hint: 'Possibly underpaid or abandoned.', rows: (pending.data ?? []) as Row[] },
@@ -57,15 +77,13 @@ export async function getReminders() {
   const db = pn();
   const now = iso(new Date());
   const [upcoming, recent] = await Promise.all([
-    db.from(T.billing).select('*').eq('whitelisted', false)
-      .or(`and(paid_until.gt.${now},paid_until.lte.${iso(daysFrom(7))}),and(paid_until.is.null,trial_ends_at.gt.${now},trial_ends_at.lte.${iso(daysFrom(7))})`).limit(50),
+    // Paid time ending within a week, plus servers already in the grace period.
+    db.from(T.plans).select('guild_id,plan,paid_until,card_status').in('plan', ['paid', 'grace']).lte('paid_until', iso(daysFrom(7))).order('paid_until').limit(50),
     db.from(T.billing).select('*').not('last_reminder_at', 'is', null)
       .order('last_reminder_at', { ascending: false, nullsFirst: false }).limit(50),
   ]);
-  const ids = [...new Set([...(upcoming.data ?? []), ...(recent.data ?? [])].map((r: Row) => String(r.guild_id)))];
-  void ids; // guilds have no name column
-  const nameOf: Record<string, string | null> = {};
-  return { upcoming: (upcoming.data ?? []) as Row[], recent: (recent.data ?? []) as Row[], nameOf };
+  void now;
+  return { upcoming: (upcoming.data ?? []) as Row[], recent: (recent.data ?? []) as Row[] };
 }
 
 /**
@@ -142,41 +160,43 @@ export async function productHealthSummary(): Promise<'ok' | 'warn' | 'down'> {
   return bad.length === 0 ? 'ok' : bad.length >= active.length ? 'down' : 'warn';
 }
 
-// ---------------------------------------------------------------- audit (hub slice + bot log, merged by time)
-export async function getMergedAudit(sp: Record<string, string | undefined>) {
+// ---------------------------------------------------------------- audit: the hub's admin log, and the customers' dashboard log
+export async function getAdminAudit(sp: Record<string, string | undefined>) {
   const f = auditFilters.parse(sp);
-  const need = f.page * PAGE_SIZE;
-  const hub = await queryAudit({ ...f, page: 1 }, { product: SLUG, paged: false, limit: need });
-  let botQ = pn().from(T.botAudit).select('*').order('created_at', { ascending: false }).limit(need);
+  const hub = await queryAudit(f, { product: SLUG });
+  return { rows: hub.rows, total: hub.total, f };
+}
+
+/** Changes customers made on the dashboard (notify_audit_logs). The actor is a customer's Discord ID, not an admin. */
+export async function getDashboardAudit(sp: Record<string, string | undefined>) {
+  const f = auditFilters.parse(sp);
+  let q = pn().from(T.botAudit).select('*', { count: 'exact' }).order('created_at', { ascending: false });
   const actions = splitCsv(f.action).map(orTerm).filter(Boolean);
-  const targets = splitCsv(f.target);
-  const admins = splitCsv(f.admin).map((a) => a.toLowerCase());
-  if (actions.length) botQ = botQ.or(actions.map((t) => `action.ilike."${t}%"`).join(','));
-  if (targets.length) botQ = botQ.in('guild_id', targets);
-  const bot = await botQ;
-  const botRows = ((bot.data ?? []) as Row[]).map((r, i) => ({
-    id: Number(r.id ?? i), at: String(r.created_at ?? r.at ?? ''), admin_email: null, product_slug: SLUG,
-    action: pick(r, 'action', 'event', 'type') ?? 'bot.event', target_type: 'server', target_id: pick(r, 'guild_id'),
-    before: null, after: r.details ?? r.metadata ?? null, reason: pick(r, 'reason', 'message'), ip: null, source: 'bot' as const,
-  }));
-  const merged = [...hub.rows.map((r) => ({ ...r, source: 'hub' as const })), ...botRows]
-    .filter((r) => (admins.length === 0 || admins.some((a) => (r.admin_email ?? '').toLowerCase().includes(a))) && (!f.from || r.at >= f.from) && (!f.to || r.at <= `${f.to}T23:59:59Z`))
-    .sort((a, b) => (a.at < b.at ? 1 : -1));
-  return { rows: merged.slice((f.page - 1) * PAGE_SIZE, f.page * PAGE_SIZE), total: hub.total + (bot.data?.length ?? 0), f };
+  const guilds = splitCsv(f.target).filter((t) => /^\d{5,25}$/.test(t));
+  const actors = splitCsv(f.admin).filter((t) => /^\d{5,25}$/.test(t)); // "admin" box carries the customer's Discord ID here
+  if (actions.length) q = q.or(actions.map((t) => `action.ilike."${t}%"`).join(','));
+  if (guilds.length) q = q.in('guild_id', guilds);
+  if (actors.length) q = q.in('actor_id', actors);
+  if (f.from) q = q.gte('created_at', `${f.from}T00:00:00Z`);
+  if (f.to) q = q.lte('created_at', `${f.to}T23:59:59Z`);
+  const res = await q.range((f.page - 1) * PAGE_SIZE, f.page * PAGE_SIZE - 1);
+  return { rows: must(res, 'dashboard audit') as Row[], total: res.count ?? 0, f };
 }
 
 // ---------------------------------------------------------------- settings
-const SETTING_KEYS = ['price_usd', 'price', 'trial_days', 'grace_days', 'reminder_schedule', 'reminder_days', 'twitch_poll_interval_seconds'];
+const SETTING_KEYS = ['price_usd', 'price', 'grace_days', 'reminder_schedule', 'reminder_days', 'twitch_poll_interval_seconds'];
 export async function getBotSettings() {
   const { data } = await pn().from(T.botState).select('key,value').in('key', SETTING_KEYS);
   return (data ?? []) as Row[];
 }
 
-/** Settings saved from the panel (price, trial days, grace days). A missing field means the bot uses its own default. */
+/** Settings saved from the panel (price, grace days). A missing field means the bot uses its own default. */
 export async function getSavedBotSettings(): Promise<BotSettings> {
   const { data } = await pn().from(T.botState).select('value').eq('key', 'bot_settings').maybeSingle();
   let v: unknown = (data as Row | null)?.value;
   if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = null; } }
+  // The trial is gone: drop a leftover trial_days from older saves instead of failing the whole object.
+  if (v && typeof v === 'object') { const { trial_days: _legacy, ...rest } = v as Record<string, unknown>; v = rest; }
   const parsed = botSettingsSchema.safeParse(v ?? {});
   return parsed.success ? parsed.data : {};
 }

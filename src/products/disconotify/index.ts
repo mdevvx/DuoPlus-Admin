@@ -8,12 +8,16 @@ import { searchCustomers, searchMembers } from './queries/customers';
 import { searchPayments } from './queries/payments';
 import { maskEmail } from '@/lib/format';
 import { exportPayments } from './queries/payments';
+import { getGrandfathering } from './queries/freeplan';
+import { BOT_OFFLINE_BURST, jobStats } from './queries/jobs';
 import { exportEmailContacts } from './queries/email';
 import { OverviewPage } from './pages/overview';
 import { ServerDetailPage, ServersPage } from './pages/servers';
 import { CustomerDetailPage, CustomersPage } from './pages/customers';
 import { BotStatusPage } from './pages/bot';
 import { PaymentsPage } from './pages/payments';
+import { JobsPage } from './pages/jobs';
+import { FreePlanPage } from './pages/freeplan';
 import { AuditPage, HealthPage, RemindersPage, SettingsPage, SubscriptionsPage } from './pages/ops';
 import { EmailBatchPage, EmailSendPage, EmailContactsPage, EmailOutboxPage, EmailSettingsPage, EmailTemplatePage, EmailTemplatesPage } from './pages/email';
 import { SLUG, str } from './db';
@@ -29,6 +33,8 @@ const disconotify: ProductModule = {
     { label: 'Customers', path: 'customers', icon: 'customers', shortcut: 'c' },
     { label: 'Payments', path: 'payments', icon: 'payments', shortcut: 'p' },
     { label: 'Subscriptions', path: 'subscriptions', icon: 'subscriptions', shortcut: 'b' },
+    { label: 'Free-plan usage', path: 'free-plan', icon: 'overview', shortcut: 'f' },
+    { label: 'Dashboard jobs', path: 'jobs', icon: 'health', shortcut: 'j' },
     { label: 'Reminders & email', path: 'reminders', icon: 'reminders', shortcut: 'r' },
     { label: 'Email templates', path: 'email/templates', icon: 'template', shortcut: 't' },
     { label: 'Send email', path: 'email/send', icon: 'outbox', shortcut: 'm' },
@@ -48,6 +54,8 @@ const disconotify: ProductModule = {
     'customers/:id': { permission: 'read', render: CustomerDetailPage },
     payments: { permission: 'read', render: PaymentsPage },
     subscriptions: { permission: 'read', render: () => SubscriptionsPage() },
+    'free-plan': { permission: 'read', render: FreePlanPage },
+    jobs: { permission: 'read', render: JobsPage },
     reminders: { permission: 'read', render: RemindersPage },
     'email/templates': { permission: 'read', render: EmailTemplatesPage },
     'email/templates/:key': { permission: 'read', render: EmailTemplatePage },
@@ -64,17 +72,20 @@ const disconotify: ProductModule = {
     const o = await getOverview();
     return [
       { label: 'Servers with bot', value: int(o.botPresent) },
-      { label: 'Active subs', value: int(o.activeTotal) },
+      { label: 'Paid servers', value: int(o.paidTotal) },
       { label: 'MRR', value: money(o.mrr) },
     ];
   },
   attention: async () => {
-    const [c, o] = await Promise.all([attentionCounts(), getOverview()]);
+    const [c, o, j] = await Promise.all([attentionCounts(), getOverview(), jobStats().catch(() => null)]);
     const out: Awaited<ReturnType<NonNullable<ProductModule['attention']>>> = [];
     if (c.past_due) out.push({ label: 'Cards past due', detail: String(c.past_due), href: `${base}/subscriptions`, tone: 'danger' });
     if (c.pending) out.push({ label: 'Crypto payments pending over 1 hour', detail: String(c.pending), href: `${base}/subscriptions`, tone: 'warning' });
     if (c.failed) out.push({ label: 'Failed payments (30 days)', detail: String(c.failed), href: `${base}/payments?status=failed`, tone: 'warning' });
-    if (o.trialsEnding) out.push({ label: 'Trials ending within 3 days', detail: String(o.trialsEnding), href: `${base}/servers?state=trial`, tone: 'info' });
+    if (o.overLimit) out.push({ label: 'Free servers over the free limit', detail: String(o.overLimit), href: `${base}/servers?flag=over_limit`, tone: 'info' });
+    if (o.aboutToLapse) out.push({ label: 'Paid servers about to lapse', detail: String(o.aboutToLapse), href: `${base}/servers?flag=card_cancelling`, tone: 'warning' });
+    if (j && j.offlineLastHour >= BOT_OFFLINE_BURST) out.push({ label: 'Dashboard jobs failing: the bot looks offline', detail: String(j.offlineLastHour), href: `${base}/jobs?code=bot_offline`, tone: 'danger' });
+    if (c.card_but_free) out.push({ label: 'Card subscriptions not applied (still Free)', detail: String(c.card_but_free), href: `${base}/subscriptions`, tone: 'danger' });
     if (o.maintenance) out.push({ label: 'Maintenance mode is on', detail: 'On', href: `${base}/health`, tone: 'warning' });
     return out;
   },
@@ -91,6 +102,7 @@ const disconotify: ProductModule = {
   exports: {
     'email-contacts': { permission: 'email.settings', filename: 'disconotify-email-contacts', rows: exportEmailContacts },
     payments: { permission: 'export.csv', filename: 'disconotify-payments', rows: exportPayments },
+    grandfathering: { permission: 'export.csv', filename: 'disconotify-servers-to-announce', rows: getGrandfathering },
   },
 };
 export default disconotify;

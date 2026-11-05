@@ -1,6 +1,6 @@
 import 'server-only';
 import { unstable_cache } from 'next/cache';
-import { hubDb } from './supabase-server';
+import { hubDb, serviceClient } from './supabase-server';
 
 export interface GuildInfo { name: string; iconUrl: string | null }
 export type DiscordStatus = 'ok' | 'missing' | 'invalid' | 'unreachable';
@@ -50,10 +50,25 @@ async function loadSnapshots(ids: string[]): Promise<Record<string, GuildInfo>> 
   return out;
 }
 
+/** Names and icons the bot itself saved in notify_guilds (via the notify_guild_plans view). The first choice: no Discord call needed. */
+async function loadDbNames(ids: string[]): Promise<Record<string, GuildInfo>> {
+  const out: Record<string, GuildInfo> = {};
+  const valid = ids.filter((i) => /^\d{5,25}$/.test(i));
+  for (let i = 0; i < valid.length; i += 200) {
+    try {
+      const { data } = await serviceClient('disconotify').from('notify_guild_plans').select('guild_id,name,icon_url').in('guild_id', valid.slice(i, i + 200));
+      for (const r of (data ?? []) as { guild_id: string; name: string | null; icon_url: string | null }[]) if (r.name) out[String(r.guild_id)] = { name: r.name, iconUrl: r.icon_url };
+    } catch { /* view not migrated yet: fall back to Discord */ }
+  }
+  return out;
+}
+
 const cached = unstable_cache(async (id: string) => fetchGuild(id), ['discord-guild'], { revalidate: SIX_HOURS });
 
 export async function getGuildInfo(id: string): Promise<GuildInfo | null> {
   if (!/^\d{5,25}$/.test(id)) return null;
+  const fromDb = (await loadDbNames([id]))[id];
+  if (fromDb) return fromDb;
   const live = await liveGuild(id);
   return live ?? (await loadSnapshots([id]))[id] ?? null;
 }
@@ -69,8 +84,12 @@ async function liveGuild(id: string): Promise<GuildInfo | null> {
 
 /** Names and icons for many servers, with limited concurrency to stay well under Discord's rate limits. */
 export async function guildInfoMap(ids: string[]): Promise<Record<string, GuildInfo | null>> {
-  const unique = [...new Set(ids)];
+  const all = [...new Set(ids)];
   const out: Record<string, GuildInfo | null> = {};
+  const known = await loadDbNames(all);
+  for (const id of all) if (known[id]) out[id] = known[id]!;
+  // A server the bot has not restarted with since the migration has no name yet: ask Discord, then the snapshot.
+  const unique = all.filter((id) => !known[id]);
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(6, unique.length) }, async () => {
     while (next < unique.length) {

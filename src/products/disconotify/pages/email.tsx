@@ -14,7 +14,7 @@ import { SLUG, pick, str, type Row } from '../db';
 import { templateNames, batchProgress, contactParams, getLayout, getOutboxRow, getSchedule, getTemplate, getVersions, listContacts, listOutbox, listTemplates, outboxHealth, outboxParams, OUTBOX_STATUSES } from '../queries/email';
 import { logoLoads } from '../email/logo';
 import { Notice } from '@/components/form';
-import { BUILT_IN, CATEGORY_LABEL, SCHEDULE_DEFAULTS } from '../email/vars';
+import { BUILT_IN, CATEGORY_LABEL, RETIRED_TEMPLATES, SCHEDULE_DEFAULTS } from '../email/vars';
 import { Filters } from '@/components/filters';
 import { ServerLink, base } from './shared';
 
@@ -47,8 +47,8 @@ export async function EmailTemplatesPage({ role }: RouteCtx) {
             const key = String(t.key);
             return (
               <Tr key={key}>
-                <td className="td"><Cell text={pick(t, 'name') ?? key} sub={<span className="inline-flex items-center gap-1.5">{categoryBadge(str(t.category))}</span>} max={230} href={`${root}/templates/${key}`} /></td>
-                <td className="td whitespace-nowrap"><div className="flex items-center gap-2"><Badge tone={t.enabled === false ? 'warning' : 'success'}>{t.enabled === false ? 'Off' : 'On'}</Badge><TemplateToggle tplKey={key} enabled={t.enabled !== false} disabled={!edit} /></div></td>
+                <td className="td"><Cell text={pick(t, 'name') ?? key} sub={<span className="inline-flex items-center gap-1.5">{categoryBadge(str(t.category))}{RETIRED_TEMPLATES.has(key) && <Badge tone="neutral">Retired</Badge>}</span>} max={230} href={`${root}/templates/${key}`} /></td>
+                <td className="td whitespace-nowrap"><div className="flex items-center gap-2"><Badge tone={t.enabled === false ? 'warning' : 'success'}>{t.enabled === false ? 'Off' : 'On'}</Badge><TemplateToggle tplKey={key} enabled={t.enabled !== false} disabled={!edit || RETIRED_TEMPLATES.has(key)} /></div></td>
                 <td className="td"><Cell text={str(t.subject)} max={260} /></td>
                 <td className="td whitespace-nowrap"><div>Version {str(t.version) ?? '—'}{str(t.updated_by) ? ` · ${maskEmail(str(t.updated_by))}` : ''}</div><div className="text-xs text-muted"><When value={str(t.updated_at)} /></div></td>
                 <td className="td num">{int(t.sent30 as number)}</td>
@@ -212,7 +212,7 @@ export async function EmailContactsPage({ searchParams, role }: RouteCtx) {
         { type: 'text', key: 'guild', label: 'Server ID', placeholder: 'Server ID' },
         { type: 'select', key: 'marketing', label: 'Marketing', options: [['', 'All'], ['subscribed', 'Subscribed'], ['unsubscribed', 'Unsubscribed']] },
       ]} />
-      {data.rows.length === 0 ? <div className="card"><EmptyState title={data.filtered ? 'No contacts match' : 'No email contacts yet'} hint={data.filtered ? 'Change or clear the filters.' : 'Addresses appear when someone activates a trial or checks out. You can also add one manually.'} /></div> : (
+      {data.rows.length === 0 ? <div className="card"><EmptyState title={data.filtered ? 'No contacts match' : 'No email contacts yet'} hint={data.filtered ? 'Change or clear the filters.' : 'Addresses appear when someone checks out. You can also add one manually.'} /></div> : (
         <Table label="Email contacts">
           <thead><tr>{['Address', 'Server', 'Marketing', 'Added', ''].map((h, i) => <th key={i} className="th">{h}</th>)}</tr></thead>
           <tbody>{data.rows.map((r, i) => {
@@ -272,8 +272,8 @@ export async function EmailSettingsPage({ role }: RouteCtx) {
           {owner ? <ScheduleForm initial={schedule.effective} source={schedule.source} defaults={SCHEDULE_DEFAULTS} /> : (
             <KV items={[
               ['Renewal reminder (days before)', `${schedule.effective.renewal_days_before}${schedule.effective.renewal_days_before === 0 ? ' (never)' : ''}`],
-              ['Trial-ended reminders: days apart', String(schedule.effective.trial_reminder_every_days)],
-              ['Trial-ended reminders: total', String(schedule.effective.trial_reminder_max)],
+              ['Subscription-ended reminders: every N days', String(schedule.effective.trial_reminder_every_days)],
+              ['Subscription-ended reminders: at most M', String(schedule.effective.trial_reminder_max)],
             ]} />
           )}
         </Card>
@@ -305,7 +305,7 @@ export async function EmailSendPage({ searchParams, admin }: RouteCtx) {
     <>
       <PageHeader title="Send email" description="For anything the automatic emails do not cover. Emails are queued and the bot sends them within about a minute." updatedAt={new Date()} />
       <EmailSend accent={accent} adminEmail={admin.email} base={base}
-        templates={templates.map((t) => ({ key: String(t.key), name: pick(t, 'name') ?? String(t.key), category: pick(t, 'category') ?? 'transactional', subject: pick(t, 'subject') ?? '', preheader: pick(t, 'preheader') ?? '', html: pick(t, 'body_html') ?? '', text: pick(t, 'body_text') ?? '' }))}
+        templates={templates.filter((t) => !RETIRED_TEMPLATES.has(String(t.key))).map((t) => ({ key: String(t.key), name: pick(t, 'name') ?? String(t.key), category: pick(t, 'category') ?? 'transactional', subject: pick(t, 'subject') ?? '', preheader: pick(t, 'preheader') ?? '', html: pick(t, 'body_html') ?? '', text: pick(t, 'body_text') ?? '' }))}
         prefill={again || /^\d{5,25}$/.test(searchParams.guild ?? '') ? { guildId: str(again?.guild_id) ?? searchParams.guild, templateKey: str(again?.template_key) ?? undefined, subject: str(again?.subject_override) ?? undefined, html: str(again?.body_html) ?? undefined, text: str(again?.body_text) ?? undefined, marketing: vars.marketing === true } : undefined} />
     </>
   );

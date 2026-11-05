@@ -9,7 +9,6 @@ const RANK: Record<Role, number> = { admin: 1, owner: 2 };
 export const PERMISSIONS = {
   'read': 'admin',
   'export.csv': 'admin',
-  'server.trial': 'admin',
   'server.mark_removed': 'admin',
   'server.adjust_paid': 'admin',
   'server.whitelist': 'admin',

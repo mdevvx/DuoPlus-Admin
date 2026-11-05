@@ -7,6 +7,8 @@ export const pn = (): Db => serviceClient('disconotify');
 
 export const T = {
   guilds: 'notify_guilds',
+  plans: 'notify_guild_plans',
+  jobs: 'notify_dashboard_jobs',
   billing: 'notify_billing',
   payments: 'notify_payments',
   contacts: 'notify_user_contacts',

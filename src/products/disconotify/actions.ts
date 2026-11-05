@@ -49,11 +49,12 @@ async function billingOp(op: string, permission: Permission, fd: FormData, opts:
 const daysField = (min: number, max: number) => (fd: FormData) =>
   z.coerce.number().int().min(min).max(max).refine((n) => n !== 0, 'Days cannot be 0').parse(fd.get('days'));
 
-export async function extendTrial(fd: FormData): Promise<ActionResult> {
-  return runAction(async () => { await billingOp('extend_trial', 'server.trial', fd, { typed: false, days: daysField(1, 90) }); return 'Trial extended'; });
+/** A comp or goodwill gift: adds days to paid_until. Audit log only, never a ledger row, so revenue stays real. */
+export async function grantPaidTime(fd: FormData): Promise<ActionResult> {
+  return runAction(async () => { await billingOp('grant_days', 'server.adjust_paid', fd, { typed: true, days: daysField(1, 365) }); return 'Paid time granted'; });
 }
-export async function adjustPaidDays(fd: FormData): Promise<ActionResult> {
-  return runAction(async () => { await billingOp('adjust_paid', 'server.adjust_paid', fd, { typed: true, days: daysField(-365, 365) }); return 'Paid days updated'; });
+export async function removePaidTime(fd: FormData): Promise<ActionResult> {
+  return runAction(async () => { await billingOp('remove_paid', 'server.adjust_paid', fd, { typed: true }); return 'Paid time removed'; });
 }
 export async function whitelistServer(fd: FormData): Promise<ActionResult> {
   return runAction(async () => { await billingOp('whitelist', 'server.whitelist', fd, { typed: true, note: true }); return 'Server whitelisted'; });
@@ -63,6 +64,23 @@ export async function removeWhitelist(fd: FormData): Promise<ActionResult> {
 }
 export async function markBotRemoved(fd: FormData): Promise<ActionResult> {
   return runAction(async () => { await billingOp('mark_bot_removed', 'server.mark_removed', fd, { typed: true }); return 'Marked as bot removed'; });
+}
+
+/** Support action on one monitored account. Pause and resume only flip `enabled`; the plan limit is the bot's business. */
+async function accountOp(op: 'pause' | 'resume' | 'remove', fd: FormData) {
+  const guildId = snowflake.parse(fd.get('guildId'));
+  const account = z.string().regex(/^[\w-]{1,64}$/, 'Invalid account').parse(fd.get('accountId'));
+  const { admin, ip, ua, d } = await gate('support.act', fd);
+  await callRpc(hubDb(), 'dn_account_change', { p_op: op, p_guild: guildId, p_account: account, p_admin: admin.id, p_admin_email: admin.email, p_ip: ip, p_ua: ua, p_reason: d.reason });
+}
+export async function pauseAccount(fd: FormData): Promise<ActionResult> {
+  return runAction(async () => { await accountOp('pause', fd); return 'Account paused'; });
+}
+export async function resumeAccount(fd: FormData): Promise<ActionResult> {
+  return runAction(async () => { await accountOp('resume', fd); return 'Account resumed'; });
+}
+export async function removeAccount(fd: FormData): Promise<ActionResult> {
+  return runAction(async () => { await accountOp('remove', fd); return 'Account removed'; });
 }
 
 export async function resetReminders(fd: FormData): Promise<ActionResult> {
@@ -100,7 +118,7 @@ export async function setMaintenance(fd: FormData): Promise<ActionResult> {
   });
 }
 
-/** Price, trial days and grace days. Empty boxes fall back to the bot's own defaults. Owner only, with a reason and authenticator check. */
+/** Price and grace days. Empty boxes fall back to the bot's own defaults. Owner only, with a reason and authenticator check. */
 export async function saveBotSettings(fd: FormData): Promise<ActionResult> {
   return runAction(async () => {
     const { admin, ip, ua, d } = await gate('bot.settings', fd);

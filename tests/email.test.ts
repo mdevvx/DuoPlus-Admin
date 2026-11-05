@@ -104,13 +104,13 @@ describe('moving buttons', () => {
 describe('bot settings form', () => {
   const form = (o: Record<string, string>) => (k: string) => o[k] ?? '';
   it('accepts values, treats empty boxes as the bot default', () => {
-    expect(parseBotSettingsForm(form({ price_usd: '1.99', trial_days: '7', grace_days: '' }))).toEqual({ price_usd: 1.99, trial_days: 7 });
+    expect(parseBotSettingsForm(form({ price_usd: '1.99', grace_days: '' }))).toEqual({ price_usd: 1.99 });
     expect(parseBotSettingsForm(form({}))).toEqual({});
   });
   it('rejects bad numbers and out-of-range values', () => {
     expect(() => parseBotSettingsForm(form({ price_usd: 'abc' }))).toThrow();
     expect(() => parseBotSettingsForm(form({ price_usd: '0.10' }))).toThrow();
-    expect(() => parseBotSettingsForm(form({ trial_days: '2.5' }))).toThrow();
-    expect(() => parseBotSettingsForm(form({ trial_days: '91' }))).toThrow();
+    expect(() => parseBotSettingsForm(form({ grace_days: '2.5' }))).toThrow();
+    expect(() => parseBotSettingsForm(form({ grace_days: '61' }))).toThrow();
   });
 });

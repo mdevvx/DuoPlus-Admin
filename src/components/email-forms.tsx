@@ -92,8 +92,8 @@ export function LayoutForm({ initial, logoSrc, brandingHref }: { initial: EmailL
 
 const SCHEDULE_FIELDS: { key: keyof EmailSchedule; title: string; hint: string; min: number; max: number }[] = [
   { key: 'renewal_days_before', title: 'Renewal reminder: days before the charge', hint: '0 = never send the "payment coming up" email.', min: 0, max: 30 },
-  { key: 'trial_reminder_every_days', title: 'Trial-ended reminders: days between emails', hint: 'Gap between reminders after a trial ends.', min: 1, max: 60 },
-  { key: 'trial_reminder_max', title: 'Trial-ended reminders: how many in total', hint: '0 = none.', min: 0, max: 10 },
+  { key: 'trial_reminder_every_days', title: 'Subscription-ended reminders: every N days', hint: 'Gap between reminders after paid time ends.', min: 1, max: 60 },
+  { key: 'trial_reminder_max', title: 'Subscription-ended reminders: at most M', hint: '0 = none.', min: 0, max: 10 },
 ];
 
 export function ScheduleForm({ initial, source, defaults }: { initial: EmailSchedule; source: Record<keyof EmailSchedule, 'setting' | 'default'>; defaults: EmailSchedule }) {

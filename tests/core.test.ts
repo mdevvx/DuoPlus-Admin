@@ -43,15 +43,20 @@ describe('sessions', () => {
 
 describe('subscription state', () => {
   const now = Date.parse('2026-10-17T00:00:00Z');
-  const future = '2026-11-01T00:00:00Z', past = '2026-09-01T00:00:00Z';
+  const future = '2026-11-01T00:00:00Z', past = '2026-09-01T00:00:00Z', justLapsed = '2026-10-15T00:00:00Z';
   it('classifies', () => {
     expect(subscriptionState({ whitelisted: true }, true, now)).toBe('whitelisted');
-    expect(subscriptionState({ paid_until: future, card_subscription_id: 'sub_1' }, true, now)).toBe('active_card');
-    expect(subscriptionState({ paid_until: future }, true, now)).toBe('active_crypto');
-    expect(subscriptionState({ trial_ends_at: future }, true, now)).toBe('trial');
-    expect(subscriptionState({ trial_ends_at: past, paid_until: past }, true, now)).toBe('lapsed');
+    expect(subscriptionState({ paid_until: future, card_subscription_id: 'sub_1' }, true, now)).toBe('paid_card');
+    expect(subscriptionState({ paid_until: future }, true, now)).toBe('paid_crypto');
+    expect(subscriptionState({ paid_until: justLapsed }, true, now)).toBe('grace');
+    expect(subscriptionState({ paid_until: past }, true, now)).toBe('free');
+    expect(subscriptionState({}, true, now)).toBe('free');
     expect(subscriptionState({ card_status: 'past_due', paid_until: future }, true, now)).toBe('card_past_due');
     expect(subscriptionState({ whitelisted: true }, false, now)).toBe('bot_removed');
+  });
+  it('trusts the plan the view reports', () => {
+    expect(subscriptionState({ plan: 'free', paid_until: future }, true, now)).toBe('free');
+    expect(subscriptionState({ plan: 'paid', has_card_subscription: true }, true, now)).toBe('paid_card');
   });
   it('parses the maintenance flag shapes', () => {
     expect([parseFlag(true), parseFlag('true'), parseFlag({ enabled: true }), parseFlag(null), parseFlag('no')]).toEqual([true, true, true, false, false]);

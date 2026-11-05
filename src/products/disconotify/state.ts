@@ -1,43 +1,60 @@
 import { polarDashboardUrl } from '@/lib/polar-hosts';
 
-export type SubState = 'whitelisted' | 'card_past_due' | 'active_card' | 'active_crypto' | 'trial' | 'lapsed' | 'bot_removed' | 'new' | 'not_activated';
+/** The plan as the bot computes it (view notify_guild_plans). The panel never re-derives it from dates when the view has spoken. */
+export type Plan = 'free' | 'paid' | 'grace' | 'whitelisted';
+export const PLANS: readonly Plan[] = ['free', 'paid', 'grace', 'whitelisted'];
+
+export type SubState = 'free' | 'paid_card' | 'paid_crypto' | 'grace' | 'whitelisted' | 'card_past_due' | 'bot_removed';
+
+/** Keep equal to the bot's BILLING_GRACE_DAYS and the 3 grace days built into the view. Only the fallback below uses it. */
+export const GRACE_DAYS = 3;
 
 export interface BillingLike {
-  /** Set for servers that exist in the guilds table but have no billing row yet (the bot creates it on first use). */
-  no_billing?: boolean;
-  trial_ends_at?: string | null;
+  /** The view's plan. When present it wins over anything derived from dates. */
+  plan?: string | null;
   paid_until?: string | null;
   whitelisted?: boolean | null;
   card_subscription_id?: string | null;
   card_status?: string | null;
-  /** Set until the admin starts the trial on the website; alerts stay paused until then. */
-  activation_required?: boolean | null;
+  has_card_subscription?: boolean | null;
 }
 
-/** Single place that decides what "state" a server is in. Filters in queries/servers.ts mirror this. */
+const isPlan = (v: unknown): v is Plan => typeof v === 'string' && (PLANS as readonly string[]).includes(v);
+
+/** Plan from dates, for rows that did not come from the view (the view is the source of truth everywhere else). */
+export function planFromBilling(b: BillingLike, now = Date.now()): Plan {
+  if (isPlan(b.plan)) return b.plan;
+  if (b.whitelisted) return 'whitelisted';
+  const until = b.paid_until ? new Date(b.paid_until).getTime() : NaN;
+  if (Number.isNaN(until)) return 'free';
+  if (until > now) return 'paid';
+  return until + GRACE_DAYS * 86400000 > now ? 'grace' : 'free';
+}
+
+/** Single place that decides what badge a server shows. */
 export function subscriptionState(b: BillingLike, botPresent: boolean | null | undefined, now = Date.now()): SubState {
   if (botPresent === false) return 'bot_removed';
-  if (b.no_billing) return 'new';
-  if (b.whitelisted) return 'whitelisted';
+  const plan = planFromBilling(b, now);
+  if (plan === 'whitelisted') return 'whitelisted';
   if (b.card_status === 'past_due') return 'card_past_due';
-  const paid = b.paid_until ? new Date(b.paid_until).getTime() > now : false;
-  if (paid) return b.card_subscription_id ? 'active_card' : 'active_crypto';
-  if (b.activation_required && !b.trial_ends_at) return 'not_activated';
-  const trial = b.trial_ends_at ? new Date(b.trial_ends_at).getTime() > now : false;
-  return trial ? 'trial' : 'lapsed';
+  if (plan === 'paid') return b.card_subscription_id || b.has_card_subscription ? 'paid_card' : 'paid_crypto';
+  return plan;
 }
 
 export const STATE_LABEL: Record<SubState, { label: string; tone: 'success' | 'warning' | 'danger' | 'info' | 'neutral' }> = {
+  free: { label: 'Free', tone: 'neutral' },
+  paid_card: { label: 'Paid · card', tone: 'success' },
+  paid_crypto: { label: 'Paid · crypto', tone: 'success' },
+  grace: { label: 'Grace', tone: 'warning' },
   whitelisted: { label: 'Whitelisted', tone: 'info' },
   card_past_due: { label: 'Card past due', tone: 'danger' },
-  active_card: { label: 'Active · card', tone: 'success' },
-  active_crypto: { label: 'Active · crypto', tone: 'success' },
-  trial: { label: 'Trial', tone: 'warning' },
-  lapsed: { label: 'Lapsed', tone: 'neutral' },
   bot_removed: { label: 'Bot removed', tone: 'neutral' },
-  new: { label: 'New · no billing yet', tone: 'info' },
-  not_activated: { label: 'Not activated', tone: 'warning' },
 };
+
+/** An account the bot keeps switched off because the server is on the free plan and over its limit. */
+export function pausedByPlan(account: Record<string, unknown> | null | undefined): boolean {
+  return account?.paused_by_plan === true;
+}
 
 /** Maintenance flag as stored in notify_bot_state: true | "true" | {enabled: true}. */
 export function parseFlag(v: unknown): boolean {

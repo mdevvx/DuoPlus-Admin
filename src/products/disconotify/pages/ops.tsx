@@ -7,7 +7,7 @@ import { BrandingCard } from '@/components/branding-card';
 import { dateTime, int, platformLabel, relative, sentence, statusTone } from '@/lib/format';
 import { PAGE_SIZE } from '@/lib/validation';
 import { PLATFORMS, platformColor, platformOrder } from '@/lib/platforms';
-import { getBotSettings, getSavedBotSettings, getMergedAudit, getPlatformHealth, getTikTokBlockRate, getAbandonedCheckouts, getFailedDms, getReminders, getSubscriptionHealth } from '../queries/ops';
+import { getBotSettings, getSavedBotSettings, getAdminAudit, getDashboardAudit, getPlatformHealth, getTikTokBlockRate, getAbandonedCheckouts, getFailedDms, getReminders, getSubscriptionHealth } from '../queries/ops';
 import Link from 'next/link';
 import { saveBotSettings, setMaintenance } from '../actions';
 import { BOT_SETTING_FIELDS, type BotSettings } from '../bot-settings';
@@ -19,6 +19,7 @@ import { SLUG, num, str, type Row } from '../db';
 import { writeAudit } from '@/lib/audit';
 import { CopyId } from '@/components/small-client';
 import { DmStatus, PaymentStatus, dmKindLabel } from './shared';
+import { emailBadges } from '../queries/email';
 import { PolarModeBadge } from '@/components/polar-mode';
 import { polarSandbox } from '@/lib/polar-env';
 import { Filters } from '@/components/filters';
@@ -64,16 +65,18 @@ export async function RemindersPage({ role, admin }: RouteCtx) {
     emailCountsByType().catch(() => null),
   ]);
   if (abandoned.some((a) => a.email)) await writeAudit({ admin_id: admin.id, admin_email: admin.email, product_slug: SLUG, action: 'view.abandoned_checkouts', target_type: 'reminders', target_id: 'abandoned_checkouts' });
+  const hasMail = await emailBadges([...new Set([...d.upcoming, ...d.recent].map((r) => String(r.guild_id)))]).catch(() => null);
   const act = (gid: string) => can(role, 'email.send') && <Link className="btn h-7 px-2.5 text-xs" href={`${base}/email/send?guild=${gid}`}>Send email</Link>;
   const table = (rows: typeof d.upcoming, title: string) => rows.length === 0 ? <EmptyState title={`No ${title.toLowerCase()}`} /> : (
     <Table label={title}>
-      <thead><tr><th className="th">Server</th><th className="th">Expires</th><th className="th">Emails sent</th><th className="th">Last email</th><th className="th" /></tr></thead>
+      <thead><tr><th className="th">Server</th><th className="th">Paid until</th><th className="th">Email contact</th><th className="th">Emails sent</th><th className="th">Last email</th><th className="th" /></tr></thead>
       <tbody>{rows.map((r) => {
         const gid = String(r.guild_id);
         return (
           <Tr key={gid}>
             <td className="td"><ServerLink id={gid} info={infos[gid]} /></td>
-            <td className="td num">{dateTime(str(r.paid_until ?? r.trial_ends_at))}</td><td className="td num">{stats.get(gid)?.sent ?? 0}</td>
+            <td className="td num">{dateTime(str(r.paid_until))}</td>
+            <td className="td">{!hasMail ? '—' : hasMail.hasEmail.has(gid) ? <Badge tone="success">Has email</Badge> : <span className="text-muted">None</span>}</td><td className="td num">{stats.get(gid)?.sent ?? 0}</td>
             <td className="td num">{stats.get(gid)?.last ? dateTime(stats.get(gid)!.last) : '—'}</td>
             <td className="td text-right">{act(gid)}</td>
           </Tr>
@@ -83,7 +86,7 @@ export async function RemindersPage({ role, admin }: RouteCtx) {
   );
   return (
     <>
-      <PageHeader title="Reminders &amp; email" description="Upcoming expiries and the emails sent about them." updatedAt={new Date()} />
+      <PageHeader title="Reminders &amp; email" description="Paid time ending soon and the emails sent about it. Only servers with an email contact can be emailed." updatedAt={new Date()} />
       <div className="grid gap-4">
         <Card title="Upcoming (next 7 days)">{table(d.upcoming, 'Upcoming reminders')}</Card>
         <Card title="Emails by type" action={<span className="text-xs text-muted">Last 30 days</span>}>
@@ -120,9 +123,9 @@ export async function RemindersPage({ role, admin }: RouteCtx) {
             </Table>
           )}
         </Card>
-        <Card title={`Failed activation DMs (${failed.rows.length})`} action={<span className="text-xs text-muted">Last 30 days</span>}>
+        <Card title={`Failed welcome DMs (${failed.rows.length})`} action={<span className="text-xs text-muted">Last 30 days</span>}>
           {!failed.available ? <EmptyState compact title="DM log not available yet" hint="Apply the bot's dm_log migration to track delivery" />
-            : failed.rows.length === 0 ? <EmptyState compact title="No failed activation DMs" hint="Every activation DM in the last 30 days was delivered" />
+            : failed.rows.length === 0 ? <EmptyState compact title="No failed welcome DMs" hint="Every welcome DM in the last 30 days was delivered" />
             : (
               <Table label="Failed DMs" bare>
                 <thead><tr><th className="th">Server</th><th className="th">Discord user ID</th><th className="th">Message</th><th className="th">Status</th><th className="th">Detail</th><th className="th">When</th></tr></thead>
@@ -312,19 +315,63 @@ export async function HealthPage({ role }: RouteCtx) {
 }
 
 export async function AuditPage({ searchParams }: RouteCtx) {
-  const { rows, total, f } = await getMergedAudit(searchParams);
-  const params = { action: f.action, admin: f.admin, target: f.target, from: f.from, to: f.to };
+  const dashboard = searchParams.tab === 'dashboard';
+  const path = `${base}/audit`;
+  const tabs = (
+    <nav className="mb-4 inline-flex gap-1 rounded-lg bg-subtle p-1" aria-label="Audit source">
+      {([['', 'Admin actions'], ['dashboard', 'Dashboard changes']] as const).map(([k, label]) => (
+        <Link key={k} href={k ? `${path}?tab=${k}` : path} aria-current={(k === 'dashboard') === dashboard ? 'page' : undefined}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium ${(k === 'dashboard') === dashboard ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'}`}>{label}</Link>
+      ))}
+    </nav>
+  );
+  if (!dashboard) {
+    const { rows, total, f } = await getAdminAudit(searchParams);
+    return (
+      <>
+        <PageHeader title="Audit" description="What admins did on this product." updatedAt={new Date()} />
+        {tabs}
+        <Filters action={path} fields={[
+          { type: 'text', key: 'action', label: 'Action', placeholder: 'Action prefix, e.g. server.', hint: 'Separate several with commas.' },
+          { type: 'text', key: 'admin', label: 'Admin', placeholder: 'Admin email contains', hint: 'Matches part of the admin email.' },
+          { type: 'text', key: 'target', label: 'Server ID', placeholder: 'Server ID' },
+          { type: 'daterange', key: 'date', label: 'Date', fromKey: 'from', toKey: 'to' },
+        ]} />
+        <AuditTable rows={rows} showProduct={false} />
+        <Pagination base={path} params={{ action: f.action, admin: f.admin, target: f.target, from: f.from, to: f.to }} page={f.page} pageSize={PAGE_SIZE} total={total} />
+      </>
+    );
+  }
+  const { rows, total, f } = await getDashboardAudit(searchParams);
+  const infos = await guildInfoMap(rows.map((r) => String(r.guild_id)));
   return (
     <>
-      <PageHeader title="Audit" description="Admin actions on this product merged with the bot's own audit log." updatedAt={new Date()} />
-      <Filters action={`${base}/audit`} fields={[
-        { type: 'text', key: 'action', label: 'Action', placeholder: 'Action prefix, e.g. server.', hint: 'Separate several with commas.' },
-        { type: 'text', key: 'admin', label: 'Admin', placeholder: 'Admin email contains', hint: 'Matches part of the admin email.' },
+      <PageHeader title="Audit" description="What customers changed from the dashboard. The actor is a customer's Discord ID." updatedAt={new Date()} />
+      {tabs}
+      <Filters action={path} fields={[
+        { type: 'text', key: 'action', label: 'Action', placeholder: 'Action prefix, e.g. account.', hint: 'For example account.add, account.remove, alerts.update, bot.disable, billing.portal_opened. Separate several with commas.' },
+        { type: 'text', key: 'admin', label: 'Customer ID', placeholder: 'Customer Discord ID' },
         { type: 'text', key: 'target', label: 'Server ID', placeholder: 'Server ID' },
         { type: 'daterange', key: 'date', label: 'Date', fromKey: 'from', toKey: 'to' },
       ]} />
-      <AuditTable rows={rows} showProduct={false} />
-      <Pagination base={`${base}/audit`} params={params} page={f.page} pageSize={PAGE_SIZE} total={total} />
+      {rows.length === 0 ? <div className="card"><EmptyState title="No dashboard changes" hint="Try widening the filters." /></div> : (
+        <Table label="Dashboard changes">
+          <thead><tr><th className="th">Time</th><th className="th">Server</th><th className="th">Customer</th><th className="th">Action</th><th className="th">Target</th></tr></thead>
+          <tbody>{rows.map((r, i) => {
+            const gid = String(r.guild_id);
+            return (
+              <Tr key={String(r.id ?? i)}>
+                <td className="td num whitespace-nowrap">{dateTime(str(r.created_at))}</td>
+                <td className="td"><ServerLink id={gid} info={infos[gid]} /></td>
+                <td className="td">{r.actor_id ? <CopyId value={String(r.actor_id)} /> : '—'}</td>
+                <td className="td"><Badge tone="neutral">{sentence(str(r.action))}</Badge></td>
+                <td className="td"><ClampText text={str(r.target) ?? '—'} title="Target" max={48} /></td>
+              </Tr>
+            );
+          })}</tbody>
+        </Table>
+      )}
+      <Pagination base={path} params={{ tab: 'dashboard', action: f.action, admin: f.admin, target: f.target, from: f.from, to: f.to }} page={f.page} pageSize={PAGE_SIZE} total={total} />
     </>
   );
 }
@@ -336,7 +383,7 @@ export async function SettingsPage({ role, manifest }: { role: RouteCtx['role'];
   const live = new Set((platformHealth?.platforms ?? []).map((r) => String(r.platform).toLowerCase()));
   return (
     <>
-      <PageHeader title="Settings" description="Product branding, pricing and trial settings, and how the bot currently runs." updatedAt={new Date()} />
+      <PageHeader title="Settings" description="Product branding, pricing and plan settings, and how the bot currently runs." updatedAt={new Date()} />
       <div className="mb-4"><BrandingCard slug={SLUG} role={role} manifest={manifest} /></div>
       <div className="mb-4">
         <Card title="Payments">
@@ -360,7 +407,7 @@ export async function SettingsPage({ role, manifest }: { role: RouteCtx['role'];
           <Card title="Email" action={<Link className="text-sm text-accent hover:underline" href={`${base}/email/settings`}>Email settings</Link>}>
             <KV items={[
               ['Renewal reminder (days before)', schedule.effective.renewal_days_before === 0 ? 'Never' : String(schedule.effective.renewal_days_before)],
-              ['Trial-ended reminders', `Every ${schedule.effective.trial_reminder_every_days} days, up to ${schedule.effective.trial_reminder_max}`],
+              ['Subscription-ended reminders', `Every ${schedule.effective.trial_reminder_every_days} days, at most ${schedule.effective.trial_reminder_max}`],
               ['Last successful send', health?.lastSuccess ? relative(health.lastSuccess) : 'Never'],
               ['Failed in the last 24 hours', health ? `${int(health.failed24)} of ${int(health.total24)}` : '—'],
             ]} />
@@ -368,13 +415,22 @@ export async function SettingsPage({ role, manifest }: { role: RouteCtx['role'];
         </div>
       )}
       <div className="mb-4">
-        <Card title="Pricing and trial"
+        <Card title="Pricing and grace"
           action={can(role, 'bot.settings') && (
-            <ConfirmAction label="Edit" title="Edit pricing and trial" description="Leave a box empty to use the bot's own default. The bot picks changes up within about 10 minutes." action={saveBotSettings} hidden={{}}
+            <ConfirmAction label="Edit" title="Edit pricing and grace" description="Leave a box empty to use the bot's own default. The bot picks changes up within about 10 minutes." action={saveBotSettings} hidden={{}}
               fields={BOT_SETTING_FIELDS.map((f) => ({ name: f.key, label: f.label, placeholder: `Bot default · ${f.hint}`, optional: true, defaultValue: saved[f.key] === undefined ? '' : String(saved[f.key]) }))} />
           )}>
           <KV items={BOT_SETTING_FIELDS.map((f): [string, React.ReactNode] => [f.label, saved[f.key] === undefined ? <span key={f.key} className="text-muted">Bot default</span> : f.format(saved[f.key]!)])} />
           <p className="mt-4 text-xs text-muted">Stored in the database and changeable here. A field set to “Bot default” keeps using the value the bot has in its own settings. Changing the price here does not change the price in Polar.</p>
+        </Card>
+      </div>
+      <div className="mb-4">
+        <Card title="Plan limits (set on the bot)">
+          <KV items={[
+            ['Free accounts per platform', '1 (FREE_ACCOUNTS_PER_PLATFORM)'], ['Paid accounts per server', 'Unlimited, capped by MAX_ACCOUNTS_PER_SERVER'],
+            ['Grace period', `${saved.grace_days ?? 3} days (BILLING_GRACE_DAYS)`], ['Price', `${saved.price_usd !== undefined ? `$${saved.price_usd.toFixed(2)}` : '$1.99'} per month (BILLING_PRICE_USD)`],
+          ]} />
+          <p className="mt-4 text-xs text-muted">The panel cannot read the bot&apos;s environment, so these are documented values. The plan view has {saved.grace_days ?? 3} grace days built in: keep it equal to the bot&apos;s BILLING_GRACE_DAYS.</p>
         </Card>
       </div>
       {rows.length > 0 && (

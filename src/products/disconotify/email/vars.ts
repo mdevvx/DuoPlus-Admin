@@ -6,14 +6,11 @@ export interface VarDef { name: string; meaning: string; sample: string; url?: b
 export const VARIABLES: VarDef[] = [
   { name: 'server_name', meaning: 'Discord server name', sample: 'Gaming Hub' },
   { name: 'price', meaning: 'Monthly price', sample: '$1.99' },
-  { name: 'trial_days', meaning: 'Trial length in days', sample: '7' },
-  { name: 'trial_ends_at', meaning: 'When the trial ends', sample: 'October 29, 2026' },
   { name: 'paid_until', meaning: 'Paid until', sample: 'November 29, 2026' },
   { name: 'next_charge_date', meaning: 'Next card payment', sample: 'November 29, 2026' },
   { name: 'status_line', meaning: 'Ready-made sentence about the subscription state', sample: 'Your subscription is active until November 29, 2026.' },
-  { name: 'subscribe_url', meaning: 'Subscribe page', sample: 'https://disconotify.com/subscribe', url: true },
-  { name: 'activate_url', meaning: 'Trial activation page', sample: 'https://disconotify.com/activate', url: true },
-  { name: 'manage_url', meaning: 'Manage or cancel page', sample: 'https://disconotify.com/manage', url: true },
+  { name: 'subscribe_url', meaning: 'Dashboard billing page (subscribe)', sample: 'https://disconotify.com/subscribe', url: true },
+  { name: 'manage_url', meaning: 'Dashboard billing page (manage or cancel)', sample: 'https://disconotify.com/manage', url: true },
   { name: 'unsubscribe_url', meaning: 'Unsubscribe link (marketing emails only, empty otherwise)', sample: 'https://disconotify.com/unsubscribe?t=sample', url: true },
   { name: 'support_email', meaning: 'Support address', sample: 'support@disconotify.com' },
   { name: 'reminder_number', meaning: 'Which reminder this is (1, 2, 3)', sample: '1' },
@@ -30,23 +27,26 @@ export const SAMPLES: Sample[] = [
   { id: 'normal', label: 'Normal', values: base },
   { id: 'long', label: 'Very long server name', values: { ...base, server_name: 'The Official Community Server For Competitive Gaming, Esports Tournaments And Weekly Watch Parties' } },
   { id: 'special', label: 'Special characters in name', values: { ...base, server_name: '<b>Tom & Jerry</b> "Fan" Club' } },
-  { id: 'notrial', label: 'No trial date', values: { ...base, trial_ends_at: '', trial_days: '' } },
+  { id: 'nopaid', label: 'No paid date', values: { ...base, paid_until: '', next_charge_date: '' } },
 ];
 
 export type Category = 'transactional' | 'marketing';
 export const CATEGORY_LABEL: Record<string, string> = { transactional: 'Billing', marketing: 'Reminder / marketing' };
 
 /** The bot looks built-ins up by key and decides when to send them; the panel only shows this. */
+/** Templates the free plan made obsolete. The migration switches them off; the panel flags them and never offers them for sending. */
+export const RETIRED_TEMPLATES = new Set(['trial_activated', 'trial_ended_reminder']);
+
 export const BUILT_IN: Record<string, { trigger: string }> = {
-  trial_activated: { trigger: 'Someone activates a server’s trial on the website.' },
+  trial_activated: { trigger: 'Retired: the free trial no longer exists, so this email is never sent.' },
   subscription_started: { trigger: 'A card subscription or crypto payment begins.' },
   subscription_cancelled: { trigger: 'A card subscription is cancelled.' },
   payment_failed: { trigger: 'A card payment fails (Polar retries it).' },
-  renewal_reminder: { trigger: 'N days before the next card payment, or before a trial turns into the first charge. N is set under Email settings.' },
+  renewal_reminder: { trigger: 'N days before the next card payment. N is set under Email settings.' },
   subscription_renewed: { trigger: 'A card payment for the next month went through.' },
-  subscription_ended: { trigger: 'A card subscription ended and alerts are paused.' },
-  trial_ended_reminder: { trigger: 'After a free trial ends without a subscription: right away, then on the schedule in Email settings, at most 3 by default.' },
-  subscription_lapsed_reminder: { trigger: 'The same series after a paid subscription runs out (and its grace period).' },
+  subscription_ended: { trigger: 'A card subscription ended. The server is back on the free plan: one account per platform keeps running, the extra ones are paused.' },
+  trial_ended_reminder: { trigger: 'Retired: the free trial no longer exists, so this email is never sent.' },
+  subscription_lapsed_reminder: { trigger: 'Three reminders, a week apart, after paid time and its grace period end.' },
 };
 
 // ---- Layout & schedule (stored as JSON in notify_bot_state) ----

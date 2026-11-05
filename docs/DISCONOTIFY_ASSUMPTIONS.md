@@ -19,8 +19,8 @@ Checked against the live `disconotify` schema column list (October 2026). Table 
 
 ## Consequences
 
-- **Servers have no name.** They are shown and searched by Discord server ID, and the "type to confirm" text is the ID.
-- **No owner column.** The server page shows the most recent payer (`requested_by`) as "Owner / last payer".
+- **Servers have names now** (bot migration 0015: `notify_guilds.name, icon_url, owner_id, member_count`). The panel reads them from the `notify_guild_plans` view first and falls back to Discord, then to the ID, until the bot has restarted once.
+- **Owner** comes from `owner_id`; before the bot fills it, the server page shows the most recent payer (`requested_by`).
 - **`notify_user_contacts` does not exist yet.** Apply the bot's migration that creates it
   (`discord_user_id, email, discord_username, email_verified, consented_at, reminders_opt_out, opted_out_at`).
   Until then the Customers page says so, and contact actions fail with a generic error.
@@ -37,3 +37,29 @@ reminder; it does not send anything itself. It is limited to once per hour per s
 MRR is an estimate: paid ledger rows whose paid period still covers today, divided by their months.
 Churn this month counts non-whitelisted servers whose `paid_until` passed this month.
 Possible duplicate card subscriptions is a heuristic: two distinct Polar charges for one server within 35 days.
+
+
+## Free plan and dashboard (November 2026)
+
+The trial is gone: every server is **Free**, **Paid**, **Grace** or **Whitelisted**. Run the bot's migration 0015, then
+`supabase/migrations/20261106000000_free_plan_ops.sql` (replaces "extend trial" with grant/remove paid time and adds the
+account support action).
+
+| Thing | How the panel uses it |
+|---|---|
+| `notify_guild_plans` view | The only source of a server's plan (`free / paid / grace / whitelisted`), names, icons, card status. The panel never re-derives it from dates, except as a fallback in `planFromBilling` (3 grace days, keep equal to `BILLING_GRACE_DAYS`). |
+| `notify_dashboard_jobs` | Read-only "Dashboard jobs" page. Only `status` and `result.code` are shown, never `payload`. |
+| `notify_audit_logs` | "Dashboard changes" tab on the Audit page (actor = a customer's Discord ID). |
+| `notify_platform_accounts.paused_by_plan` | **Assumed boolean column** marking accounts the free plan keeps switched off. If the bot names it differently, change `pausedByPlan()` in `state.ts` and `accountStatsByGuild()` in `queries/servers.ts`. |
+| `notify_platform_accounts.id`, `last_checked_at`, `last_error` | Used by the accounts table and the pause / resume / remove support actions (`dn_account_change`). |
+| `notify_platform_health.quota_limit / quota_remaining` | YouTube "API budget" tile (limit defaults to 10,000). |
+
+Not read or written any more: `trial_ends_at`, `activation_required`, `trial_activated_at`, `activated_by`, `invited_by`.
+The only DM left is `welcome`.
+
+**Granted paid time** is `billing.grant_days` in the audit log plus `notify_billing.paid_until`. No `notify_payments` row is
+written, so revenue and MRR stay real. **Remove paid time** sets `paid_until` to now (`billing.remove_paid`).
+
+**Over the free limit** = a Free server with more than one account on any platform (counted from `notify_platform_accounts`).
+**Free to paid conversion (30 days)** = servers whose first real payment is in the last 30 days and that existed and were not
+paid 30 days ago, divided by all servers that existed and were not paid 30 days ago.

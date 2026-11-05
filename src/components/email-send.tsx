@@ -20,7 +20,7 @@ interface Prefill { guildId?: string; templateKey?: string; subject?: string; ht
 
 const TIMES = Array.from({ length: 96 }, (_, i) => `${String(Math.floor(i / 4)).padStart(2, '0')}:${String((i % 4) * 15).padStart(2, '0')}`);
 const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const STATES: [string, string][] = [['trial', 'Trial'], ['active', 'Active (paid)'], ['card_past_due', 'Card past due'], ['lapsed', 'Lapsed']];
+const STATES: [string, string][] = [['paid', 'Paid'], ['grace', 'Grace'], ['free', 'Free'], ['card_past_due', 'Card past due']];
 
 function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return <Card title={`${n}. ${title}`}>{children}</Card>;
@@ -66,7 +66,7 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
   const contentOk = mode === 'template' ? !!tpl && !(subjectOverride.length > SUBJECT_MAX) : !hasErrors(issues);
 
   const recipients = () => recMode === 'server' ? { mode: 'server' as const, guildId: guildId.trim() }
-    : recMode === 'filter' ? { mode: 'filter' as const, states: states as ('trial' | 'active' | 'lapsed' | 'card_past_due')[] }
+    : recMode === 'filter' ? { mode: 'filter' as const, states: states as ('paid' | 'grace' | 'free' | 'card_past_due')[] }
     : { mode: 'addresses' as const, text: addresses };
   const extraMap = () => Object.fromEntries(extra.split('\n').map((l) => l.split('=')).filter((p) => p.length >= 2 && VAR_NAMES.has(p[0]!.trim())).map((p) => [p[0]!.trim(), p.slice(1).join('=').trim()]));
 
@@ -183,7 +183,7 @@ export function EmailSend({ templates, base, prefill, adminEmail, accent }: { te
                 <select className="input max-w-md" value={tplKey} onChange={(e) => setTplKey(e.target.value)}>{templates.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}</select></label>
               <label className="block"><span className={label}>Subject <span className="font-normal text-muted">· optional override</span></span>
                 <input className="input" value={subjectOverride} maxLength={SUBJECT_MAX} placeholder={tpl?.subject} onChange={(e) => setSubjectOverride(e.target.value)} /></label>
-              <label className="block"><span className={label}>Extra variables <span className="font-normal text-muted">· one per line, e.g. trial_days=14. The server name is filled in automatically.</span></span>
+              <label className="block"><span className={label}>Extra variables <span className="font-normal text-muted">· one per line, e.g. price=$1.99. The server name is filled in automatically.</span></span>
                 <textarea className="input h-20 resize-y py-2 font-mono text-xs" value={extra} onChange={(e) => setExtra(e.target.value)} /></label>
             </div>
           ) : (
