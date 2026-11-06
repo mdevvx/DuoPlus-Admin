@@ -23,6 +23,11 @@ export function StateBadge({ billing, botPresent }: { billing: Row; botPresent: 
   return <Badge tone={STATE_LABEL[s].tone}>{STATE_LABEL[s].label}</Badge>;
 }
 
+/** Shown next to the plan when the server is Paid only because of sandbox payments (a test, not revenue). */
+export function SandboxPaidBadge({ show }: { show: boolean }) {
+  return show ? <Badge tone="warning">{polarModeName(!polarSandbox())} payment only</Badge> : null;
+}
+
 /** Marks a payment from the other Polar environment than the one the panel follows (Sandbox on a live panel, Live on a sandbox one), so it is never mistaken for this mode's revenue. */
 export function TestBadge({ test }: { test: boolean }) {
   return test ? <Badge tone="warning">{polarModeName(!polarSandbox())}</Badge> : null;

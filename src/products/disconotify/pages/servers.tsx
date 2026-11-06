@@ -14,7 +14,8 @@ import { grantPaidTime, markBotRemoved, pauseAccount, removeAccount, removePaidT
 import type { RouteCtx } from '@/products/types';
 import { OutboxStatus } from './email';
 import { JobsTable } from './jobs';
-import { ChannelsMini, DmStatus, GenericRows, PlatformBadge, dmKindLabel, PaymentsMini, ServerLink, StateBadge, base } from './shared';
+import { sandboxOnlyGuilds } from '../polar';
+import { ChannelsMini, DmStatus, GenericRows, PlatformBadge, SandboxPaidBadge, dmKindLabel, PaymentsMini, ServerLink, StateBadge, base } from './shared';
 import { ServerAvatar } from '@/components/server-avatar';
 import { DiscordNotice } from '@/components/discord-notice';
 import { getGuildInfo, guildInfoMap } from '@/lib/discord';
@@ -27,7 +28,7 @@ export async function ServersPage({ searchParams }: RouteCtx) {
   const p = serverParams.parse(searchParams);
   let data;
   try { data = await listServers(p); } catch { return <ErrorPanel message="Could not load servers." retryHref={`${base}/servers`} />; }
-  const [infos, mail] = await Promise.all([guildInfoMap(data.rows.map((r) => r.guild_id)), emailBadges(data.rows.map((r) => r.guild_id)).catch(() => null)]);
+  const [infos, mail, sandboxOnly] = await Promise.all([guildInfoMap(data.rows.map((r) => r.guild_id)), emailBadges(data.rows.map((r) => r.guild_id)).catch(() => null), sandboxOnlyGuilds().catch(() => new Set<string>())]);
   const keep = { q: p.q, plan: p.plan, flag: p.flag, sort: p.sort, dir: p.dir };
   const path = `${base}/servers`;
   return (
@@ -54,7 +55,7 @@ export async function ServersPage({ searchParams }: RouteCtx) {
             return (
               <Tr key={r.guild_id}>
                 <td className="td"><ServerLink id={r.guild_id} info={infos[r.guild_id]} /></td>
-                <td className="td"><StateBadge billing={r.plan} botPresent={r.bot_present} /></td>
+                <td className="td"><span className="inline-flex flex-wrap items-center gap-1"><StateBadge billing={r.plan} botPresent={r.bot_present} /><SandboxPaidBadge show={sandboxOnly.has(r.guild_id) && r.plan.plan === 'paid'} /></span></td>
                 <td className="td" title={perPlatform || undefined}>
                   <span className="num">{r.stats.total}</span>
                   {r.stats.paused > 0 && <span className="ml-2"><Badge tone="warning">{r.stats.paused} paused by plan</Badge></span>}
@@ -149,7 +150,7 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
   if (!id.success) notFound();
   const d = await getServer(id.data);
   if (!d) notFound();
-  const info = await getGuildInfo(id.data);
+  const [info, sandboxOnly] = await Promise.all([getGuildInfo(id.data), sandboxOnlyGuilds().catch(() => new Set<string>())]);
   const name = info?.name ?? id.data; // typed confirmation accepts the name or the ID
   const b = d.billing;
   const pl = d.plan ?? {};
@@ -191,7 +192,7 @@ export async function ServerDetailPage({ params, role, admin }: RouteCtx) {
     <>
       <PageHeader icon={<ServerAvatar info={info} id={id.data} size={52} />} title={name}
         description={`Server detail · ${id.data}${members ? ` · ${plural(num(members), 'member')}` : ''}${added ? ` · bot added ${dateOnly(added)}` : ''}`}
-        actions={<StateBadge billing={planRow} botPresent={botPresent} />} updatedAt={new Date()} />
+        actions={<span className="inline-flex items-center gap-2"><StateBadge billing={planRow} botPresent={botPresent} /><SandboxPaidBadge show={sandboxOnly.has(id.data) && planKey === 'paid'} /></span>} updatedAt={new Date()} />
       <div className="mb-5">{acts}</div>
       <div className="mb-6 grid grid-cols-4 gap-5">
         <Card><Stat icon="subscriptions" label="Plan" value={<span className="text-[22px]">{STATE_LABEL[subState].label}</span>}

@@ -2,7 +2,7 @@ import 'server-only';
 import { parseFlag } from '../state';
 import { accountStatsByGuild } from './servers';
 import { pn, T, count, daysFrom, iso, num, must, type Row } from '../db';
-import { excludeTest, testPaymentIds } from '../polar';
+import { excludeTest, sandboxOnlyGuilds, testPaymentIds } from '../polar';
 
 export interface Overview {
   botPresent: number; free: number; paidCard: number; paidCrypto: number; grace: number; whitelisted: number; paidTotal: number;
@@ -43,6 +43,14 @@ export async function getOverview(): Promise<Overview> {
     count(pv().eq('plan', 'paid').not('card_cancels_at', 'is', null)),
     count(pv().eq('plan', 'paid').eq('has_card_subscription', false).lte('paid_until', iso(daysFrom(7)))),
   ]);
+
+  // Servers that are Paid only through sandbox payments are tests, not customers: take them out of the paid counts.
+  const sandboxOnly = await sandboxOnlyGuilds().catch(() => new Set<string>());
+  let sandboxCard = 0;
+  if (sandboxOnly.size) {
+    const ids = [...sandboxOnly].slice(0, 500);
+    sandboxCard = await count(pv().eq('plan', 'paid').eq('has_card_subscription', true).in('guild_id', ids));
+  }
 
   // Servers whose first real payment falls in a window = "new paid"; they are the conversions.
   const everPaid = must(await excludeTest(db.from(T.payments).select('guild_id,paid_at,months,id'), test).eq('status', 'paid').not('paid_at', 'is', null).order('paid_at').limit(20000), 'paid payments') as Row[];
@@ -91,7 +99,7 @@ export async function getOverview(): Promise<Overview> {
   const ytLimit = num(yt?.quota_limit) || 10000;
 
   return {
-    botPresent, free, paidCard, paidCrypto, grace, whitelisted, paidTotal: paidCard + paidCrypto, mrr,
+    botPresent, free: free + sandboxCard, paidCard: paidCard - sandboxCard, paidCrypto, grace, whitelisted, paidTotal: paidCard - sandboxCard + paidCrypto, mrr,
     newPaidThisWeek, churnThisMonth: churn, converted30, freeAtStart: freeStart.length,
     conversion30: freeStart.length ? converted30 / freeStart.length : null,
     overLimit, aboutToLapse: cancelling + cryptoEnding, newThisWeek: newWeek,

@@ -62,3 +62,16 @@ export function excludeTest<Q>(q: Q, testIds: string[], col = 'id'): Q {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return testIds.length ? (q as any).not(col, 'in', `(${testIds.join(',')})`) : q;
 }
+
+/**
+ * Servers that show as Paid only because of sandbox (other-environment) payments: they have at least one paid Polar
+ * payment from the other environment and none from this one. The bot's plan view cannot tell, so the panel flags them.
+ */
+export async function sandboxOnlyGuilds(): Promise<Set<string>> {
+  const test = new Set(await testPaymentIds());
+  if (test.size === 0) return new Set();
+  const { data } = await pn().from(T.payments).select('id,guild_id').eq('provider', 'polar').eq('status', 'paid').limit(20000);
+  const hasTest = new Set<string>(), hasReal = new Set<string>();
+  for (const r of (data ?? []) as Row[]) (test.has(String(r.id)) ? hasTest : hasReal).add(String(r.guild_id));
+  return new Set([...hasTest].filter((g) => !hasReal.has(g)));
+}
