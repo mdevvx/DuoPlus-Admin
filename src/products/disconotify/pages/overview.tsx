@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Download } from 'lucide-react';
 import { RefreshButton } from '@/components/refresh-button';
 import { Badge, Card, ErrorPanel, Hero, HeroChip, MiniStat, StatCard, heroBtn, heroBtnSolid } from '@/components/ui';
-import { AreaChart, BarChart, Donut, MiniBars, ProgressBar, Ring, SegmentBar, Sparkline } from '@/components/charts';
+import { AreaChart, Donut, MiniBars, ProgressBar, Ring, SegmentBar, Sparkline } from '@/components/charts';
 import { int, money, platformLabel, sentence, statusTone } from '@/lib/format';
 import { getOverview, type Overview } from '../queries/overview';
 import { PaymentsMini, base } from './shared';
@@ -117,12 +117,6 @@ export function OverviewView({ o, name }: { o: Overview; name: string }) {
             { label: 'Free', value: o.free, color: 'var(--chart-3)' }, { label: 'Card', value: o.paidCard, color: 'var(--chart-1)' }, { label: 'Crypto', value: o.paidCrypto, color: 'var(--chart-2)' },
             { label: 'Grace', value: o.grace, color: 'var(--chart-5)' }, { label: 'Whitelisted', value: o.whitelisted, color: 'var(--chart-4)' },
           ]} />
-        </Card>
-      </div>
-
-      <div className="mb-6">
-        <Card title="Paid revenue, last 30 days" action={<span className="num text-xs text-muted">Total {money(o.revenue30Total)}</span>}>
-          <BarChart data={o.revenue30} format={money} label="Paid revenue" />
         </Card>
       </div>
 
